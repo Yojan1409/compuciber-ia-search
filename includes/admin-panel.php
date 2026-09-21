@@ -1,0 +1,805 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/*
+ * ==========================================================
+ * DASHBOARD
+ * ==========================================================
+ */
+
+function compuciber_ai_search_dashboard() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    global $wpdb;
+
+    $tabla = $wpdb->prefix . 'compuciber_product_index';
+
+    $productos_woocommerce = wp_count_posts( 'product' );
+
+    $total_productos = 0;
+
+    if ( $productos_woocommerce ) {
+        $total_productos = isset( $productos_woocommerce->publish )
+            ? (int) $productos_woocommerce->publish
+            : 0;
+    }
+
+    $productos_indexados = (int) $wpdb->get_var(
+        "SELECT COUNT(*) FROM {$tabla}"
+    );
+
+    $ultima_sincronizacion = $wpdb->get_var(
+        "SELECT MAX(actualizado) FROM {$tabla}"
+    );
+
+    $proveedor = get_option(
+        'compuciber_proveedor_ia',
+        'gemini'
+    );
+
+    ?>
+
+    <div class="wrap">
+
+        <h1>AI Product Search</h1>
+
+        <p>
+            Panel de control del buscador inteligente
+            de productos WooCommerce.
+        </p>
+
+        <hr>
+
+        <h2>Estado del sistema</h2>
+
+        <table class="widefat striped">
+
+            <thead>
+                <tr>
+                    <th>Elemento</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>WooCommerce</td>
+                    <td>
+                        <?php if ( class_exists( 'WooCommerce' ) ) : ?>
+
+                            <strong style="color:green;">
+                                Activo
+                            </strong>
+
+                        <?php else : ?>
+
+                            <strong style="color:red;">
+                                No disponible
+                            </strong>
+
+                        <?php endif; ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Productos WooCommerce</td>
+                    <td>
+                        <strong>
+                            <?php echo esc_html( $total_productos ); ?>
+                        </strong>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Productos indexados</td>
+                    <td>
+                        <strong>
+                            <?php echo esc_html( $productos_indexados ); ?>
+                        </strong>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Última sincronización</td>
+                    <td>
+                        <?php
+                        echo ! empty( $ultima_sincronizacion )
+                            ? esc_html( $ultima_sincronizacion )
+                            : 'Sin sincronización registrada';
+                        ?>
+                    </td>
+                </tr>
+
+                    <tr>
+                        <td>Proveedor de IA</td>
+                        <td>
+                            <strong>
+                                <?php echo esc_html( $proveedor ); ?>
+                            </strong>
+                        </td>
+                    </tr>
+
+
+                    <!-- 🟢ESTADO IA -->
+
+                    <tr>
+                        <td>Estado IA</td>
+                        <td>
+
+                            <?php
+
+                            $api_key_configurada = false;
+
+                            if ( $proveedor === 'gemini' ) {
+
+                                $api_key_configurada = ! empty(
+                                    get_option(
+                                        'compuciber_gemini_api_key',
+                                        ''
+                                    )
+                                );
+
+                            } elseif ( $proveedor === 'openai' ) {
+
+                                $api_key_configurada = ! empty(
+                                    get_option(
+                                        'compuciber_openai_api_key',
+                                        ''
+                                    )
+                                );
+                            }
+
+                            ?>
+
+                            <?php if ( $api_key_configurada ) : ?>
+
+                                <strong style="color:green;">
+                                    Activa
+                                </strong>
+
+                            <?php else : ?>
+
+                                <strong style="color:#d63638;">
+                                    No configurada
+                                </strong>
+
+                            <?php endif; ?>
+
+                        </td>
+                    </tr>
+
+
+                    <!-- 🟢 FIN -->
+
+
+                    <tr>
+                        <td>Índice de productos</td>
+                        <td>
+
+                            <?php if ( $productos_indexados > 0 ) : ?>
+
+                                <strong style="color:green;">
+                                    Activo
+                                </strong>
+
+                            <?php else : ?>
+
+                                <strong style="color:#d63638;">
+                                    Sin productos indexados
+                                </strong>
+
+                            <?php endif; ?>
+
+                        </td>
+                    </tr>
+                    <td>
+
+                        <?php if ( $productos_indexados > 0 ) : ?>
+
+                            <strong style="color:green;">
+                                Activo
+                            </strong>
+
+                        <?php else : ?>
+
+                            <strong style="color:#d63638;">
+                                Sin productos indexados
+                            </strong>
+
+                        <?php endif; ?>
+
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+        <br>
+
+        <h2>Funciones del buscador</h2>
+
+        <table class="widefat striped">
+
+            <thead>
+                <tr>
+                    <th>Función</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>Autocompletado</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_autocompletado',
+                            '1'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Corrección de búsqueda</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_correccion',
+                            '1'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Búsqueda semántica con IA</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_busqueda_semantica',
+                            '1'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Búsqueda por voz</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_busqueda_voz',
+                            '0'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Búsqueda por imagen</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_busqueda_imagen',
+                            '0'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Estadísticas</td>
+                    <td>
+                        <?php
+                        echo get_option(
+                            'compuciber_estadisticas',
+                            '0'
+                        ) ? 'Activado' : 'Desactivado';
+                        ?>
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <?php
+}
+
+
+/*
+ * ==========================================================
+ * CONFIGURACIÓN
+ * ==========================================================
+ */
+
+function compuciber_ai_search_configuracion() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $proveedor = get_option(
+        'compuciber_proveedor_ia',
+        'gemini'
+    );
+
+    $gemini_api_key = get_option(
+        'compuciber_gemini_api_key',
+        ''
+    );
+
+    $openai_api_key = get_option(
+        'compuciber_openai_api_key',
+        ''
+    );
+
+    $modelo_embeddings = get_option(
+        'compuciber_modelo_embeddings',
+        ''
+    );
+
+    $modelo_multimodal = get_option(
+        'compuciber_modelo_multimodal',
+        ''
+    );
+
+    $modelo_voz = get_option(
+        'compuciber_modelo_voz',
+        ''
+    );
+
+    ?>
+
+    <div class="wrap">
+
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:15px;
+            margin-bottom:20px;
+        ">
+            <img
+                src="<?php echo esc_url(
+                    plugins_url(
+                        '../assets/images/logo.jpeg',
+                        __FILE__
+                    )
+                ); ?>"
+                alt="Compuciber AI Search"
+                style="
+                    width:64px;
+                    height:64px;
+                    object-fit:contain;
+                "
+            >
+
+            <div>
+                <h1 style="margin:0;">
+                    Compuciber AI Search
+                </h1>
+
+                <p style="
+                    margin:5px 0 0;
+                    color:#666;
+                ">
+                    Buscador inteligente de productos para WooCommerce
+                </p>
+            </div>
+        </div>
+
+        <h1>Configuración - AI Product Search</h1>
+
+        <form method="post" action="options.php">
+
+            <?php
+
+            settings_fields(
+                'compuciber_ai_search_settings_group'
+            );
+
+            ?>
+
+            <h2>Proveedor de IA</h2>
+
+            <table class="form-table">
+
+                <tr>
+
+                    <th scope="row">
+                        <label for="compuciber_proveedor_ia">
+                            Proveedor de IA
+                        </label>
+                    </th>
+
+                    <td>
+
+                        <select
+                            id="compuciber_proveedor_ia"
+                            name="compuciber_proveedor_ia"
+                        >
+
+                            <option
+                                value="gemini"
+                                <?php selected(
+                                    $proveedor,
+                                    'gemini'
+                                ); ?>
+                            >
+                                Google Gemini
+                            </option>
+
+                            <option
+                                value="openai"
+                                <?php selected(
+                                    $proveedor,
+                                    'openai'
+                                ); ?>
+                            >
+                                OpenAI
+                            </option>
+
+                        </select>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        <label for="compuciber_gemini_api_key">
+                            Gemini API Key
+                        </label>
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="password"
+                            id="compuciber_gemini_api_key"
+                            name="compuciber_gemini_api_key"
+                            value="<?php echo esc_attr( $gemini_api_key ); ?>"
+                            class="regular-text"
+                            autocomplete="off"
+                        >
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        <label for="compuciber_openai_api_key">
+                            OpenAI API Key
+                        </label>
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="password"
+                            id="compuciber_openai_api_key"
+                            name="compuciber_openai_api_key"
+                            value="<?php echo esc_attr( $openai_api_key ); ?>"
+                            class="regular-text"
+                            autocomplete="off"
+                        >
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+
+            <h2>Modelos de IA</h2>
+
+            <table class="form-table">
+
+                <tr>
+
+                    <th scope="row">
+                        Modelo de texto
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="text"
+                            name="compuciber_modelo_ia"
+                            value="<?php echo esc_attr(
+                                get_option(
+                                    'compuciber_modelo_ia',
+                                    ''
+                                )
+                            ); ?>"
+                            class="regular-text"
+                            placeholder="Modelo para texto"
+                        >
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Modelo de embeddings
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="text"
+                            name="compuciber_modelo_embeddings"
+                            value="<?php echo esc_attr( $modelo_embeddings ); ?>"
+                            class="regular-text"
+                            placeholder="text-embedding-3-small"
+                        >
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Modelo multimodal
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="text"
+                            name="compuciber_modelo_multimodal"
+                            value="<?php echo esc_attr( $modelo_multimodal ); ?>"
+                            class="regular-text"
+                            placeholder="Modelo para imágenes"
+                        >
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Modelo de voz
+                    </th>
+
+                    <td>
+
+                        <input
+                            type="text"
+                            name="compuciber_modelo_voz"
+                            value="<?php echo esc_attr( $modelo_voz ); ?>"
+                            class="regular-text"
+                            placeholder="Modelo para voz"
+                        >
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+
+            <h2>Funciones</h2>
+
+            <table class="form-table">
+
+                <tr>
+
+                    <th scope="row">
+                        Autocompletado
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_autocompletado"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_autocompletado',
+                                        '1'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Activar autocompletado
+
+                        </label>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Corrección
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_correccion"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_correccion',
+                                        '1'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Corregir errores de escritura
+
+                        </label>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                                    <th scope="row">
+                                        Búsqueda semántica
+                                    </th>
+
+                                    <td>
+
+                                        <label>
+
+                                            <input
+                                                type="hidden"
+                                                name="compuciber_busqueda_semantica"
+                                                value="0"
+                                            >
+
+                                            <input
+                                                type="checkbox"
+                                                name="compuciber_busqueda_semantica"
+                                                value="1"
+                                                <?php checked(
+                                                    get_option(
+                                                        'compuciber_busqueda_semantica',
+                                                        '0'
+                                                    ),
+                                                    '1'
+                                                ); ?>
+                                            >
+
+                                            Activar búsqueda semántica con IA
+
+                                        </label>
+
+                                    </td>
+
+                                </tr>
+                <tr>
+
+                    <th scope="row">
+                        Búsqueda por voz
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_busqueda_voz"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_busqueda_voz',
+                                        '0'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Activar búsqueda por voz
+
+                        </label>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Búsqueda por imagen
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_busqueda_imagen"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_busqueda_imagen',
+                                        '0'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Activar búsqueda por imagen
+
+                        </label>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Estadísticas
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_estadisticas"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_estadisticas',
+                                        '0'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Activar estadísticas
+
+                        </label>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+            <?php submit_button( 'Guardar configuración' ); ?>
+
+        </form>
+
+    </div>
+
+    <?php
+}
