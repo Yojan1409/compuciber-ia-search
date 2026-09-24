@@ -2,13 +2,47 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 1.2.0
+ * Version: 1.0.0
  * Author: Compuciber
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
+
+
+function compuciber_verificar_woocommerce() {
+
+    if ( ! class_exists( 'WooCommerce' ) ) {
+
+        add_action( 'admin_notices', function() {
+
+            echo '<div class="notice notice-error">';
+            echo '<p>';
+            echo '<strong>Compuciber AI Search:</strong> ';
+            echo 'WooCommerce debe estar instalado y activo para utilizar este plugin.';
+            echo '</p>';
+            echo '</div>';
+
+        } );
+
+        return false;
+    }
+
+    return true;
+}
+
+if ( ! compuciber_verificar_woocommerce() ) {
+    return;
+}
+
+
+require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
+
+require_once plugin_dir_path( __FILE__ ) . 'includes/sugerencias.php';
+
+require_once plugin_dir_path( __FILE__ ) . 'includes/configuracion.php';
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/sugerencias.php';
