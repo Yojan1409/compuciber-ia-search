@@ -141,3 +141,24 @@
         font-size: 12px;
     }
 }
+
+.compuciber-voice-listening {
+    animation: compuciber-pulse-voice 1s infinite;
+}
+
+
+@keyframes compuciber-pulse-voice {
+
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+
+}

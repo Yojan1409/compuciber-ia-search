@@ -280,6 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
             let escuchando = false;
+            let reconocimientoActivo = false;
 
 
             /*
@@ -292,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'click',
                 function () {
 
-                    if (escuchando) {
+                    if (escuchando || reconocimientoActivo) {
 
                         console.log(
                             'El reconocimiento ya está iniciado.'
@@ -304,8 +305,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     try {
 
                         escuchando = true;
+                        reconocimientoActivo = true;
 
                         voiceButton.textContent = '🔴';
+
+                        voiceButton.classList.add(
+                            'compuciber-voice-listening'
+                        );
 
                         voiceButton.setAttribute(
                             'aria-label',
@@ -328,6 +334,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         escuchando = false;
 
                         voiceButton.textContent = '🎤';
+                        reconocimientoActivo = false;
+
+                        voiceButton.classList.remove(
+                            'compuciber-voice-listening'
+                        );
 
                         voiceButton.setAttribute(
                             'aria-label',
@@ -389,12 +400,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     escuchando = false;
 
+                    reconocimientoActivo = false;
+
                     voiceButton.textContent = '🎤';
+                    voiceButton.classList.remove(
+                        'compuciber-voice-listening'
+                    );
 
                     voiceButton.setAttribute(
                         'aria-label',
                         'Buscar por voz'
                     );
+
+                    voiceButton.disabled = false;
 
                 }
             );
@@ -416,13 +434,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     );
 
                     escuchando = false;
+                    reconocimientoActivo = false;
 
                     voiceButton.textContent = '🎤';
+                    voiceButton.classList.remove(
+                        'compuciber-voice-listening'
+                    );
 
                     voiceButton.setAttribute(
                         'aria-label',
                         'Buscar por voz'
                     );
+
+                    voiceButton.disabled = false;
 
                 }
             );
