@@ -10,7 +10,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-
 function compuciber_verificar_woocommerce() {
 
     if ( ! class_exists( 'WooCommerce' ) ) {
@@ -22,8 +21,6 @@ function compuciber_verificar_woocommerce() {
             echo '<strong>Compuciber AI Search:</strong> ';
             echo 'WooCommerce debe estar instalado y activo para utilizar este plugin.';
             echo '</p>';
-            echo '</div>';
-
         } );
 
         return false;
@@ -32,10 +29,8 @@ function compuciber_verificar_woocommerce() {
     return true;
 }
 
-if ( ! compuciber_verificar_woocommerce() ) {
-    return;
-}
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
 
@@ -62,6 +57,11 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/indexacion.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/fuzzy.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/sinonimos.php';
+
+/**
+ * Verifica WooCommerce después de que WordPress haya cargado los plugins.
+ */
+add_action( 'plugins_loaded', 'compuciber_verificar_woocommerce', 20 );
 
 /**
  * Cargar JavaScript del buscador
