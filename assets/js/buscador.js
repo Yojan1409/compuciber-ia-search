@@ -249,8 +249,25 @@ document.addEventListener('DOMContentLoaded', function () {
             'compuciber-voice-button'
         );
 
+    function compuciber_icono_microfono() {
+
+        return `
+            <svg 
+                class="compuciber-mic-svg"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+            <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+            <path d="M19 11h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11z"/>
+            </svg>
+        `;
+
+    }
+
 
     if (voiceButton) {
+        voiceButton.innerHTML =
+            compuciber_icono_microfono();
 
         const SpeechRecognition =
             window.SpeechRecognition ||
@@ -281,6 +298,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             let escuchando = false;
             let reconocimientoActivo = false;
+            const estadoVoz =
+                document.getElementById(
+                    'compuciber-voice-status'
+                );
 
 
             /*
@@ -307,11 +328,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         escuchando = true;
                         reconocimientoActivo = true;
 
-                        voiceButton.textContent = '🔴';
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
 
                         voiceButton.classList.add(
                             'compuciber-voice-listening'
                         );
+
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono() +
+                            '<span class="compuciber-voice-text">Escuchando...</span>';
 
                         voiceButton.setAttribute(
                             'aria-label',
@@ -333,7 +359,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         escuchando = false;
 
-                        voiceButton.textContent = '🎤';
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
                         reconocimientoActivo = false;
 
                         voiceButton.classList.remove(
@@ -368,6 +395,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         'Texto reconocido:',
                         texto
                     );
+                    voiceButton.innerHTML =
+                        compuciber_icono_microfono() +
+                        '<span class="compuciber-voice-text">Procesando...</span>';
 
                     input.value = texto;
 
@@ -402,10 +432,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     reconocimientoActivo = false;
 
-                    voiceButton.textContent = '🎤';
+                    voiceButton.innerHTML =
+                        compuciber_icono_microfono();
                     voiceButton.classList.remove(
                         'compuciber-voice-listening'
                     );
+                    voiceButton.innerHTML =
+                        compuciber_icono_microfono();
 
                     voiceButton.setAttribute(
                         'aria-label',
@@ -436,10 +469,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     escuchando = false;
                     reconocimientoActivo = false;
 
-                    voiceButton.textContent = '🎤';
+                    voiceButton.innerHTML =
+                        compuciber_icono_microfono();
                     voiceButton.classList.remove(
                         'compuciber-voice-listening'
                     );
+                    voiceButton.innerHTML =
+                        compuciber_icono_microfono();
 
                     voiceButton.setAttribute(
                         'aria-label',

@@ -142,23 +142,56 @@
     }
 }
 
+
 .compuciber-voice-listening {
-    animation: compuciber-pulse-voice 1s infinite;
+    animation: compuciber-voice-pulse 1s infinite;
 }
 
 
-@keyframes compuciber-pulse-voice {
+
+@keyframes compuciber-voice-pulse {
 
     0% {
         opacity: 1;
     }
 
     50% {
-        opacity: 0.5;
+        opacity: 0.4;
     }
 
     100% {
         opacity: 1;
     }
+
+}
+
+.compuciber-mic-svg {
+
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    display: block;
+
+    transform: translateY(1px);
+
+}
+
+
+#compuciber-voice-button {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+
+
+    line-height: 1;
+}
+
+
+.compuciber-voice-text {
+
+    font-size: 12px;
+    white-space: nowrap;
 
 }
