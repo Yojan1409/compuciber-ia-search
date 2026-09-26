@@ -251,6 +251,9 @@ Formato obligatorio:
         }
 
 
+        error_log(
+            'COMPuciber Imagen IA: ' . print_r($resultado, true)
+        );   
         return $resultado;
     }
 

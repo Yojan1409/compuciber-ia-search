@@ -542,9 +542,13 @@ document.addEventListener('DOMContentLoaded', function () {
                  * analiza la fotografía.
                  */
 
-                imageButton.textContent = '⏳';
+                imageButton.innerHTML = '⏳';
 
                 imageButton.disabled = true;
+
+                imageButton.classList.add(
+                    'compuciber-image-loading'
+                );
 
 
                 const formulario =
@@ -719,8 +723,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     .finally(
                         function () {
 
-                            imageButton.textContent =
+                            imageButton.innerHTML =
                                 '📷';
+
+                            imageButton.classList.remove(
+                                'compuciber-image-loading'
+                            );
 
                             imageButton.disabled =
                                 false;

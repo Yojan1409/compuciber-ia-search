@@ -195,3 +195,43 @@
     white-space: nowrap;
 
 }
+
+.compuciber-image-loading {
+
+    animation: compuciber-image-spin 1s linear infinite;
+
+}
+
+
+@keyframes compuciber-image-spin {
+
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+#compuciber-image-button {
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    line-height: 1;
+
+}
+
+
+.compuciber-image-svg {
+
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    display: block;
+    transform: translate(1px);
+
+}

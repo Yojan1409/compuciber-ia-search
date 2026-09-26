@@ -491,7 +491,13 @@ function compuciber_ai_search_shortcode()
                         aria-label="Buscar por imagen"
                         title="Buscar por imagen"
                     >
-                        📷
+                        <svg
+                            class="compuciber-image-svg"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M9 3l-2 3H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-3l-2-3H9zm3 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/>
+                        </svg>
                     </button>
 
                     <input
