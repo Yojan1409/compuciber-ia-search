@@ -47,6 +47,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/configuracion.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/admin-panel.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/ia.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/imagenes.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/openai.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/gemini.php';
 
@@ -210,21 +211,55 @@ function compuciber_ajax_busqueda_imagen() {
         );
     }
 
+    /*
+    * Optimiza la imagen antes de enviarla a la IA.
+    */
+
+    $imagen_optimizada =
+        compuciber_optimizar_imagen_ia(
+            $archivo['tmp_name']
+        );
+
+    $hash_imagen =
+        compuciber_generar_hash_imagen(
+            $imagen_optimizada
+        );
+
+
+    $cache_imagen =
+        compuciber_obtener_cache_imagen(
+            $hash_imagen
+        );    
+
+
+    if (
+        ! $imagen_optimizada
+    ) {
+
+        wp_send_json_error(
+            'No se pudo optimizar la imagen.'
+        );
+
+    }
+
 
     /*
-     * Lee la imagen.
-     */
+    * Lee la imagen optimizada.
+    */
 
     $imagen = file_get_contents(
-        $archivo['tmp_name']
+        $imagen_optimizada
     );
 
 
-    if ( $imagen === false ) {
+    if (
+        $imagen === false
+    ) {
 
         wp_send_json_error(
-            'No se pudo leer la imagen.'
+            'No se pudo leer la imagen optimizada.'
         );
+
     }
 
 
@@ -233,9 +268,7 @@ function compuciber_ajax_busqueda_imagen() {
     );
 
 
-    $mime_type = ! empty( $archivo['type'] )
-        ? sanitize_mime_type( $archivo['type'] )
-        : 'image/jpeg';
+    $mime_type = 'image/jpeg';
 
 
     /*
@@ -243,10 +276,41 @@ function compuciber_ajax_busqueda_imagen() {
      * exclusivamente desde el backend.
      */
 
-    $resultado = compuciber_consultar_ia_imagen(
-        $imagen_base64,
-        $mime_type
-    );
+    if (
+        $cache_imagen
+    ) {
+
+        $resultado = $cache_imagen;
+
+        error_log(
+            'COMPuciber Imagen: resultado obtenido desde caché.'
+        );
+
+    } else {
+
+        $resultado = compuciber_consultar_ia_imagen(
+            $imagen_base64,
+            $mime_type
+        );
+
+
+        if (
+            is_array( $resultado )
+            && empty( $resultado['error'] )
+        ) {
+
+            compuciber_guardar_cache_imagen(
+                $hash_imagen,
+                $resultado
+            );
+
+            error_log(
+                'COMPuciber Imagen: resultado guardado en caché.'
+            );
+
+        }
+
+    }
 
 
     if (
@@ -256,6 +320,19 @@ function compuciber_ajax_busqueda_imagen() {
         wp_send_json_error(
             'La IA no pudo analizar la imagen.'
         );
+
+    }
+
+
+    if (
+        isset( $resultado['error'] )
+        && isset( $resultado['mensaje'] )
+    ) {
+
+        wp_send_json_error(
+            $resultado['mensaje']
+        );
+
     }
 
     $busqueda = '';

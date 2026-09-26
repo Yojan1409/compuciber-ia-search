@@ -17,7 +17,16 @@ function compuciber_consultar_gemini_imagen(
 
 
     if ( empty( $api_key ) ) {
-        return false;
+
+        error_log(
+            'COMPuciber Gemini Imagen: API Key no configurada.'
+        );
+
+        return array(
+            'error' => 'api_key',
+            'mensaje' => 'El servicio de inteligencia artificial no está configurado.'
+        );
+
     }
 
 
@@ -25,7 +34,12 @@ function compuciber_consultar_gemini_imagen(
         empty( $imagen_base64 )
         || empty( $mime_type )
     ) {
-        return false;
+
+        return array(
+            'error' => 'imagen',
+            'mensaje' => 'No se recibió una imagen válida.'
+        );
+
     }
 
 
@@ -249,7 +263,18 @@ Formato obligatorio:
         if ( ! is_array( $resultado ) ) {
             return false;
         }
+        if ( ! is_array( $resultado ) ) {
 
+            error_log(
+                'COMPuciber Gemini Imagen: Respuesta JSON inválida.'
+            );
+
+            return array(
+                'error' => 'respuesta',
+                'mensaje' => 'La IA no devolvió una respuesta válida.'
+            );
+
+        }
 
         error_log(
             'COMPuciber Imagen IA: ' . print_r($resultado, true)
@@ -258,5 +283,8 @@ Formato obligatorio:
     }
 
 
-    return false;
+    return array(
+        'error' => 'desconocido',
+        'mensaje' => 'No fue posible analizar la imagen.'
+    );
 }
