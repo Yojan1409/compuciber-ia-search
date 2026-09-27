@@ -44,54 +44,72 @@ function compuciber_consultar_gemini_imagen(
 
 
     $prompt = '
-Eres el asistente de búsqueda visual de una tienda de tecnología llamada Compuciber.
+    Eres el asistente de búsqueda visual de una tienda de tecnología llamada Compuciber.
 
-Analiza cuidadosamente la imagen proporcionada por el cliente.
+    Analiza cuidadosamente la imagen proporcionada por el cliente.
 
-Tu objetivo NO es inventar un producto exacto.
+    Tu objetivo es generar una búsqueda útil para encontrar productos existentes dentro de una tienda WooCommerce.
 
-Debes identificar, solamente cuando sea posible:
+    Debes identificar, solamente cuando sea posible:
 
-1. Tipo de producto.
-2. Marca visible.
-3. Modelo o número de modelo visible.
-4. Características técnicas visibles o claramente identificables.
-5. Palabras clave útiles para buscar productos similares.
+    1. Tipo de producto.
+    2. Marca visible.
+    3. Modelo o número de modelo visible.
+    4. Características técnicas visibles o claramente identificables.
+    5. Palabras clave relacionadas para encontrar productos similares.
 
-IMPORTANTE:
-- No inventes información.
-- Si una marca no es visible, deja el campo vacío.
-- Si un modelo no es visible, deja el campo vacío.
-- Si una característica no puede determinarse con seguridad, no la inventes.
-- La imagen puede mostrar un producto real o solamente un producto similar.
-- La respuesta será utilizada para buscar productos EXISTENTES dentro de WooCommerce.
-- Nunca afirmes que un producto pertenece al catálogo.
-- WooCommerce será la fuente de verdad.
+    REGLA PRINCIPAL PARA "busqueda_corregida":
 
-Ejemplo:
+    - Prioriza siempre el tipo de producto y sus características.
+    - La marca puede incluirse únicamente si es claramente visible.
+    - Una marca detectada NO debe convertirse en un filtro obligatorio si puede reducir demasiado los resultados.
+    - Si la marca no es necesaria para encontrar productos equivalentes, genera la búsqueda usando producto + características.
+    - La finalidad es encontrar coincidencias dentro del catálogo WooCommerce, incluso cuando la marca del producto de la imagen no exista en la tienda.
 
-{
-  "busqueda_corregida": "impresora térmica",
-  "producto": "impresora térmica",
-  "marca": "",
-  "modelo": "",
-  "caracteristicas": ["POS", "80 mm"],
-  "palabras_clave": ["ticketera", "impresora de tickets"]
-}
+    IMPORTANTE:
+    - No inventes información.
+    - Si una marca no es visible, deja el campo vacío.
+    - Si un modelo no es visible, deja el campo vacío.
+    - Si una característica no puede determinarse con seguridad, no la inventes.
+    - La imagen puede corresponder a un producto real, un producto similar o una imagen externa.
+    - Nunca afirmes que un producto pertenece al catálogo.
+    - WooCommerce es la única fuente de verdad para los productos disponibles.
 
-Responde ÚNICAMENTE con JSON válido.
+    Ejemplos:
 
-Formato obligatorio:
+    Caso con marca visible:
+    {
+    "busqueda_corregida": "teclado gamer RGB retroiluminado",
+    "producto": "teclado gamer",
+    "marca": "SEISA",
+    "modelo": "",
+    "caracteristicas": ["RGB", "USB", "retroiluminado"],
+    "palabras_clave": ["teclado mecánico", "teclado gamer"]
+    }
 
-{
-  "busqueda_corregida": "",
-  "producto": "",
-  "marca": "",
-  "modelo": "",
-  "caracteristicas": [],
-  "palabras_clave": []
-}
-';
+    Caso sin marca:
+    {
+    "busqueda_corregida": "impresora térmica 80 mm",
+    "producto": "impresora térmica",
+    "marca": "",
+    "modelo": "",
+    "caracteristicas": ["POS", "80 mm"],
+    "palabras_clave": ["ticketera", "impresora de tickets"]
+    }
+
+    Responde ÚNICAMENTE con JSON válido.
+
+    Formato obligatorio:
+
+    {
+    "busqueda_corregida": "",
+    "producto": "",
+    "marca": "",
+    "modelo": "",
+    "caracteristicas": [],
+    "palabras_clave": []
+    }
+    ';
 
 
     $request_body = array(
@@ -259,10 +277,6 @@ Formato obligatorio:
             true
         );
 
-
-        if ( ! is_array( $resultado ) ) {
-            return false;
-        }
         if ( ! is_array( $resultado ) ) {
 
             error_log(

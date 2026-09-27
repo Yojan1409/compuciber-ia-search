@@ -596,6 +596,10 @@ function compuciber_ai_search_shortcode()
                 id="compuciber-suggestions"
                 class="compuciber-suggestions"
             ></div>
+            <div
+                id="compuciber-ai-status"
+                class="compuciber-ai-status"
+            ></div>            
 
             <?php
 

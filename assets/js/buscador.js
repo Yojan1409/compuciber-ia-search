@@ -502,6 +502,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById(
             'compuciber-image-button'
         );
+    const aiStatus =
+        document.getElementById(
+            'compuciber-ai-status'
+        );
 
     const imageInput =
         document.getElementById(
@@ -543,8 +547,12 @@ document.addEventListener('DOMContentLoaded', function () {
                  */
 
                 imageButton.innerHTML = '⏳';
-
                 imageButton.disabled = true;
+
+                if (aiStatus) {
+                    aiStatus.textContent =
+                        'Analizando imagen con IA...';
+                }
 
                 imageButton.classList.add(
                     'compuciber-image-loading'
@@ -606,6 +614,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             const interpretacion =
                                 data.data.interpretacion;
+
+                            if (aiStatus && interpretacion) {
+
+                                aiStatus.textContent =
+                                    'Producto detectado: ' +
+                                    (
+                                        interpretacion.producto ||
+                                        'producto'
+                                    );
+
+                            }
 
 
                             if (!busqueda) {
@@ -735,6 +754,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             imageInput.value =
                                 '';
+
+                            if (aiStatus) {
+                                aiStatus.textContent = '';
+                            }
 
                         }
                     );
