@@ -20,6 +20,55 @@ function compuciber_ai_search_dashboard() {
 
     $tabla = $wpdb->prefix . 'compuciber_product_index';
 
+    $tabla_estadisticas =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $total_busquedas = 0;
+    $busquedas_sin_resultados = 0;
+    $busquedas_texto = 0;
+    $busquedas_voz = 0;
+    $busquedas_imagen = 0;
+    $busquedas_populares = array();
+
+    if (
+        get_option(
+            'compuciber_estadisticas',
+            '0'
+        ) === '1'
+    ) {
+
+        $total_busquedas = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$tabla_estadisticas}"
+        );
+
+        $busquedas_sin_resultados = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+            FROM {$tabla_estadisticas}
+            WHERE resultados = 0"
+        );
+
+        $busquedas_texto = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+            FROM {$tabla_estadisticas}
+            WHERE tipo = 'texto'"
+        );
+
+        $busquedas_voz = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+            FROM {$tabla_estadisticas}
+            WHERE tipo = 'voz'"
+        );
+
+        $busquedas_imagen = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+            FROM {$tabla_estadisticas}
+            WHERE tipo = 'imagen'"
+        );
+
+        $busquedas_populares =
+            compuciber_obtener_busquedas_populares( 10 );
+    }    
+
     $productos_woocommerce = wp_count_posts( 'product' );
 
     $total_productos = 0;
@@ -312,6 +361,128 @@ function compuciber_ai_search_dashboard() {
             </tbody>
 
         </table>
+
+        <h2>Estadísticas de búsquedas</h2>
+
+        <?php if (
+            get_option(
+                'compuciber_estadisticas',
+                '0'
+            ) !== '1'
+        ) : ?>
+
+            <p>
+                Las estadísticas de búsquedas están desactivadas.
+            </p>
+
+        <?php else : ?>
+
+            <table class="widefat striped">
+
+                <thead>
+                    <tr>
+                        <th>Métrica</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>Total de búsquedas</td>
+                        <td>
+                            <strong>
+                                <?php echo esc_html( $total_busquedas ); ?>
+                            </strong>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Búsquedas sin resultados</td>
+                        <td>
+                            <?php echo esc_html( $busquedas_sin_resultados ); ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Búsquedas por texto</td>
+                        <td>
+                            <?php echo esc_html( $busquedas_texto ); ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Búsquedas por voz</td>
+                        <td>
+                            <?php echo esc_html( $busquedas_voz ); ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Búsquedas por imagen</td>
+                        <td>
+                            <?php echo esc_html( $busquedas_imagen ); ?>
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+            <br>
+
+            <h3>Búsquedas más frecuentes</h3>
+
+            <?php if ( ! empty( $busquedas_populares ) ) : ?>
+
+                <table class="widefat striped">
+
+                    <thead>
+                        <tr>
+                            <th>Búsqueda</th>
+                            <th>Veces buscada</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <?php foreach (
+                            $busquedas_populares as $estadistica
+                        ) : ?>
+
+                            <tr>
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $estadistica->busqueda
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $estadistica->total
+                                    );
+                                    ?>
+                                </td>
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            <?php else : ?>
+
+                <p>
+                    Todavía no hay búsquedas registradas.
+                </p>
+
+            <?php endif; ?>
+
+        <?php endif; ?>        
 
     </div>
 

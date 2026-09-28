@@ -639,10 +639,18 @@ function compuciber_ai_search_shortcode()
 
                 $tipo_busqueda = 'texto';
 
-                /*
-                * Si existe cis_ai, la búsqueda provino
-                * del análisis de una imagen.
-                */
+
+                if (
+                    isset( $_GET['cis_source'] )
+                    && sanitize_key(
+                        wp_unslash(
+                            $_GET['cis_source']
+                        )
+                    ) === 'voz'
+                ) {
+                    $tipo_busqueda = 'voz';
+                }
+
                 if ( ! empty( $_GET['cis_ai'] ) ) {
                     $tipo_busqueda = 'imagen';
                 }
