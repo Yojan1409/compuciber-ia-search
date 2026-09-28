@@ -162,6 +162,94 @@ function compuciber_indexar_producto( $product_id ) {
             );
     }
 
+    /*
+    * Galería de imágenes.
+    */
+    $galeria_ids =
+        $producto->get_gallery_image_ids();
+
+    $galeria_urls = array();
+
+    if ( ! empty( $galeria_ids ) ) {
+
+        foreach ( $galeria_ids as $galeria_id ) {
+
+            $galeria_url =
+                wp_get_attachment_url(
+                    $galeria_id
+                );
+
+            if ( $galeria_url ) {
+                $galeria_urls[] = $galeria_url;
+            }
+        }
+    }
+
+    $galeria = implode(
+        ' | ',
+        $galeria_urls
+    );
+
+
+    /*
+    * Metadatos seleccionados.
+    *
+    * Por defecto la lista está vacía.
+    * Otros desarrolladores pueden añadir claves
+    * mediante el filtro:
+    * compuciber_metadatos_indexables
+    */
+    $metadatos_permitidos = apply_filters(
+        'compuciber_metadatos_indexables',
+        array(),
+        $product_id,
+        $producto
+    );
+
+    $metadatos_indexados = array();
+
+    if ( is_array( $metadatos_permitidos ) ) {
+
+        foreach ( $metadatos_permitidos as $meta_key ) {
+
+            $meta_key =
+                sanitize_key(
+                    $meta_key
+                );
+
+            if ( $meta_key === '' ) {
+                continue;
+            }
+
+            $meta_value =
+                get_post_meta(
+                    $product_id,
+                    $meta_key,
+                    true
+                );
+
+            if (
+                $meta_value === ''
+                || $meta_value === null
+                || is_array( $meta_value )
+                || is_object( $meta_value )
+            ) {
+                continue;
+            }
+
+            $metadatos_indexados[] =
+                $meta_key . ': ' .
+                sanitize_text_field(
+                    (string) $meta_value
+                );
+        }
+    }
+
+    $metadatos = implode(
+        ' | ',
+        $metadatos_indexados
+    );    
+
 
     /*
      * URL.
@@ -243,6 +331,10 @@ function compuciber_indexar_producto( $product_id ) {
 
             'imagen' => $imagen,
 
+            'galeria' => $galeria,
+
+            'metadatos' => $metadatos,
+
             'actualizado' => current_time(
                 'mysql'
             ),
@@ -259,6 +351,8 @@ function compuciber_indexar_producto( $product_id ) {
             '%s',
             '%f',
             '%f',
+            '%s',
+            '%s',
             '%s',
             '%s',
             '%s',
