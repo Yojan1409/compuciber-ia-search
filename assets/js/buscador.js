@@ -401,6 +401,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     input.value = texto;
 
+                    /*
+                    * Marca que esta búsqueda proviene de voz.
+                    */
+                    let voiceSource =
+                        document.getElementById(
+                            'compuciber-search-source'
+                        );
+
+                    if (!voiceSource) {
+
+                        voiceSource =
+                            document.createElement('input');
+
+                        voiceSource.type = 'hidden';
+                        voiceSource.id =
+                            'compuciber-search-source';
+
+                        voiceSource.name =
+                            'cis_source';
+
+                        input.form.appendChild(
+                            voiceSource
+                        );
+                    }
+
+                    voiceSource.value = 'voz';
+
                     input.dispatchEvent(
                         new Event(
                             'input',
@@ -491,7 +518,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
 
+    function compuciber_icono_camara() {
 
+        return `
+        <svg 
+            class="compuciber-camera-svg"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+        >
+            <path d="M9 4l2-2h2l2 2h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h3zm3 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+        </svg>
+    `;
+
+    }
     /*
      * ======================================================
      * BÚSQUEDA POR IMAGEN
@@ -743,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         function () {
 
                             imageButton.innerHTML =
-                                '📷';
+                                compuciber_icono_camara();
 
                             imageButton.classList.remove(
                                 'compuciber-image-loading'

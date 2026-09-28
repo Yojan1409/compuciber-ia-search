@@ -247,12 +247,12 @@
 
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 6px;
 
     width: 100%;
 
-    margin-top: 12px;
+    margin-top: 8px;
 
     font-size: 13px;
 
@@ -289,5 +289,14 @@
     100% {
         opacity: 0.4;
     }
+
+}
+
+.compuciber-camera-svg {
+
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    display: block;
 
 }

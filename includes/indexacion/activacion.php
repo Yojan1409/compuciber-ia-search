@@ -12,6 +12,8 @@ function compuciber_activar_indexacion() {
 
     compuciber_crear_tabla_indice_productos();
 
+    compuciber_crear_tabla_estadisticas();
+
     update_option(
         'compuciber_indice_version',
         COMPUCIBER_INDICE_VERSION

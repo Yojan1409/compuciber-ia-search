@@ -59,6 +59,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/fuzzy.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/sinonimos.php';
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/estadisticas.php';
+
 /**
  * Verifica WooCommerce después de que WordPress haya cargado los plugins.
  */
@@ -593,13 +595,14 @@ function compuciber_ai_search_shortcode()
             </div>
 
             <div
-                id="compuciber-suggestions"
-                class="compuciber-suggestions"
-            ></div>
-            <div
                 id="compuciber-ai-status"
                 class="compuciber-ai-status"
             ></div>            
+
+            <div
+                id="compuciber-suggestions"
+                class="compuciber-suggestions"
+            ></div>           
 
             <?php
 
@@ -628,6 +631,35 @@ function compuciber_ai_search_shortcode()
                     $busqueda,
                     $interpretacion
                 );
+                /*
+                * ======================================================
+                * REGISTRO DE ESTADÍSTICAS
+                * ======================================================
+                */
+
+                $tipo_busqueda = 'texto';
+
+                /*
+                * Si existe cis_ai, la búsqueda provino
+                * del análisis de una imagen.
+                */
+                if ( ! empty( $_GET['cis_ai'] ) ) {
+                    $tipo_busqueda = 'imagen';
+                }
+
+                /*
+                * Cantidad total de productos encontrados.
+                */
+                $total_resultados = isset( $productos->found_posts )
+                    ? (int) $productos->found_posts
+                    : 0;
+
+                compuciber_registrar_busqueda(
+                    $busqueda_original,
+                    $busqueda,
+                    $total_resultados,
+                    $tipo_busqueda
+                );                
 
             echo '<div class="compuciber-ai-results">';
 
