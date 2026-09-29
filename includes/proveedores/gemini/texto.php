@@ -7,6 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 function compuciber_consultar_gemini( $busqueda ) {
 
+    /*
+     * API Key configurada desde el panel
+     * de administración de WordPress.
+     */
     $api_key = get_option(
         'compuciber_gemini_api_key',
         ''
@@ -14,6 +18,27 @@ function compuciber_consultar_gemini( $busqueda ) {
 
     if ( empty( $api_key ) ) {
         return false;
+    }
+
+
+    /*
+     * Modelo de texto configurado desde
+     * AI Product Search > Configuración.
+     *
+     * Si no existe una configuración válida,
+     * se utiliza el modelo predeterminado.
+     */
+    $modelo = get_option(
+        'compuciber_modelo_ia',
+        'gemini-3.6-flash'
+    );
+
+    $modelo = sanitize_text_field(
+        (string) $modelo
+    );
+
+    if ( empty( $modelo ) ) {
+        $modelo = 'gemini-3.6-flash';
     }
 
 
@@ -88,13 +113,22 @@ Búsqueda del cliente:
 "' . $busqueda . '"
 ';
 
-    error_log(
-        'GEMINI TEXTO BUSQUEDA: '
-        . $busqueda
-    );
+
+    /*
+     * Endpoint dinámico.
+     *
+     * El modelo ya no está escrito directamente
+     * en la URL. Se obtiene de la configuración.
+     */
+    $url =
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+        . rawurlencode( $modelo )
+        . ':generateContent?key='
+        . rawurlencode( $api_key );
+
+
     $response = wp_remote_post(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key='
-        . rawurlencode( $api_key ),
+        $url,
         array(
             'timeout' => 20,
             'headers' => array(
@@ -116,16 +150,21 @@ Búsqueda del cliente:
         )
     );
 
-    error_log(
-        'GEMINI TEXTO RESPUESTA HTTP: '
-        . wp_remote_retrieve_response_code( $response )
-    );
 
-    error_log(
-        'GEMINI TEXTO RESPUESTA BODY: '
-        . wp_remote_retrieve_body( $response )
-    );
     if ( is_wp_error( $response ) ) {
+        return false;
+    }
+
+
+    $codigo_http =
+        wp_remote_retrieve_response_code(
+            $response
+        );
+
+    if (
+        $codigo_http < 200
+        || $codigo_http >= 300
+    ) {
         return false;
     }
 

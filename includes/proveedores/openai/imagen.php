@@ -5,148 +5,138 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 
-/*
- * Consulta de imagen mediante OpenAI.
+/**
+ * Consulta la API de OpenAI para interpretar
+ * una imagen utilizada en la búsqueda visual.
  *
- * Recibe:
+ * La IA únicamente interpreta la imagen.
+ * WooCommerce continúa siendo la fuente
+ * de verdad para productos, precios y stock.
  *
- * $imagen_base64
- * $mime_type
+ * @param string $imagen_base64 Imagen codificada en Base64.
+ * @param string $mime_type     Tipo MIME de la imagen.
  *
- * Devuelve:
- *
- * busqueda_corregida
- * producto
- * marca
- * modelo
- * caracteristicas
- * palabras_clave
+ * @return array|false
  */
-
 function compuciber_consultar_openai_imagen_api(
     $imagen_base64,
     $mime_type
 ) {
 
+    /*
+     * API Key configurada por el propietario
+     * de la instalación.
+     */
     $api_key = get_option(
         'compuciber_openai_api_key',
         ''
     );
 
     if ( empty( $api_key ) ) {
-
-        error_log(
-            'OPENAI IMAGEN: API key no configurada.'
-        );
-
-        return false;
-    }
-
-
-    if (
-        empty( $imagen_base64 )
-        || empty( $mime_type )
-    ) {
-
-        error_log(
-            'OPENAI IMAGEN: datos de imagen vacíos.'
-        );
-
         return false;
     }
 
 
     /*
-     * Modelo configurable desde el panel.
+     * Validar entrada.
      */
-
-    $modelo = get_option(
-        'compuciber_modelo_multimodal',
-        'gpt-5.6'
+    $imagen_base64 = trim(
+        (string) $imagen_base64
     );
 
+    $mime_type = strtolower(
+        trim(
+            (string) $mime_type
+        )
+    );
+
+    if (
+        $imagen_base64 === ''
+        || $mime_type === ''
+    ) {
+        return false;
+    }
+
 
     /*
-     * Instrucciones para interpretar
-     * la imagen del producto.
+     * Solo permitimos formatos de imagen
+     * compatibles con la búsqueda visual.
      */
+    $mime_permitidos = array(
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+    );
 
+    if (
+        ! in_array(
+            $mime_type,
+            $mime_permitidos,
+            true
+        )
+    ) {
+        return false;
+    }
+
+
+    /*
+     * Modelo multimodal configurable.
+     *
+     * Si el administrador no especifica uno,
+     * utilizamos el modelo predeterminado
+     * definido por el plugin.
+     */
+    $modelo = trim(
+        (string) get_option(
+            'compuciber_modelo_multimodal',
+            ''
+        )
+    );
+
+    if ( $modelo === '' ) {
+        $modelo = 'gpt-5.6';
+    }
+
+
+    /*
+     * Instrucciones del intérprete visual.
+     */
     $instrucciones = '
 Eres el sistema de interpretación visual
 de un buscador de productos WooCommerce.
 
-Analiza la imagen proporcionada.
+Analiza únicamente la imagen proporcionada.
 
-Tu trabajo NO es inventar productos.
+Tu función es interpretar visualmente el producto
+para generar información útil para el motor
+de búsqueda del catálogo.
 
-Debes identificar solamente información
-que pueda observarse razonablemente en la imagen
-y convertirla en información útil para buscar
-productos reales dentro del catálogo WooCommerce.
+No inventes productos ni información que no pueda
+deducirse razonablemente de la imagen.
 
-Devuelve exclusivamente un objeto JSON válido.
+WooCommerce es la fuente de verdad para:
+productos, SKU, precios, stock y disponibilidad.
 
-Campos obligatorios:
+Debes identificar:
 
-busqueda_corregida:
-Una búsqueda corta y útil basada en el producto
-observado.
+- tipo de producto;
+- marca, solamente cuando exista suficiente evidencia;
+- modelo, solamente cuando exista suficiente evidencia;
+- características visibles o razonablemente identificables;
+- términos útiles para buscar productos similares.
 
-producto:
-Tipo de producto observado.
+Si una marca o modelo no puede determinarse
+con suficiente confianza, utiliza una cadena vacía.
 
-marca:
-Marca visible o identificable con suficiente
-confianza. Si no puede determinarse, devuelve "".
-
-modelo:
-Modelo visible o identificable con suficiente
-confianza. Si no puede determinarse, devuelve "".
-
-caracteristicas:
-Lista de características visibles o claramente
-identificables.
-
-palabras_clave:
-Lista de palabras útiles para encontrar productos
-similares dentro de WooCommerce.
-
-Ejemplo:
-
-{
-  "busqueda_corregida": "laptop lenovo azul",
-  "producto": "laptop",
-  "marca": "Lenovo",
-  "modelo": "",
-  "caracteristicas": [
-    "Windows 11",
-    "teclado numérico",
-    "color azul",
-    "cámara web integrada"
-  ],
-  "palabras_clave": [
-    "notebook",
-    "computadora portátil",
-    "laptop lenovo",
-    "ideapad"
-  ]
-}
-
-IMPORTANTE:
-
-No inventes SKU, precios, stock ni productos.
-
-WooCommerce será la fuente de verdad.
-
-La imagen solamente sirve para interpretar
-el producto y generar términos de búsqueda.
+No inventes especificaciones técnicas que no puedan
+observarse o deducirse razonablemente.
 ';
 
 
     /*
-     * Datos de entrada.
+     * Construir Data URL.
      */
-
     $imagen_data_url =
         'data:'
         . $mime_type
@@ -155,12 +145,65 @@ el producto y generar términos de búsqueda.
 
 
     /*
-     * Petición a OpenAI Responses API.
+     * Esquema estructurado esperado.
      */
+    $schema = array(
 
+        'type' => 'object',
+
+        'properties' => array(
+
+            'busqueda_corregida' => array(
+                'type' => 'string',
+            ),
+
+            'producto' => array(
+                'type' => 'string',
+            ),
+
+            'marca' => array(
+                'type' => 'string',
+            ),
+
+            'modelo' => array(
+                'type' => 'string',
+            ),
+
+            'caracteristicas' => array(
+                'type'  => 'array',
+                'items' => array(
+                    'type' => 'string',
+                ),
+            ),
+
+            'palabras_clave' => array(
+                'type'  => 'array',
+                'items' => array(
+                    'type' => 'string',
+                ),
+            ),
+        ),
+
+        'required' => array(
+            'busqueda_corregida',
+            'producto',
+            'marca',
+            'modelo',
+            'caracteristicas',
+            'palabras_clave',
+        ),
+
+        'additionalProperties' => false,
+    );
+
+
+    /*
+     * Petición mediante Responses API.
+     */
     $respuesta = wp_remote_post(
         'https://api.openai.com/v1/responses',
         array(
+
             'timeout' => 60,
 
             'headers' => array(
@@ -170,13 +213,17 @@ el producto y generar términos de búsqueda.
 
             'body' => wp_json_encode(
                 array(
-                    'model' => $modelo,
+
+                    'model' =>
+                        $modelo,
 
                     'instructions' =>
                         $instrucciones,
 
                     'input' => array(
+
                         array(
+
                             'role' => 'user',
 
                             'content' => array(
@@ -186,8 +233,10 @@ el producto y generar términos de búsqueda.
                                         'input_text',
 
                                     'text' =>
-                                        'Analiza esta imagen '
-                                        . 'de producto.',
+                                        'Analiza esta imagen de producto '
+                                        . 'y genera los términos necesarios '
+                                        . 'para buscar productos relacionados '
+                                        . 'en WooCommerce.',
                                 ),
 
                                 array(
@@ -204,80 +253,77 @@ el producto y generar términos de búsqueda.
                         ),
                     ),
 
+                    /*
+                     * Structured Outputs.
+                     */
                     'text' => array(
+
                         'format' => array(
+
                             'type' =>
-                                'json_object',
+                                'json_schema',
+
+                            'name' =>
+                                'compuciber_busqueda_visual',
+
+                            'strict' =>
+                                true,
+
+                            'schema' =>
+                                $schema,
                         ),
                     ),
-
-                    'temperature' => 0,
                 )
             ),
         )
     );
 
+
+    /*
+     * Error de transporte.
+     */
     if ( is_wp_error( $respuesta ) ) {
-
-        error_log(
-            'OPENAI IMAGEN ERROR: '
-            . $respuesta->get_error_message()
-        );
-
-        return false;
-    }
-
-    $codigo_http =
-        wp_remote_retrieve_response_code(
-            $respuesta
-        );
-
-    $cuerpo =
-        wp_remote_retrieve_body(
-            $respuesta
-        );
-
-
-    if (
-        $codigo_http < 200
-        || $codigo_http >= 300
-    ) {
-
-        error_log(
-            'OPENAI IMAGEN HTTP ERROR '
-            . $codigo_http
-        );
-
-        error_log(
-            'OPENAI IMAGEN RESPONSE: '
-            . $cuerpo
-        );
-
         return false;
     }
 
 
     /*
-     * Se obtiene la respuesta.
+     * Validar respuesta HTTP.
      */
-
-    $datos =
-        json_decode(
-            $cuerpo,
-            true
+    $codigo_http =
+        wp_remote_retrieve_response_code(
+            $respuesta
         );
 
     if (
-        ! is_array( $datos )
+        $codigo_http < 200
+        || $codigo_http >= 300
     ) {
-
-        error_log(
-            'OPENAI IMAGEN: respuesta JSON inválida.'
-        );
-
         return false;
     }
 
+
+    /*
+     * Decodificar respuesta.
+     */
+    $datos = json_decode(
+        wp_remote_retrieve_body(
+            $respuesta
+        ),
+        true
+    );
+
+    if ( ! is_array( $datos ) ) {
+        return false;
+    }
+
+
+    /*
+     * Localizar output_text.
+     *
+     * No dependemos únicamente de una posición
+     * concreta dentro del array output.
+     */
     $texto = '';
 
     if (
@@ -291,9 +337,7 @@ el producto y generar términos de búsqueda.
         ) {
 
             if (
-                empty(
-                    $elemento['content']
-                )
+                empty( $elemento['content'] )
                 || ! is_array(
                     $elemento['content']
                 )
@@ -301,24 +345,21 @@ el producto y generar términos de búsqueda.
                 continue;
             }
 
+
             foreach (
                 $elemento['content']
                 as $contenido
             ) {
 
                 if (
-                    isset(
-                        $contenido['type']
-                    )
+                    isset( $contenido['type'] )
                     && $contenido['type']
                         === 'output_text'
-                    && isset(
-                        $contenido['text']
-                    )
+                    && isset( $contenido['text'] )
                 ) {
 
                     $texto =
-                        $contenido['text'];
+                        (string) $contenido['text'];
 
                     break 2;
                 }
@@ -328,12 +369,12 @@ el producto y generar términos de búsqueda.
 
 
     /*
-     * Fallback.
+     * Fallback por compatibilidad.
      */
-
     if (
-        empty( $texto )
-        && isset(
+        $texto === ''
+        && ! empty( $datos['output_text'] )
+        && is_string(
             $datos['output_text']
         )
     ) {
@@ -343,72 +384,55 @@ el producto y generar términos de búsqueda.
     }
 
 
-    if (
-        empty( $texto )
-    ) {
+    $texto = trim(
+        $texto
+    );
 
-        error_log(
-            'OPENAI IMAGEN: '
-            . 'no se encontró output_text.'
-        );
-
+    if ( $texto === '' ) {
         return false;
     }
 
 
     /*
-     * Se limpian posibles bloques Markdown.
+     * Structured Outputs debería entregar
+     * JSON directamente.
+     *
+     * Conservamos esta limpieza como protección
+     * adicional ante respuestas inesperadas.
      */
+    $texto = preg_replace(
+        '/^```(?:json)?\s*/i',
+        '',
+        $texto
+    );
 
-    $texto =
-        trim( $texto );
+    $texto = preg_replace(
+        '/\s*```$/',
+        '',
+        $texto
+    );
 
-    $texto =
-        preg_replace(
-            '/^```(?:json)?\s*/i',
-            '',
-            $texto
-        );
-
-    $texto =
-        preg_replace(
-            '/\s*```$/',
-            '',
-            $texto
-        );
-
-    $texto =
-        trim( $texto );
+    $texto = trim(
+        $texto
+    );
 
 
     /*
-     * Se convierte el JSON a array PHP.
+     * Convertir respuesta a array PHP.
      */
+    $resultado = json_decode(
+        $texto,
+        true
+    );
 
-    $resultado =
-        json_decode(
-            $texto,
-            true
-        );
-
-
-    if (
-        ! is_array( $resultado )
-    ) {
-
-        error_log(
-            'OPENAI IMAGEN: '
-            . 'JSON inválido.'
-        );
-
-        error_log(
-            'OPENAI IMAGEN TEXTO: '
-            . $texto
-        );
-
+    if ( ! is_array( $resultado ) ) {
         return false;
     }
 
+
+    /*
+     * Estructura defensiva.
+     */
     $resultado = array_merge(
         array(
             'busqueda_corregida' => '',
@@ -421,6 +445,38 @@ el producto y generar términos de búsqueda.
         $resultado
     );
 
+
+    /*
+     * Normalizar campos simples.
+     */
+    $resultado['busqueda_corregida'] =
+        trim(
+            (string)
+            $resultado['busqueda_corregida']
+        );
+
+    $resultado['producto'] =
+        trim(
+            (string)
+            $resultado['producto']
+        );
+
+    $resultado['marca'] =
+        trim(
+            (string)
+            $resultado['marca']
+        );
+
+    $resultado['modelo'] =
+        trim(
+            (string)
+            $resultado['modelo']
+        );
+
+
+    /*
+     * Normalizar listas.
+     */
     if (
         ! is_array(
             $resultado['caracteristicas']
@@ -433,6 +489,7 @@ el producto y generar términos de búsqueda.
                 $resultado['caracteristicas']
             );
     }
+
 
     if (
         ! is_array(
@@ -448,5 +505,59 @@ el producto y generar términos de búsqueda.
     }
 
 
+    /*
+     * Limpiar listas.
+     */
+    $resultado['caracteristicas'] =
+        array_values(
+            array_filter(
+                array_map(
+                    'trim',
+                    array_map(
+                        'strval',
+                        $resultado['caracteristicas']
+                    )
+                )
+            )
+        );
+
+
+    $resultado['palabras_clave'] =
+        array_values(
+            array_filter(
+                array_map(
+                    'trim',
+                    array_map(
+                        'strval',
+                        $resultado['palabras_clave']
+                    )
+                )
+            )
+        );
+
+
     return $resultado;
+}
+
+
+/**
+ * Wrapper utilizado por el proveedor OpenAI.
+ *
+ * Mantiene una interfaz uniforme entre
+ * Gemini y OpenAI.
+ *
+ * @param string $imagen_base64
+ * @param string $mime_type
+ *
+ * @return array|false
+ */
+function compuciber_consultar_imagen_openai(
+    $imagen_base64,
+    $mime_type
+) {
+
+    return compuciber_consultar_openai_imagen_api(
+        $imagen_base64,
+        $mime_type
+    );
 }

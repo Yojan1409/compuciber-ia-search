@@ -15,6 +15,19 @@ function compuciber_consultar_gemini_imagen(
         ''
     );
 
+    $modelo = get_option(
+        'compuciber_modelo_multimodal',
+        'gemini-3.6-flash'
+    );
+
+    $modelo = sanitize_text_field(
+        (string) $modelo
+    );
+
+    if ( empty( $modelo ) ) {
+        $modelo = 'gemini-3.6-flash';
+    }    
+
 
     if ( empty( $api_key ) ) {
 
@@ -135,7 +148,9 @@ function compuciber_consultar_gemini_imagen(
 
 
     $url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key='
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+        . rawurlencode( $modelo )
+        . ':generateContent?key='
         . rawurlencode( $api_key );
 
 

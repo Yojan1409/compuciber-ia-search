@@ -428,14 +428,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     voiceSource.value = 'voz';
 
-                    input.dispatchEvent(
-                        new Event(
-                            'input',
-                            {
-                                bubbles: true
-                            }
-                        )
-                    );
+                    /*
+                    * Ejecuta automáticamente la búsqueda
+                    * después de reconocer la voz.
+                    */
+                    const formularioBusqueda =
+                        input.closest('form');
+
+                    if (formularioBusqueda) {
+
+                        formularioBusqueda.submit();
+
+                    }
 
                 }
             );

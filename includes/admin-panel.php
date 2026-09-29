@@ -732,8 +732,6 @@ function compuciber_ai_search_configuracion() {
 
             ?>
 
-            <h2>Proveedor de IA</h2>
-
             <table class="form-table">
 
                 <tr>
@@ -838,18 +836,47 @@ function compuciber_ai_search_configuracion() {
 
                     <td>
 
-                        <input
-                            type="text"
-                            name="compuciber_modelo_ia"
-                            value="<?php echo esc_attr(
-                                get_option(
-                                    'compuciber_modelo_ia',
-                                    ''
-                                )
-                            ); ?>"
-                            class="regular-text"
-                            placeholder="Modelo para texto"
-                        >
+                        <?php if ( $proveedor === 'gemini' ) : ?>
+
+                            <input
+                                type="text"
+                                name="compuciber_modelo_ia"
+                                value="<?php echo esc_attr(
+                                    get_option(
+                                        'compuciber_modelo_ia',
+                                        'gemini-3.6-flash'
+                                    )
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gemini-3.6-flash"
+                            >
+
+                            <p class="description">
+                                Modelo de texto utilizado por Google Gemini.
+                                Cambiar únicamente por un modelo compatible
+                                con la API de Gemini.
+                            </p>
+
+                        <?php else : ?>
+
+                            <input
+                                type="text"
+                                name="compuciber_modelo_ia"
+                                value="<?php echo esc_attr(
+                                    get_option(
+                                        'compuciber_modelo_ia',
+                                        'gpt-5.6'
+                                    )
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gpt-5.6"
+                            >
+
+                            <p class="description">
+                                Modelo de texto utilizado por OpenAI.
+                            </p>
+
+                        <?php endif; ?>
 
                     </td>
 
@@ -908,13 +935,45 @@ function compuciber_ai_search_configuracion() {
 
                     <td>
 
-                        <input
-                            type="text"
-                            name="compuciber_modelo_multimodal"
-                            value="<?php echo esc_attr( $modelo_multimodal ); ?>"
-                            class="regular-text"
-                            placeholder="Modelo para imágenes"
-                        >
+                        <?php if ( $proveedor === 'gemini' ) : ?>
+
+                            <input
+                                type="text"
+                                name="compuciber_modelo_multimodal"
+                                value="<?php echo esc_attr(
+                                    ! empty( $modelo_multimodal )
+                                        ? $modelo_multimodal
+                                        : 'gemini-3.6-flash'
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gemini-3.6-flash"
+                            >
+
+                            <p class="description">
+                                Modelo multimodal utilizado por Google Gemini.
+                                Cambiar únicamente por un modelo compatible
+                                con entrada de imágenes en la API de Gemini.
+                            </p>
+
+                        <?php else : ?>
+
+                            <input
+                                type="text"
+                                name="compuciber_modelo_multimodal"
+                                value="<?php echo esc_attr(
+                                    ! empty( $modelo_multimodal )
+                                        ? $modelo_multimodal
+                                        : 'gpt-5.6'
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gpt-5.6"
+                            >
+
+                            <p class="description">
+                                Modelo multimodal utilizado por OpenAI.
+                            </p>
+
+                        <?php endif; ?>
 
                     </td>
 
@@ -930,11 +989,16 @@ function compuciber_ai_search_configuracion() {
 
                         <input
                             type="text"
-                            name="compuciber_modelo_voz"
-                            value="<?php echo esc_attr( $modelo_voz ); ?>"
+                            value="Reconocimiento del navegador (Web Speech API)"
                             class="regular-text"
-                            placeholder="Modelo para voz"
+                            readonly
                         >
+
+                        <p class="description">
+                            La búsqueda por voz utiliza el reconocimiento
+                            de voz disponible en el navegador y no requiere
+                            un modelo de IA configurado.
+                        </p>
 
                     </td>
 
