@@ -863,13 +863,38 @@ function compuciber_ai_search_configuracion() {
 
                     <td>
 
-                        <input
-                            type="text"
-                            name="compuciber_modelo_embeddings"
-                            value="<?php echo esc_attr( $modelo_embeddings ); ?>"
-                            class="regular-text"
-                            placeholder="text-embedding-3-small"
-                        >
+                        <?php if ( $proveedor === 'gemini' ) : ?>
+
+                            <input
+                                type="text"
+                                value="gemini-embedding-2"
+                                class="regular-text"
+                                readonly
+                            >
+
+                            <p class="description">
+                                Modelo de embeddings utilizado por Google Gemini.
+                            </p>
+
+                        <?php else : ?>
+
+                            <input
+                                type="text"
+                                name="compuciber_modelo_embeddings"
+                                value="<?php echo esc_attr(
+                                    ! empty( $modelo_embeddings )
+                                        ? $modelo_embeddings
+                                        : 'text-embedding-3-small'
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="text-embedding-3-small"
+                            >
+
+                            <p class="description">
+                                Modelo de embeddings utilizado por OpenAI.
+                            </p>
+
+                        <?php endif; ?>
 
                     </td>
 
