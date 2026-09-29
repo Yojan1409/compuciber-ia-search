@@ -8,7 +8,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Indexa un producto.
  */
-function compuciber_indexar_producto( $product_id ) {
+function compuciber_indexar_producto(
+    $product_id,
+    $generar_embedding = true
+) {
 
     if ( get_post_type( $product_id ) !== 'product' ) {
         return;
@@ -250,7 +253,175 @@ function compuciber_indexar_producto( $product_id ) {
         $metadatos_indexados
     );    
 
+    /*
+    * Texto semántico para embeddings.
+    *
+    * Solo incluye información que describe
+    * qué es el producto y para qué puede servir.
+    */
+    $texto_embedding = implode(
+        ' ',
+        array_filter(
+            array(
+                $nombre,
+                $marca,
+                $modelo,
+                implode(
+                    ' ',
+                    $categorias
+                ),
+                $contenido,
+                $atributos,
+                implode(
+                    ' ',
+                    $etiquetas
+                ),
+                $metadatos,
+            )
+        )
+    );
 
+    $texto_embedding = trim(
+        preg_replace(
+            '/\s+/',
+            ' ',
+            wp_strip_all_tags(
+                $texto_embedding
+            )
+        )
+    );
+
+
+    /*
+    * Hash del contenido semántico.
+    *
+    * Permitirá saber posteriormente si el
+    * producto cambió y necesita regenerar
+    * su embedding.
+    */
+    $hash_embedding = hash(
+        'sha256',
+        $texto_embedding
+    );
+
+    /*
+    * Proveedor y modelo de embeddings actuales.
+    */
+    $embedding_proveedor = get_option(
+        'compuciber_proveedor_ia',
+        'gemini'
+    );
+
+    if ( $embedding_proveedor === 'openai' ) {
+
+        $embedding_modelo = get_option(
+            'compuciber_modelo_embeddings',
+            'text-embedding-3-small'
+        );
+
+    } else {
+
+        $embedding_modelo = 'gemini-embedding-2';
+    }   
+
+    /*
+    * Recuperar embedding existente.
+    *
+    * Si el contenido semántico no cambió,
+    * conservamos el vector ya generado.
+    */
+    $embedding_existente = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT
+                hash_embedding,
+                embedding,
+                embedding_proveedor,
+                embedding_modelo
+            FROM {$tabla}
+            WHERE id = %d",
+            $product_id
+        )
+    );
+
+    $embedding = '';
+
+    $hash_embedding_guardar =
+        $hash_embedding;
+
+    $embedding_proveedor_guardar =
+        $embedding_proveedor;
+
+    $embedding_modelo_guardar =
+        $embedding_modelo;
+
+    $necesita_embedding = true;
+
+    if (
+        $embedding_existente
+        && ! empty( $embedding_existente->embedding )
+        && $embedding_existente->embedding_proveedor === $embedding_proveedor
+        && $embedding_existente->embedding_modelo === $embedding_modelo
+        && hash_equals(
+            (string) $embedding_existente->hash_embedding,
+            $hash_embedding
+        )
+    ) {
+
+        $embedding =
+            (string) $embedding_existente->embedding;
+
+        $necesita_embedding = false;
+    }
+    if (
+        ! $generar_embedding
+        && $embedding_existente
+        && ! empty( $embedding_existente->embedding )
+        && $necesita_embedding
+    ) {
+
+        $embedding =
+            (string) $embedding_existente->embedding;
+
+        $hash_embedding_guardar =
+            (string) $embedding_existente->hash_embedding;
+
+        $embedding_proveedor_guardar =
+            (string) $embedding_existente->embedding_proveedor;
+
+        $embedding_modelo_guardar =
+            (string) $embedding_existente->embedding_modelo;
+    }
+
+    /*
+    * Generar o regenerar embedding únicamente
+    * cuando sea necesario.
+    */
+    if (
+        $generar_embedding
+        && $necesita_embedding
+        && $texto_embedding !== ''
+        && function_exists(
+            'compuciber_generar_embedding'
+        )
+    ) {
+
+        $nuevo_embedding =
+            compuciber_generar_embedding(
+                $texto_embedding,
+                'producto'
+            );
+
+        if (
+            is_array( $nuevo_embedding )
+            && ! empty( $nuevo_embedding )
+        ) {
+
+            $embedding = wp_json_encode(
+                $nuevo_embedding
+            );
+        }
+    }
+    
     /*
      * URL.
      */
@@ -279,6 +450,7 @@ function compuciber_indexar_producto( $product_id ) {
             ),
             $contenido,
             $variaciones,
+            $metadatos,
         )
     );
 
@@ -335,6 +507,20 @@ function compuciber_indexar_producto( $product_id ) {
 
             'metadatos' => $metadatos,
 
+            'texto_embedding' => $texto_embedding,
+
+            'hash_embedding' =>
+                $hash_embedding_guardar,
+
+            'embedding' =>
+                $embedding,
+
+            'embedding_proveedor' =>
+                $embedding_proveedor_guardar,
+
+            'embedding_modelo' =>
+                $embedding_modelo_guardar,          
+
             'actualizado' => current_time(
                 'mysql'
             ),
@@ -351,6 +537,11 @@ function compuciber_indexar_producto( $product_id ) {
             '%s',
             '%f',
             '%f',
+            '%s',
+            '%s',
+            '%s',
+            '%s',
+            '%s',
             '%s',
             '%s',
             '%s',

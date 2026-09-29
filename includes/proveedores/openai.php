@@ -38,4 +38,18 @@ class Compuciber_OpenAIProvider
             $mime_type
         );
     }
+
+    /**
+     * Generación de embeddings mediante OpenAI.
+     *
+     * La implementación completa se añadirá
+     * al preparar el proveedor OpenAI.
+     */
+    public function generar_embedding(
+        $texto,
+        $tipo = 'producto'
+    ) {
+
+        return false;
+    }    
 }

@@ -83,6 +83,40 @@ function compuciber_ai_search_dashboard() {
         "SELECT COUNT(*) FROM {$tabla}"
     );
 
+    /*
+    * Estado real de embeddings.
+    *
+    * Un embedding solamente se considera generado
+    * cuando corresponde al texto, proveedor
+    * y modelo actualmente utilizados.
+    */
+    if (
+        function_exists(
+            'compuciber_obtener_estado_embeddings'
+        )
+    ) {
+
+        $estado_embeddings =
+            compuciber_obtener_estado_embeddings();
+
+        $embeddings_generados =
+            absint(
+                $estado_embeddings['generados']
+            );
+
+        $embeddings_pendientes =
+            absint(
+                $estado_embeddings['pendientes']
+            );
+
+    } else {
+
+        $embeddings_generados = 0;
+
+        $embeddings_pendientes =
+            $productos_indexados;
+    }
+
     $ultima_sincronizacion = $wpdb->get_var(
         "SELECT MAX(actualizado) FROM {$tabla}"
     );
@@ -248,28 +282,143 @@ function compuciber_ai_search_dashboard() {
 
                         </td>
                     </tr>
+
+            </tbody>
+
+        </table>
+
+        <h2>Embeddings de productos</h2>
+
+        <table class="widefat striped">
+
+            <tbody>
+
+                <tr>
+                    <td>Productos indexados</td>
                     <td>
+                        <strong>
+                            <?php echo esc_html( $productos_indexados ); ?>
+                        </strong>
+                    </td>
+                </tr>
 
-                        <?php if ( $productos_indexados > 0 ) : ?>
+                <tr>
+                    <td>Embeddings generados</td>
+                    <td>
+                        <strong>
+                            <?php echo esc_html( $embeddings_generados ); ?>
+                        </strong>
+                    </td>
+                </tr>
 
-                            <strong style="color:green;">
-                                Activo
-                            </strong>
-
-                        <?php else : ?>
-
-                            <strong style="color:#d63638;">
-                                Sin productos indexados
-                            </strong>
-
-                        <?php endif; ?>
-
+                <tr>
+                    <td>Embeddings pendientes</td>
+                    <td>
+                        <strong>
+                            <?php echo esc_html( $embeddings_pendientes ); ?>
+                        </strong>
                     </td>
                 </tr>
 
             </tbody>
 
         </table>
+
+
+        <?php if (
+            isset( $_GET['embeddings'] )
+            && $_GET['embeddings'] === 'procesados'
+        ) : ?>
+
+            <div class="notice notice-success is-dismissible">
+
+                <p>
+                    Lote procesado.
+                    Generados:
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $_GET['generados'] ?? 0
+                            )
+                        );
+                        ?>
+                    </strong>
+
+                    | Fallidos:
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $_GET['fallidos'] ?? 0
+                            )
+                        );
+                        ?>
+                    </strong>
+
+                    | Pendientes:
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $_GET['pendientes'] ?? 0
+                            )
+                        );
+                        ?>
+                    </strong>
+                </p>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <?php if ( $embeddings_pendientes > 0 ) : ?>
+
+            <p>
+                Los embeddings se generan por lotes de hasta
+                5 productos para evitar sobrecargar la API.
+            </p>
+
+            <form
+                method="post"
+                action="<?php echo esc_url(
+                    admin_url( 'admin-post.php' )
+                ); ?>"
+            >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compuciber_generar_embeddings"
+                >
+
+                <?php
+                wp_nonce_field(
+                    'compuciber_generar_embeddings'
+                );
+                ?>
+
+                <?php
+                submit_button(
+                    'Generar embeddings pendientes',
+                    'primary',
+                    'submit',
+                    false
+                );
+                ?>
+
+            </form>
+
+        <?php else : ?>
+
+            <p>
+                <strong>
+                    Todos los productos indexados tienen embedding.
+                </strong>
+            </p>
+
+        <?php endif; ?>        
 
         <br>
 
@@ -974,3 +1123,86 @@ function compuciber_ai_search_configuracion() {
 
     <?php
 }
+
+/*
+ * ==========================================================
+ * GENERACIÓN DE EMBEDDINGS POR LOTES
+ * ==========================================================
+ */
+
+/**
+ * Procesa un lote de embeddings desde
+ * el panel de administración.
+ */
+function compuciber_admin_generar_embeddings() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die(
+            esc_html__(
+                'No tienes permisos para realizar esta acción.',
+                'compuciber-ai-search'
+            )
+        );
+    }
+
+    check_admin_referer(
+        'compuciber_generar_embeddings'
+    );
+
+    if (
+        ! function_exists(
+            'compuciber_generar_lote_embeddings'
+        )
+    ) {
+        wp_die(
+            esc_html__(
+                'El generador de embeddings no está disponible.',
+                'compuciber-ai-search'
+            )
+        );
+    }
+
+
+    /*
+     * Procesamos un máximo de 5 productos
+     * por petición para evitar timeouts
+     * y consumo excesivo de API.
+     */
+    $resultado =
+        compuciber_generar_lote_embeddings( 5 );
+
+
+    /*
+     * Regresamos al Dashboard mostrando
+     * el resultado del lote.
+     */
+    $url = add_query_arg(
+        array(
+            'page'        => 'compuciber-ai-search',
+            'embeddings'  => 'procesados',
+            'procesados'  => absint(
+                $resultado['procesados']
+            ),
+            'generados'   => absint(
+                $resultado['generados']
+            ),
+            'fallidos'    => absint(
+                $resultado['fallidos']
+            ),
+            'pendientes'  => absint(
+                $resultado['pendientes']
+            ),
+        ),
+        admin_url( 'admin.php' )
+    );
+
+
+    wp_safe_redirect( $url );
+    exit;
+}
+
+
+add_action(
+    'admin_post_compuciber_generar_embeddings',
+    'compuciber_admin_generar_embeddings'
+);

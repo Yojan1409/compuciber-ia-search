@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once plugin_dir_path( __FILE__ ) . 'resultado/normalizacion.php';
 require_once plugin_dir_path( __FILE__ ) . 'resultado/puntuacion.php';
 require_once plugin_dir_path( __FILE__ ) . 'resultado/consulta.php';
-
+require_once plugin_dir_path( __FILE__ ) . 'resultado/embeddings.php';
 
 function compuciber_buscar_productos_inteligente(
     $busqueda,
@@ -51,21 +51,142 @@ function compuciber_buscar_productos_inteligente(
         $busqueda_expandida
     );
 
+    $embedding_consulta = false;
+
+    if (
+        function_exists(
+            'compuciber_busqueda_necesita_ia'
+        )
+        && compuciber_busqueda_necesita_ia(
+            $busqueda
+        )
+        && function_exists(
+            'compuciber_generar_embedding'
+        )
+    ) {
+
+        $embedding_consulta =
+            compuciber_generar_embedding(
+                $busqueda,
+                'consulta'
+            );
+    }    
+
     $productos_puntuados = array();
 
     foreach ( $productos_candidatos as $producto ) {
 
-        $score = compuciber_calcular_puntuacion_producto(
-            $producto,
-            $busqueda,
-            $palabras_busqueda,
-            $datos_ia
-        );
+        /*
+        * Puntuación del motor tradicional:
+        * coincidencias, fuzzy, sinónimos,
+        * marca, modelo, características, etc.
+        */
+        $score =
+            compuciber_calcular_puntuacion_producto(
+                $producto,
+                $busqueda,
+                $palabras_busqueda,
+                $datos_ia
+            );
+
+        /*
+        * Si el motor estructurado descartó el producto,
+        * el embedding no puede volver a introducirlo.
+        *
+        * Esto conserva filtros fuertes como:
+        * producto, categoría, precio, características
+        * técnicas, marca/modelo y anclas.
+        */
+        if ( $score <= 0 ) {
+            continue;
+        }
+
+        /*
+        * Puntuación semántica mediante embeddings.
+        */
+        $similitud_semantica = 0.0;
+
+        if (
+            is_array( $embedding_consulta )
+            && ! empty( $embedding_consulta )
+            && ! empty( $producto->embedding )
+            && isset( $producto->embedding_proveedor )
+            && isset( $producto->embedding_modelo )
+        ) {
+
+            $proveedor_actual = get_option(
+                'compuciber_proveedor_ia',
+                'gemini'
+            );
+
+            if ( $proveedor_actual === 'openai' ) {
+
+                $modelo_actual = get_option(
+                    'compuciber_modelo_embeddings',
+                    'text-embedding-3-small'
+                );
+
+            } else {
+
+                $modelo_actual =
+                    'gemini-embedding-2';
+            }
+
+
+            /*
+            * Solo comparar vectores generados
+            * por el mismo proveedor y modelo.
+            */
+            if (
+                $producto->embedding_proveedor ===
+                    $proveedor_actual
+                && $producto->embedding_modelo ===
+                    $modelo_actual
+            ) {
+
+                $embedding_producto =
+                    compuciber_decodificar_embedding(
+                        $producto->embedding
+                    );
+
+                if ( is_array( $embedding_producto ) ) {
+
+                    $similitud_semantica =
+                        compuciber_similitud_coseno(
+                            $embedding_consulta,
+                            $embedding_producto
+                        );
+                    error_log(
+                        'EMBEDDING DEBUG: '
+                        . $producto->nombre
+                        . ' | SIMILITUD: '
+                        . $similitud_semantica
+                    );                       
+
+
+                    /*
+                    * El embedding complementa el
+                    * motor existente.
+                    *
+                    * Una similitud alta puede hacer
+                    * aparecer un producto aunque no
+                    * comparta exactamente las mismas
+                    * palabras de la consulta.
+                    */
+                    if ( $similitud_semantica >= 0.45 ) {
+
+                        $score +=
+                            $similitud_semantica * 30;
+                    }
+                }
+            }
+        }
+
 
         if ( $score > 0 ) {
 
             $productos_puntuados[] = array(
-                'id'    => (int) $producto->id,
+                'id' => (int) $producto->id,
                 'score' => $score,
             );
         }

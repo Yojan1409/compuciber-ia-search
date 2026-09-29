@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 1.0.0
+ * Version: 1.2.0
  * Author: Compuciber
  */
 
@@ -469,13 +469,16 @@ function compuciber_ai_search_shortcode()
 
 
     if (
-            ! empty( $busqueda_original )
-            && empty( $interpretacion )
-            && get_option(
-                'compuciber_busqueda_semantica',
-                '0'
-            ) === '1'
-        ) {
+        ! empty( $busqueda_original )
+        && empty( $interpretacion )
+        && get_option(
+            'compuciber_busqueda_semantica',
+            '0'
+        ) === '1'
+        && compuciber_busqueda_necesita_ia(
+            $busqueda_original
+        )
+    ) {
 
             $interpretacion =
                 compuciber_consultar_ia(

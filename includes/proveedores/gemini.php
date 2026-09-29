@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once plugin_dir_path( __FILE__ ) . 'interfaz.php';
 require_once plugin_dir_path( __FILE__ ) . 'gemini/texto.php';
 require_once plugin_dir_path( __FILE__ ) . 'gemini/imagen.php';
+require_once plugin_dir_path( __FILE__ ) . 'gemini/embeddings.php';
 
 
 /**
@@ -38,4 +39,18 @@ class Compuciber_GeminiProvider
             $mime_type
         );
     }
+
+    /**
+     * Genera embeddings mediante Gemini.
+     */
+    public function generar_embedding(
+        $texto,
+        $tipo = 'producto'
+    ) {
+
+        return compuciber_generar_embedding_gemini(
+            $texto,
+            $tipo
+        );
+    }   
 }

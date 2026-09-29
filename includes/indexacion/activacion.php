@@ -29,9 +29,9 @@ function compuciber_activar_indexacion() {
     );
 
     foreach ( $productos as $product_id ) {
-
         compuciber_indexar_producto(
-            $product_id
+            $product_id,
+            false
         );
     }
 }

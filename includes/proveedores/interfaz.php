@@ -31,4 +31,17 @@ interface Compuciber_AIProviderInterface {
         $imagen_base64,
         $mime_type
     );
+
+    /**
+     * Genera un embedding a partir de un texto.
+     *
+     * @param string $texto Texto que se desea representar.
+     * @param string $tipo  Tipo de contenido: producto o consulta.
+     * @return array|false
+     */
+    public function generar_embedding(
+        $texto,
+        $tipo = 'producto'
+    );
+
 }

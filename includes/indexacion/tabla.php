@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'COMPUCIBER_INDICE_VERSION', '2.2' );
+define( 'COMPUCIBER_INDICE_VERSION', '2.4' );
 
 /**
  * Crea o actualiza la tabla del índice.
@@ -36,6 +36,11 @@ function compuciber_crear_tabla_indice_productos() {
         imagen varchar(2048) NOT NULL DEFAULT '',
         galeria longtext NOT NULL,
         metadatos longtext NOT NULL,
+        texto_embedding longtext NOT NULL,
+        hash_embedding varchar(64) NOT NULL DEFAULT '',
+        embedding longtext NOT NULL,
+        embedding_proveedor varchar(50) NOT NULL DEFAULT '',
+        embedding_modelo varchar(100) NOT NULL DEFAULT '',        
         actualizado datetime NOT NULL,
         PRIMARY KEY (id),
         KEY sku (sku(191)),
