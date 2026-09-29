@@ -70,6 +70,8 @@ function compuciber_obtener_sinonimos() {
 
         'disco ssd' => array(
             'ssd',
+            'disco solido',
+            'disco sólido',           
             'unidad de estado solido',
             'unidad de estado sólido',
         ),
@@ -99,6 +101,31 @@ function compuciber_obtener_sinonimos() {
             'camara',
             'cámara',
         ),
+
+        'ticketera' => array(
+            'impresora termica',
+            'impresora térmica',
+            'impresora de tickets',
+            'ticketera termica',
+            'ticketera térmica',
+        ),
+
+        'dnie' => array(
+            'dni electronico',
+            'dni electrónico',
+            'lector dnie',
+            'lector dni electronico',
+            'lector dni electrónico',
+        ),
+
+        'lector pistola' => array(
+            'lector codigo de barras',
+            'lector código de barras',
+            'lector de codigo de barras',
+            'lector de código de barras',
+            'pistola lectora',
+        ),
+
     );
 
     /*

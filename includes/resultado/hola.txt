@@ -316,6 +316,11 @@ function compuciber_contiene_termino(
         return false;
     }
 
+    /*
+     * Números y unidades técnicas deben coincidir
+     * como términos completos.
+     */
+
     if (
         is_numeric( $termino )
         || in_array(
@@ -342,6 +347,10 @@ function compuciber_contiene_termino(
             $texto
         ) === 1;
     }
+
+    /*
+     * Para el resto se mantiene la búsqueda parcial.
+     */
 
     return strpos(
         $texto,
@@ -698,76 +707,6 @@ function compuciber_calcular_puntuacion_producto(
 
     $puntuacion = 0;
 
-    /*
-    * PRIORIDADES PRINCIPALES DE RANKING
-    *
-    * 1. SKU exacto
-    * 2. Modelo / Part Number exacto
-    * 3. Marca + modelo
-    * 4. Título exacto
-    */
-
-    $busqueda_normalizada =
-        compuciber_normalizar_texto(
-            $busqueda
-        );
-
-    /*
-    * SKU EXACTO
-    */
-    if (
-        ! empty( $sku )
-        && $sku === $busqueda_normalizada
-    ) {
-        $puntuacion += 1000;
-    }
-
-    /*
-    * MODELO / PART NUMBER EXACTO
-    */
-    if (
-        ! empty( $modelo )
-        && $modelo === $busqueda_normalizada
-    ) {
-        $puntuacion += 800;
-    }
-
-    /*
-    * MARCA + MODELO
-    */
-    if (
-        ! empty( $marca )
-        && ! empty( $modelo )
-    ) {
-
-        $marca_modelo =
-            compuciber_normalizar_texto(
-                $marca . ' ' . $modelo
-            );
-
-        $modelo_marca =
-            compuciber_normalizar_texto(
-                $modelo . ' ' . $marca
-            );
-
-        if (
-            $busqueda_normalizada === $marca_modelo
-            || $busqueda_normalizada === $modelo_marca
-        ) {
-            $puntuacion += 600;
-        }
-    }
-
-    /*
-    * TÍTULO EXACTO
-    */
-    if (
-        ! empty( $titulo )
-        && $titulo === $busqueda_normalizada
-    ) {
-        $puntuacion += 400;
-    }   
-
 
     /*
      * PRODUCTO
@@ -829,6 +768,27 @@ function compuciber_calcular_puntuacion_producto(
 
         return 0;
     }
+
+
+    /*
+     * SKU
+     */
+
+    if ( ! empty( $sku ) ) {
+
+        $busqueda_normalizada =
+            compuciber_normalizar_texto(
+                $busqueda
+            );
+
+        if (
+            $sku === $busqueda_normalizada
+        ) {
+
+            $puntuacion += 100;
+        }
+    }
+
 
     /*
      * MARCA
