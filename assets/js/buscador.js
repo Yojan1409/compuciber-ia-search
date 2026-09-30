@@ -83,6 +83,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         item.className =
                             'compuciber-suggestion-item';
 
+                        item.classList.add(
+                            'compuciber-product-result'
+                        );
+
+                        item.dataset.productId =
+                            product.id;
+
+                        item.dataset.search =
+                            term;
 
                         /*
                         * ==================================================

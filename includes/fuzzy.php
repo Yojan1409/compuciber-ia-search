@@ -162,8 +162,16 @@ function compuciber_fuzzy_puntuacion(
                 $mejor_similitud
             ) {
 
-                $mejor_similitud =
-                    $similitud;
+                $mejor_similitud = $similitud;
+
+                error_log(
+                    'FUZZY COMPARACION: '
+                    . $palabra_busqueda
+                    . ' VS '
+                    . $palabra_texto
+                    . ' = '
+                    . $similitud
+                );
             }
         }
 

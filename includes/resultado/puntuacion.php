@@ -343,10 +343,15 @@ function compuciber_contiene_termino(
         ) === 1;
     }
 
-    return strpos(
-        $texto,
-        $termino
-    ) !== false;
+    return preg_match(
+        '/(?<![a-z0-9])'
+        . preg_quote(
+            $termino,
+            '/'
+        )
+        . '(?![a-z0-9])/i',
+        $texto
+    ) === 1;
 }
 
 
@@ -1090,6 +1095,14 @@ function compuciber_calcular_puntuacion_producto(
                 $palabra
             )
         ) {
+            error_log(
+                'COINCIDENCIA TEXTO DEBUG: '
+                . $producto->nombre
+                . ' | PALABRA: '
+                . $palabra
+                . ' | TEXTO: '
+                . $texto
+            );            
 
             $puntuacion += 2;
         }
@@ -1562,14 +1575,45 @@ function compuciber_calcular_puntuacion_producto(
     }
 
     /*
-     * FUZZY
-     */
+    * FUZZY
+    *
+    * Solo se permite si existe alguna coincidencia
+    * real previa con el producto.
+    */
 
-    $fuzzy =
-        compuciber_fuzzy_puntuacion(
-            $busqueda,
-            $texto
+    $fuzzy = 0;
+
+    $existe_coincidencia_real =
+        compuciber_contiene_termino(
+            $titulo,
+            $busqueda_normalizada
+        )
+        ||
+        compuciber_contiene_termino(
+            $marca,
+            $busqueda_normalizada
+        )
+        ||
+        compuciber_contiene_termino(
+            $modelo,
+            $busqueda_normalizada
+        )
+        ||
+        compuciber_contiene_termino(
+            $sku,
+            $busqueda_normalizada
         );
+
+
+    if ( $existe_coincidencia_real ) {
+
+        $fuzzy =
+            compuciber_fuzzy_puntuacion(
+                $busqueda,
+                $texto
+            );
+    }
+
 
     error_log(
         'FUZZY DEBUG: '
@@ -1578,7 +1622,8 @@ function compuciber_calcular_puntuacion_producto(
         . $busqueda
         . ' | FUZZY: '
         . $fuzzy
-    );        
+    );
+
 
     if ( $fuzzy > 0 ) {
 
@@ -1588,6 +1633,13 @@ function compuciber_calcular_puntuacion_producto(
         );
     }
 
-
+    error_log(
+        'SCORE FINAL DEBUG: '
+        . $producto->nombre
+        . ' | SCORE: '
+        . $puntuacion
+        . ' | BUSQUEDA: '
+        . $busqueda
+    );
     return $puntuacion;
 }

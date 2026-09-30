@@ -51,6 +51,36 @@ function compuciber_buscar_productos_inteligente(
         $busqueda_expandida
     );
 
+
+    /*
+    * LIMPIEZA DE PALABRAS GENÉRICAS
+    * Evita falsos positivos en fuzzy.
+    */
+
+    $palabras_ignoradas = array(
+        'producto',
+        'disponible',
+        'incluye',
+        'ideal',
+        'uso',
+        'para',
+        'con',
+        'nuevo'
+    );
+
+    $palabras_busqueda = array_filter(
+        $palabras_busqueda,
+        function( $palabra ) use ( $palabras_ignoradas ) {
+
+            return ! in_array(
+                strtolower( $palabra ),
+                $palabras_ignoradas,
+                true
+            );
+
+        }
+    );
+
     $embedding_consulta = false;
 
     if (

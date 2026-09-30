@@ -30,6 +30,7 @@ function compuciber_ai_search_dashboard() {
     $busquedas_imagen = 0;
     $busquedas_populares = array();
     $productos_mas_seleccionados = array();
+    $busquedas_sin_resultados_lista = array();
 
     if (
         get_option(
@@ -71,6 +72,9 @@ function compuciber_ai_search_dashboard() {
 
         $productos_mas_seleccionados =
             compuciber_obtener_productos_mas_seleccionados( 10 );
+
+        $busquedas_sin_resultados_lista =
+            compuciber_obtener_busquedas_sin_resultados( 10 );            
 
     }    
 
@@ -635,6 +639,92 @@ function compuciber_ai_search_dashboard() {
                 </p>
 
             <?php endif; ?>
+
+            <br>
+
+            <h3>Búsquedas sin resultados</h3>
+
+            <?php if ( ! empty( $busquedas_sin_resultados_lista ) ) : ?>
+
+                <table class="widefat striped">
+
+                    <thead>
+                        <tr>
+                            <th>Búsqueda</th>
+                            <th>Veces buscada</th>
+                            <th>Última búsqueda</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <?php foreach (
+                            $busquedas_sin_resultados_lista as $busqueda_sin_resultado
+                        ) : ?>
+
+                            <tr>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $busqueda_sin_resultado->busqueda
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        <?php
+                                        echo esc_html(
+                                            absint(
+                                                $busqueda_sin_resultado->total
+                                            )
+                                        );
+                                        ?>
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <?php
+
+                                    if (
+                                        ! empty(
+                                            $busqueda_sin_resultado->ultima_busqueda
+                                        )
+                                    ) {
+
+                                        echo esc_html(
+                                            wp_date(
+                                                'd/m/Y H:i',
+                                                strtotime(
+                                                    $busqueda_sin_resultado->ultima_busqueda
+                                                )
+                                            )
+                                        );
+
+                                    } else {
+
+                                        echo '—';
+                                    }
+
+                                    ?>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            <?php else : ?>
+
+                <p>
+                    No se han registrado búsquedas sin resultados.
+                </p>
+
+            <?php endif; ?>            
 
             <br>
 

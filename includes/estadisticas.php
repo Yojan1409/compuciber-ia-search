@@ -292,3 +292,34 @@ function compuciber_obtener_productos_mas_seleccionados(
         )
     );
 }
+
+function compuciber_obtener_busquedas_sin_resultados(
+    $limite = 10
+) {
+
+    global $wpdb;
+
+    $tabla =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $limite = absint( $limite );
+
+    if ( $limite < 1 ) {
+        $limite = 10;
+    }
+
+    return $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                busqueda,
+                COUNT(*) AS total,
+                MAX(fecha) AS ultima_busqueda
+            FROM {$tabla}
+            WHERE resultados = 0
+            GROUP BY busqueda
+            ORDER BY total DESC, ultima_busqueda DESC
+            LIMIT %d",
+            $limite
+        )
+    );
+}

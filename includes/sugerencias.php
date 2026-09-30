@@ -350,6 +350,9 @@ function compuciber_buscar_sugerencias() {
 
         $resultados[] = array(
 
+            'id' =>
+                $producto_id,        
+
             'title' =>
                 $titulo,
 
