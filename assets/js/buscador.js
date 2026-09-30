@@ -810,4 +810,85 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
 
+    /*
+    * ======================================================
+    * ESTADÍSTICAS - PRODUCTO SELECCIONADO
+    * ======================================================
+    */
+
+    document.addEventListener(
+        'click',
+        function (event) {
+
+            const enlace =
+                event.target.closest(
+                    '.compuciber-product-result'
+                );
+
+            if (!enlace) {
+                return;
+            }
+
+            const productoId =
+                enlace.dataset.productId;
+
+            const busqueda =
+                enlace.dataset.search || '';
+
+            if (
+                !productoId ||
+                !CompuciberSearch.selectionNonce
+            ) {
+                return;
+            }
+
+            const datos =
+                new FormData();
+
+            datos.append(
+                'action',
+                'compuciber_registrar_seleccion'
+            );
+
+            datos.append(
+                'nonce',
+                CompuciberSearch.selectionNonce
+            );
+
+            datos.append(
+                'producto_id',
+                productoId
+            );
+
+            datos.append(
+                'busqueda',
+                busqueda
+            );
+
+            /*
+            * Registra la selección sin bloquear
+            * la navegación hacia el producto.
+            */
+            fetch(
+                CompuciberSearch.ajaxUrl,
+                {
+                    method: 'POST',
+                    body: datos,
+                    keepalive: true
+                }
+            ).catch(
+                function (error) {
+
+                    console.error(
+                        'No se pudo registrar la selección:',
+                        error
+                    );
+
+                }
+            );
+
+        }
+    );
+
 });
+

@@ -91,8 +91,13 @@ function compuciber_cargar_buscador_js() {
         'CompuciberSearch',
         array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+
             'imageNonce' => wp_create_nonce(
                 'compuciber_busqueda_imagen'
+            ),
+
+            'selectionNonce' => wp_create_nonce(
+                'compuciber_registrar_seleccion'
             ),
         )
     );
@@ -701,9 +706,13 @@ function compuciber_ai_search_shortcode()
                     echo '<li>';
 
                     echo '<a href="'
-                        . esc_url(
-                            get_permalink()
-                        )
+                        . esc_url( get_permalink() )
+                        . '" class="compuciber-product-result"'
+                        . ' data-product-id="'
+                        . esc_attr( get_the_ID() )
+                        . '"'
+                        . ' data-search="'
+                        . esc_attr( $busqueda_original )
                         . '">';
 
                     echo esc_html(

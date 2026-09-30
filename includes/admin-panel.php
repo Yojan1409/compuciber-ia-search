@@ -29,6 +29,7 @@ function compuciber_ai_search_dashboard() {
     $busquedas_voz = 0;
     $busquedas_imagen = 0;
     $busquedas_populares = array();
+    $productos_mas_seleccionados = array();
 
     if (
         get_option(
@@ -67,6 +68,10 @@ function compuciber_ai_search_dashboard() {
 
         $busquedas_populares =
             compuciber_obtener_busquedas_populares( 10 );
+
+        $productos_mas_seleccionados =
+            compuciber_obtener_productos_mas_seleccionados( 10 );
+
     }    
 
     $productos_woocommerce = wp_count_posts( 'product' );
@@ -630,6 +635,91 @@ function compuciber_ai_search_dashboard() {
                 </p>
 
             <?php endif; ?>
+
+            <br>
+
+                        <h3>Productos más seleccionados</h3>
+
+                        <?php if ( ! empty( $productos_mas_seleccionados ) ) : ?>
+
+                            <table class="widefat striped">
+
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Selecciones</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    <?php foreach (
+                                        $productos_mas_seleccionados as $seleccion
+                                    ) : ?>
+
+                                        <?php
+
+                                        $producto_id =
+                                            absint(
+                                                $seleccion->producto_id
+                                            );
+
+                                        $producto =
+                                            wc_get_product(
+                                                $producto_id
+                                            );
+
+                                        if ( ! $producto ) {
+                                            continue;
+                                        }
+
+                                        ?>
+
+                                        <tr>
+
+                                            <td>
+                                                <a
+                                                    href="<?php echo esc_url(
+                                                        get_edit_post_link(
+                                                            $producto_id
+                                                        )
+                                                    ); ?>"
+                                                >
+                                                    <?php
+                                                    echo esc_html(
+                                                        $producto->get_name()
+                                                    );
+                                                    ?>
+                                                </a>
+                                            </td>
+
+                                            <td>
+                                                <strong>
+                                                    <?php
+                                                    echo esc_html(
+                                                        absint(
+                                                            $seleccion->total
+                                                        )
+                                                    );
+                                                    ?>
+                                                </strong>
+                                            </td>
+
+                                        </tr>
+
+                                    <?php endforeach; ?>
+
+                                </tbody>
+
+                            </table>
+
+                        <?php else : ?>
+
+                            <p>
+                                Todavía no hay productos seleccionados.
+                            </p>
+
+                        <?php endif; ?>            
 
         <?php endif; ?>        
 
