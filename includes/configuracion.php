@@ -95,6 +95,8 @@ function compuciber_ai_search_registrar_opciones() {
 
         'compuciber_aprendizaje_ranking',
 
+        'compuciber_clave_licencia',     
+
     );
 
     foreach ( $opciones as $opcion ) {

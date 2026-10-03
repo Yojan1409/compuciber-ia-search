@@ -10,6 +10,19 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/*
+ * ==========================================================
+ * INFORMACIÓN DEL PLUGIN
+ * ==========================================================
+ */
+
+if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
+    define(
+        'COMPUCIBER_AI_SEARCH_VERSION',
+        '1.2.0'
+    );
+}
+
 function compuciber_verificar_woocommerce() {
 
     if ( ! class_exists( 'WooCommerce' ) ) {
@@ -44,6 +57,23 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/openai.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/gemini.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/resultados.php';
+
+require_once plugin_dir_path( __FILE__ ) . 'includes/licencias.php';
+
+/*
+ * ==========================================================
+ * DESACTIVACIÓN DEL PLUGIN
+ * ==========================================================
+ */
+
+/**
+ * Limpia las tareas programadas del sistema
+ * de licencias cuando el plugin se desactiva.
+ */
+register_deactivation_hook(
+    __FILE__,
+    'compuciber_limpiar_cron_licencia'
+);
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/indexacion.php';
 
@@ -106,14 +136,14 @@ function compuciber_cargar_buscador_js() {
         'compuciber-buscador',
         plugin_dir_url( __FILE__ ) . 'assets/css/buscador.css',
         array(),
-        '1.2.0'
+        COMPUCIBER_AI_SEARCH_VERSION
     );
 
     wp_enqueue_script(
         'compuciber-buscador',
         plugin_dir_url( __FILE__ ) . 'assets/js/buscador.js',
         array(),
-        '1.2.0',
+        COMPUCIBER_AI_SEARCH_VERSION,
         true
     );
 

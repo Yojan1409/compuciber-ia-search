@@ -1150,6 +1150,23 @@ function compuciber_ai_search_configuracion() {
         return;
     }
 
+    /*
+    * Mensaje temporal generado por
+    * la validación de licencia.
+    */
+    $mensaje_licencia = get_transient(
+        'compuciber_mensaje_licencia_'
+            . get_current_user_id()
+    );
+
+    if ( false !== $mensaje_licencia ) {
+
+        delete_transient(
+            'compuciber_mensaje_licencia_'
+                . get_current_user_id()
+        );
+    }    
+
     $proveedor = get_option(
         'compuciber_proveedor_ia',
         'gemini'
@@ -1183,6 +1200,19 @@ function compuciber_ai_search_configuracion() {
     ?>
 
     <div class="wrap">
+
+    <?php if ( false !== $mensaje_licencia ) : ?>
+
+        <div
+            class="notice notice-info is-dismissible"
+            style="margin-top:15px;"
+        >
+            <p>
+                <?php echo esc_html( $mensaje_licencia ); ?>
+            </p>
+        </div>
+
+    <?php endif; ?>    
 
         <div style="
             display:flex;
@@ -1322,6 +1352,271 @@ function compuciber_ai_search_configuracion() {
 
             </table>
 
+            <h2>Licencia</h2>
+
+                        <table class="form-table">
+
+                            <tr>
+
+                                <th scope="row">
+                                    <label for="compuciber_clave_licencia">
+                                        Clave de licencia
+                                    </label>
+                                </th>
+
+                                <td>
+
+                                    <input
+                                        type="password"
+                                        id="compuciber_clave_licencia"
+                                        name="compuciber_clave_licencia"
+                                        value="<?php echo esc_attr(
+                                            get_option(
+                                                'compuciber_clave_licencia',
+                                                ''
+                                            )
+                                        ); ?>"
+                                        class="regular-text"
+                                        autocomplete="off"
+                                    >
+
+                                    <p class="description">
+                                        Introduce la clave de licencia de
+                                        Compuciber AI Search.
+                                    </p>
+
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <th scope="row">
+                                    Estado de licencia
+                                </th>
+
+                                <td>
+
+                                    <?php
+                                    $estado_licencia =
+                                        compuciber_obtener_estado_licencia();
+
+                                    $estado_operativo_licencia =
+                                        compuciber_obtener_estado_operativo_licencia();
+
+                                    ?>
+
+                                    <strong>
+                                        <?php
+                                        switch ( $estado_licencia ) {
+
+                                            case 'activa':
+                                                echo 'Activa';
+                                                break;
+
+                                            case 'inactiva':
+                                                echo 'Inactiva';
+                                                break;
+
+                                            case 'expirada':
+                                                echo 'Expirada';
+                                                break;
+
+                                            default:
+                                                echo 'Sin licencia';
+                                                break;
+                                        }
+                                        ?>
+                                    </strong>
+
+                                    <p class="description">
+                                        El estado se determina automáticamente
+                                        mediante el sistema de licenciamiento.
+                                    </p>
+
+                                    <p>
+                                        <button
+                                            type="button"
+                                            id="compuciber-validar-licencia"
+                                            class="button button-secondary"
+                                        >
+                                            Validar licencia
+                                        </button>
+                                    </p>
+
+                                    <script>
+                                    document.addEventListener(
+                                        'DOMContentLoaded',
+                                        function () {
+
+                                            const boton =
+                                                document.getElementById(
+                                                    'compuciber-validar-licencia'
+                                                );
+
+                                            if ( ! boton ) {
+                                                return;
+                                            }
+
+                                            boton.addEventListener(
+                                                'click',
+                                                function () {
+                                                    boton.disabled = true;
+                                                    boton.textContent = 'Validando...';
+
+                                                    const formulario =
+                                                        document.createElement('form');
+
+                                                    formulario.method = 'POST';
+
+                                                    formulario.action =
+                                                        <?php
+                                                        echo wp_json_encode(
+                                                            admin_url('admin-post.php')
+                                                        );
+                                                        ?>;
+
+                                                    const accion =
+                                                        document.createElement('input');
+
+                                                    accion.type = 'hidden';
+                                                    accion.name = 'action';
+                                                    accion.value =
+                                                        'compuciber_validar_licencia';
+
+                                                    formulario.appendChild(
+                                                        accion
+                                                    );
+
+                                                    const nonce =
+                                                        document.createElement('input');
+
+                                                    nonce.type = 'hidden';
+                                                    nonce.name = '_wpnonce';
+                                                    nonce.value =
+                                                        <?php
+                                                        echo wp_json_encode(
+                                                            wp_create_nonce(
+                                                                'compuciber_validar_licencia'
+                                                            )
+                                                        );
+                                                        ?>;
+
+                                                    formulario.appendChild(
+                                                        nonce
+                                                    );
+
+                                                    document.body.appendChild(
+                                                        formulario
+                                                    );
+
+                                                    formulario.submit();
+                                                }
+                                            );
+                                        }
+                                    );
+                                    </script>                             
+
+                                </td>
+
+                            </tr>
+
+                            <tr>
+                                <th scope="row">
+                                    Estado operativo
+                                </th>
+
+                                <td>
+                                    <?php
+
+                                    $etiquetas_operativas = array(
+                                        'sin_licencia'  => 'Sin licencia',
+                                        'activa'        => 'Activa',
+                                        'gracia'        => 'Periodo de gracia',
+                                        'sin_confirmar' => 'Sin confirmar',
+                                        'inactiva'      => 'Inactiva',
+                                        'expirada'      => 'Expirada',
+                                    );
+
+                                    $etiqueta_operativa =
+                                        isset(
+                                            $etiquetas_operativas[
+                                                $estado_operativo_licencia
+                                            ]
+                                        )
+                                            ? $etiquetas_operativas[
+                                                $estado_operativo_licencia
+                                            ]
+                                            : 'Desconocido';
+
+                                    ?>
+
+                                    <strong>
+                                        <?php
+                                        echo esc_html(
+                                            $etiqueta_operativa
+                                        );
+                                        ?>
+                                    </strong>
+
+
+                                    <?php if ( $estado_licencia === 'activa' ) : ?>
+
+                                        <?php
+
+                                        $limite_instalaciones =
+                                            compuciber_obtener_limite_instalaciones();
+
+                                        $instalaciones_activas =
+                                            compuciber_obtener_instalaciones_activas();
+
+                                        $instalaciones_disponibles =
+                                            compuciber_obtener_instalaciones_disponibles();
+
+                                        ?>
+
+                                        <p class="description">
+                                            Instalaciones:
+                                            <strong>
+                                                <?php
+                                                echo esc_html(
+                                                    $instalaciones_activas
+                                                );
+                                                ?>
+                                            </strong>
+                                            de
+                                            <strong>
+                                                <?php
+                                                echo esc_html(
+                                                    $limite_instalaciones
+                                                );
+                                                ?>
+                                            </strong>
+                                            utilizadas.
+                                            Disponibles:
+                                            <strong>
+                                                <?php
+                                                echo esc_html(
+                                                    $instalaciones_disponibles
+                                                );
+                                                ?>
+                                            </strong>.
+                                        </p>
+
+                                    <?php endif; ?>
+
+
+                                    <p class="description">
+                                        Indica si la licencia puede utilizarse
+                                        actualmente, considerando la última
+                                        validación y el periodo de gracia.
+                                    </p>
+
+                                </td>
+                            </tr>
+                            </tr>                            
+
+                        </table>
 
             <h2>Modelos de IA</h2>
 
