@@ -23,60 +23,61 @@ function compuciber_ai_search_dashboard() {
     $tabla_estadisticas =
         $wpdb->prefix . 'compuciber_search_stats';
 
-    $total_busquedas = 0;
-    $busquedas_sin_resultados = 0;
-    $busquedas_texto = 0;
-    $busquedas_voz = 0;
-    $busquedas_imagen = 0;
-    $busquedas_populares = array();
-    $productos_mas_seleccionados = array();
-    $busquedas_sin_resultados_lista = array();
+/*
+ * ==========================================================
+ * ESTADÍSTICAS AVANZADAS - V2.0
+ * ==========================================================
+ */
 
-    if (
-        get_option(
-            'compuciber_estadisticas',
-            '0'
-        ) === '1'
-    ) {
+$resumen_estadisticas = array(
+    'total_busquedas'             => 0,
+    'busquedas_con_resultados'    => 0,
+    'busquedas_sin_resultados'    => 0,
+    'total_clicks'                => 0,
+    'tasa_exito'                  => 0,
+    'ctr'                         => 0,
+);
 
-        $total_busquedas = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$tabla_estadisticas}"
-        );
+$busquedas_por_tipo = array(
+    'texto'  => 0,
+    'voz'    => 0,
+    'imagen' => 0,
+);
 
-        $busquedas_sin_resultados = (int) $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$tabla_estadisticas}
-            WHERE resultados = 0"
-        );
+$busquedas_populares = array();
+$productos_mas_seleccionados = array();
+$busquedas_sin_resultados_lista = array();
+$busquedas_por_dia = array();
+$busquedas_con_mas_clicks = array();
 
-        $busquedas_texto = (int) $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$tabla_estadisticas}
-            WHERE tipo = 'texto'"
-        );
+if (
+    get_option(
+        'compuciber_estadisticas',
+        '0'
+    ) === '1'
+) {
 
-        $busquedas_voz = (int) $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$tabla_estadisticas}
-            WHERE tipo = 'voz'"
-        );
+    $resumen_estadisticas =
+        compuciber_obtener_resumen_estadisticas();
 
-        $busquedas_imagen = (int) $wpdb->get_var(
-            "SELECT COUNT(*)
-            FROM {$tabla_estadisticas}
-            WHERE tipo = 'imagen'"
-        );
+    $busquedas_por_tipo =
+        compuciber_obtener_busquedas_por_tipo();
 
-        $busquedas_populares =
-            compuciber_obtener_busquedas_populares( 10 );
+    $busquedas_populares =
+        compuciber_obtener_busquedas_populares( 10 );
 
-        $productos_mas_seleccionados =
-            compuciber_obtener_productos_mas_seleccionados( 10 );
+    $productos_mas_seleccionados =
+        compuciber_obtener_productos_mas_seleccionados( 10 );
 
-        $busquedas_sin_resultados_lista =
-            compuciber_obtener_busquedas_sin_resultados( 10 );            
+    $busquedas_sin_resultados_lista =
+        compuciber_obtener_busquedas_sin_resultados( 10 );
 
-    }    
+    $busquedas_por_dia =
+        compuciber_obtener_busquedas_por_dia( 30 );
+
+    $busquedas_con_mas_clicks =
+        compuciber_obtener_busquedas_con_mas_clicks( 10 );
+}  
 
     $productos_woocommerce = wp_count_posts( 'product' );
 
@@ -535,51 +536,160 @@ function compuciber_ai_search_dashboard() {
 
         <?php else : ?>
 
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(
+                    auto-fit,
+                    minmax(180px, 1fr)
+                );
+                gap:15px;
+                margin:20px 0;
+            ">
+
+                <?php
+
+                $tarjetas = array(
+
+                    array(
+                        'titulo' => 'Total de búsquedas',
+                        'valor'  => absint(
+                            $resumen_estadisticas['total_busquedas']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Con resultados',
+                        'valor'  => absint(
+                            $resumen_estadisticas['busquedas_con_resultados']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Sin resultados',
+                        'valor'  => absint(
+                            $resumen_estadisticas['busquedas_sin_resultados']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Selecciones',
+                        'valor'  => absint(
+                            $resumen_estadisticas['total_clicks']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Tasa de éxito',
+                        'valor'  => number_format_i18n(
+                            $resumen_estadisticas['tasa_exito'],
+                            2
+                        ) . '%',
+                    ),
+
+                    array(
+                        'titulo' => 'CTR global',
+                        'valor'  => number_format_i18n(
+                            $resumen_estadisticas['ctr'],
+                            2
+                        ) . '%',
+                    ),
+                );
+
+                foreach ( $tarjetas as $tarjeta ) :
+                    ?>
+
+                    <div style="
+                        background:#fff;
+                        border:1px solid #dcdcde;
+                        border-radius:8px;
+                        padding:20px;
+                        box-shadow:0 1px 2px rgba(0,0,0,.04);
+                    ">
+
+                        <div style="
+                            color:#646970;
+                            margin-bottom:8px;
+                        ">
+                            <?php
+                            echo esc_html(
+                                $tarjeta['titulo']
+                            );
+                            ?>
+                        </div>
+
+                        <div style="
+                            font-size:28px;
+                            font-weight:600;
+                            line-height:1.2;
+                        ">
+                            <?php
+                            echo esc_html(
+                                $tarjeta['valor']
+                            );
+                            ?>
+                        </div>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+            </div>  
+            
+            <h3>Canales de búsqueda</h3>
+
             <table class="widefat striped">
 
                 <thead>
                     <tr>
-                        <th>Métrica</th>
-                        <th>Total</th>
+                        <th>Canal</th>
+                        <th>Total de búsquedas</th>
                     </tr>
                 </thead>
 
                 <tbody>
 
                     <tr>
-                        <td>Total de búsquedas</td>
+                        <td>Texto</td>
                         <td>
                             <strong>
-                                <?php echo esc_html( $total_busquedas ); ?>
+                                <?php
+                                echo esc_html(
+                                    absint(
+                                        $busquedas_por_tipo['texto']
+                                    )
+                                );
+                                ?>
                             </strong>
                         </td>
                     </tr>
 
                     <tr>
-                        <td>Búsquedas sin resultados</td>
+                        <td>Voz</td>
                         <td>
-                            <?php echo esc_html( $busquedas_sin_resultados ); ?>
+                            <strong>
+                                <?php
+                                echo esc_html(
+                                    absint(
+                                        $busquedas_por_tipo['voz']
+                                    )
+                                );
+                                ?>
+                            </strong>
                         </td>
                     </tr>
 
                     <tr>
-                        <td>Búsquedas por texto</td>
+                        <td>Imagen</td>
                         <td>
-                            <?php echo esc_html( $busquedas_texto ); ?>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td>Búsquedas por voz</td>
-                        <td>
-                            <?php echo esc_html( $busquedas_voz ); ?>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td>Búsquedas por imagen</td>
-                        <td>
-                            <?php echo esc_html( $busquedas_imagen ); ?>
+                            <strong>
+                                <?php
+                                echo esc_html(
+                                    absint(
+                                        $busquedas_por_tipo['imagen']
+                                    )
+                                );
+                                ?>
+                            </strong>
                         </td>
                     </tr>
 
@@ -587,8 +697,8 @@ function compuciber_ai_search_dashboard() {
 
             </table>
 
-            <br>
-
+            <br> 
+            
             <h3>Búsquedas más frecuentes</h3>
 
             <?php if ( ! empty( $busquedas_populares ) ) : ?>
@@ -609,6 +719,7 @@ function compuciber_ai_search_dashboard() {
                         ) : ?>
 
                             <tr>
+
                                 <td>
                                     <?php
                                     echo esc_html(
@@ -618,12 +729,17 @@ function compuciber_ai_search_dashboard() {
                                 </td>
 
                                 <td>
-                                    <?php
-                                    echo esc_html(
-                                        $estadistica->total
-                                    );
-                                    ?>
+                                    <strong>
+                                        <?php
+                                        echo esc_html(
+                                            absint(
+                                                $estadistica->total
+                                            )
+                                        );
+                                        ?>
+                                    </strong>
                                 </td>
+
                             </tr>
 
                         <?php endforeach; ?>
@@ -641,10 +757,12 @@ function compuciber_ai_search_dashboard() {
             <?php endif; ?>
 
             <br>
-
+            
             <h3>Búsquedas sin resultados</h3>
 
-            <?php if ( ! empty( $busquedas_sin_resultados_lista ) ) : ?>
+            <?php if (
+                ! empty( $busquedas_sin_resultados_lista )
+            ) : ?>
 
                 <table class="widefat striped">
 
@@ -659,7 +777,8 @@ function compuciber_ai_search_dashboard() {
                     <tbody>
 
                         <?php foreach (
-                            $busquedas_sin_resultados_lista as $busqueda_sin_resultado
+                            $busquedas_sin_resultados_lista
+                            as $busqueda_sin_resultado
                         ) : ?>
 
                             <tr>
@@ -697,7 +816,8 @@ function compuciber_ai_search_dashboard() {
                                             wp_date(
                                                 'd/m/Y H:i',
                                                 strtotime(
-                                                    $busqueda_sin_resultado->ultima_busqueda
+                                                    $busqueda_sin_resultado
+                                                        ->ultima_busqueda
                                                 )
                                             )
                                         );
@@ -724,92 +844,291 @@ function compuciber_ai_search_dashboard() {
                     No se han registrado búsquedas sin resultados.
                 </p>
 
-            <?php endif; ?>            
+            <?php endif; ?>
+
+            <br>  
+            
+            <h3>Productos más seleccionados</h3>
+
+            <?php if (
+                ! empty( $productos_mas_seleccionados )
+            ) : ?>
+
+                <table class="widefat striped">
+
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Selecciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <?php foreach (
+                            $productos_mas_seleccionados
+                            as $seleccion
+                        ) : ?>
+
+                            <?php
+
+                            $producto_id = absint(
+                                $seleccion->producto_id
+                            );
+
+                            $producto = wc_get_product(
+                                $producto_id
+                            );
+
+                            if ( ! $producto ) {
+                                continue;
+                            }
+
+                            ?>
+
+                            <tr>
+
+                                <td>
+                                    <a
+                                        href="<?php echo esc_url(
+                                            get_edit_post_link(
+                                                $producto_id
+                                            )
+                                        ); ?>"
+                                    >
+                                        <?php
+                                        echo esc_html(
+                                            $producto->get_name()
+                                        );
+                                        ?>
+                                    </a>
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        <?php
+                                        echo esc_html(
+                                            absint(
+                                                $seleccion->total
+                                            )
+                                        );
+                                        ?>
+                                    </strong>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+            <?php else : ?>
+
+                <p>
+                    Todavía no hay productos seleccionados.
+                </p>
+
+            <?php endif; ?>
 
             <br>
+            
+            <h3>Consultas que generan más selecciones</h3>
 
-                        <h3>Productos más seleccionados</h3>
+            <?php if (
+                ! empty( $busquedas_con_mas_clicks )
+            ) : ?>
 
-                        <?php if ( ! empty( $productos_mas_seleccionados ) ) : ?>
+                <table class="widefat striped">
 
-                            <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th>Consulta</th>
+                            <th>Selecciones</th>
+                        </tr>
+                    </thead>
 
-                                <thead>
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th>Selecciones</th>
-                                    </tr>
-                                </thead>
+                    <tbody>
 
-                                <tbody>
+                        <?php foreach (
+                            $busquedas_con_mas_clicks
+                            as $consulta_click
+                        ) : ?>
 
-                                    <?php foreach (
-                                        $productos_mas_seleccionados as $seleccion
-                                    ) : ?>
+                            <tr>
 
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $consulta_click->busqueda
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <strong>
                                         <?php
-
-                                        $producto_id =
+                                        echo esc_html(
                                             absint(
-                                                $seleccion->producto_id
-                                            );
-
-                                        $producto =
-                                            wc_get_product(
-                                                $producto_id
-                                            );
-
-                                        if ( ! $producto ) {
-                                            continue;
-                                        }
-
+                                                $consulta_click->total
+                                            )
+                                        );
                                         ?>
+                                    </strong>
+                                </td>
 
-                                        <tr>
+                            </tr>
 
-                                            <td>
-                                                <a
-                                                    href="<?php echo esc_url(
-                                                        get_edit_post_link(
-                                                            $producto_id
-                                                        )
-                                                    ); ?>"
-                                                >
-                                                    <?php
-                                                    echo esc_html(
-                                                        $producto->get_name()
-                                                    );
-                                                    ?>
-                                                </a>
-                                            </td>
+                        <?php endforeach; ?>
 
-                                            <td>
-                                                <strong>
-                                                    <?php
-                                                    echo esc_html(
-                                                        absint(
-                                                            $seleccion->total
-                                                        )
-                                                    );
-                                                    ?>
-                                                </strong>
-                                            </td>
+                    </tbody>
 
-                                        </tr>
+                </table>
 
-                                    <?php endforeach; ?>
+            <?php else : ?>
 
-                                </tbody>
+                <p>
+                    Todavía no existen suficientes
+                    selecciones para mostrar esta métrica.
+                </p>
 
-                            </table>
+            <?php endif; ?>
 
-                        <?php else : ?>
+            <br>
+            
+            <h3>Actividad de búsquedas - últimos 30 días</h3>
 
-                            <p>
-                                Todavía no hay productos seleccionados.
-                            </p>
+            <?php if ( ! empty( $busquedas_por_dia ) ) : ?>
 
-                        <?php endif; ?>            
+                <?php
+
+                $maximo_busquedas = 1;
+
+                foreach ( $busquedas_por_dia as $actividad ) {
+
+                    $total_dia = absint(
+                        $actividad->total
+                    );
+
+                    if ( $total_dia > $maximo_busquedas ) {
+                        $maximo_busquedas = $total_dia;
+                    }
+                }
+
+                ?>
+
+                <div style="
+                    background:#fff;
+                    border:1px solid #dcdcde;
+                    border-radius:8px;
+                    padding:20px;
+                    margin-bottom:20px;
+                    overflow-x:auto;
+                ">
+
+                    <div style="
+                        display:flex;
+                        align-items:flex-end;
+                        gap:10px;
+                        min-height:240px;
+                        min-width:600px;
+                        border-bottom:1px solid #dcdcde;
+                        padding:10px 5px 0;
+                    ">
+
+                        <?php foreach (
+                            $busquedas_por_dia as $actividad
+                        ) : ?>
+
+                            <?php
+
+                            $total_dia = absint(
+                                $actividad->total
+                            );
+
+                            $altura = (
+                                $total_dia
+                                / $maximo_busquedas
+                            ) * 180;
+
+                            $fecha_formateada = wp_date(
+                                'd/m',
+                                strtotime(
+                                    $actividad->fecha
+                                )
+                            );
+
+                            ?>
+
+                            <div style="
+                                flex:1;
+                                min-width:35px;
+                                text-align:center;
+                            ">
+
+                                <div style="
+                                    font-weight:600;
+                                    margin-bottom:5px;
+                                ">
+                                    <?php
+                                    echo esc_html(
+                                        $total_dia
+                                    );
+                                    ?>
+                                </div>
+
+                                <div
+                                    style="
+                                        height:<?php
+                                        echo esc_attr(
+                                            max( 5, $altura )
+                                        );
+                                        ?>px;
+                                        background:#2271b1;
+                                        border-radius:4px 4px 0 0;
+                                        min-width:20px;
+                                    "
+                                    title="<?php
+                                    echo esc_attr(
+                                        $fecha_formateada
+                                        . ' - '
+                                        . $total_dia
+                                        . ' búsquedas'
+                                    );
+                                    ?>"
+                                ></div>
+
+                                <div style="
+                                    font-size:11px;
+                                    margin-top:6px;
+                                    color:#646970;
+                                ">
+                                    <?php
+                                    echo esc_html(
+                                        $fecha_formateada
+                                    );
+                                    ?>
+                                </div>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    </div>
+
+                </div>
+
+            <?php else : ?>
+
+                <p>
+                    No hay actividad registrada durante
+                    los últimos 30 días.
+                </p>
+
+            <?php endif; ?>
+
+            <br>            
 
         <?php endif; ?>        
 

@@ -323,3 +323,201 @@ function compuciber_obtener_busquedas_sin_resultados(
         )
     );
 }
+
+/*
+ * ==========================================================
+ * ESTADÍSTICAS AVANZADAS - V2.0
+ * ==========================================================
+ */
+
+/**
+ * Obtiene el resumen general del buscador.
+ */
+function compuciber_obtener_resumen_estadisticas() {
+
+    global $wpdb;
+
+    $tabla_busquedas =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $tabla_clicks =
+        $wpdb->prefix . 'compuciber_search_clicks';
+
+    $total_busquedas = (int) $wpdb->get_var(
+        "SELECT COUNT(*)
+        FROM {$tabla_busquedas}"
+    );
+
+    $busquedas_con_resultados = (int) $wpdb->get_var(
+        "SELECT COUNT(*)
+        FROM {$tabla_busquedas}
+        WHERE resultados > 0"
+    );
+
+    $busquedas_sin_resultados = (int) $wpdb->get_var(
+        "SELECT COUNT(*)
+        FROM {$tabla_busquedas}
+        WHERE resultados = 0"
+    );
+
+    $total_clicks = (int) $wpdb->get_var(
+        "SELECT COUNT(*)
+        FROM {$tabla_clicks}"
+    );
+
+    $tasa_exito = 0;
+
+    if ( $total_busquedas > 0 ) {
+        $tasa_exito = (
+            $busquedas_con_resultados
+            / $total_busquedas
+        ) * 100;
+    }
+
+    $ctr = 0;
+
+    if ( $total_busquedas > 0 ) {
+        $ctr = (
+            $total_clicks
+            / $total_busquedas
+        ) * 100;
+    }
+
+    return array(
+
+        'total_busquedas' =>
+            $total_busquedas,
+
+        'busquedas_con_resultados' =>
+            $busquedas_con_resultados,
+
+        'busquedas_sin_resultados' =>
+            $busquedas_sin_resultados,
+
+        'total_clicks' =>
+            $total_clicks,
+
+        'tasa_exito' =>
+            round( $tasa_exito, 2 ),
+
+        'ctr' =>
+            round( $ctr, 2 ),
+    );
+}
+
+
+/**
+ * Obtiene la cantidad de búsquedas
+ * realizadas mediante texto, voz e imagen.
+ */
+function compuciber_obtener_busquedas_por_tipo() {
+
+    global $wpdb;
+
+    $tabla =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $resultados = $wpdb->get_results(
+        "SELECT
+            tipo,
+            COUNT(*) AS total
+        FROM {$tabla}
+        GROUP BY tipo
+        ORDER BY total DESC"
+    );
+
+    $tipos = array(
+        'texto'  => 0,
+        'voz'    => 0,
+        'imagen' => 0,
+    );
+
+    foreach ( $resultados as $resultado ) {
+
+        if (
+            isset(
+                $tipos[ $resultado->tipo ]
+            )
+        ) {
+            $tipos[ $resultado->tipo ] =
+                (int) $resultado->total;
+        }
+    }
+
+    return $tipos;
+}
+
+
+/**
+ * Obtiene la actividad del buscador
+ * agrupada por día.
+ */
+function compuciber_obtener_busquedas_por_dia(
+    $dias = 30
+) {
+
+    global $wpdb;
+
+    $tabla =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $dias = absint( $dias );
+
+    if ( $dias < 1 ) {
+        $dias = 30;
+    }
+
+    $fecha_inicio = wp_date(
+        'Y-m-d H:i:s',
+        current_time( 'timestamp' )
+        - ( DAY_IN_SECONDS * $dias )
+    );
+
+    return $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                DATE(fecha) AS fecha,
+                COUNT(*) AS total
+            FROM {$tabla}
+            WHERE fecha >= %s
+            GROUP BY DATE(fecha)
+            ORDER BY fecha ASC",
+            $fecha_inicio
+        )
+    );
+}
+
+
+/**
+ * Obtiene las consultas que más
+ * selecciones de productos generan.
+ */
+function compuciber_obtener_busquedas_con_mas_clicks(
+    $limite = 10
+) {
+
+    global $wpdb;
+
+    $tabla =
+        $wpdb->prefix . 'compuciber_search_clicks';
+
+    $limite = absint( $limite );
+
+    if ( $limite < 1 ) {
+        $limite = 10;
+    }
+
+    return $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                busqueda,
+                COUNT(*) AS total
+            FROM {$tabla}
+            WHERE busqueda <> ''
+            GROUP BY busqueda
+            ORDER BY total DESC
+            LIMIT %d",
+            $limite
+        )
+    );
+}
