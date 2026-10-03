@@ -300,3 +300,61 @@
     display: block;
 
 }
+
+/*
+ * ==========================================================
+ * RESPONSIVE - BARRA DE BÚSQUEDA
+ * ==========================================================
+ */
+
+.compuciber-ai-search {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.compuciber-search-box {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: 6px;
+}
+
+.compuciber-search-box input[type="search"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.compuciber-search-box button {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+}
+
+
+/*
+ * Móviles
+ */
+@media (max-width: 600px) {
+
+    .compuciber-search-box {
+        flex-wrap: wrap;
+    }
+
+    .compuciber-search-box input[type="search"] {
+        flex: 1 1 calc(100% - 110px);
+        min-width: 0;
+    }
+
+    #compuciber-voice-button,
+    #compuciber-image-button {
+        flex: 0 0 auto;
+    }
+
+    .compuciber-search-box button[type="submit"] {
+        flex: 1 0 100%;
+        width: 100%;
+    }
+}

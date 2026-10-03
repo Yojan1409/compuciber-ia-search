@@ -32,14 +32,6 @@ function compuciber_verificar_woocommerce() {
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
 
-require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
-
-require_once plugin_dir_path( __FILE__ ) . 'includes/sugerencias.php';
-
-require_once plugin_dir_path( __FILE__ ) . 'includes/configuracion.php';
-
-require_once plugin_dir_path( __FILE__ ) . 'includes/correcciones.php';
-
 require_once plugin_dir_path( __FILE__ ) . 'includes/sugerencias.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/configuracion.php';
@@ -65,6 +57,45 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/estadisticas.php';
  * Verifica WooCommerce después de que WordPress haya cargado los plugins.
  */
 add_action( 'plugins_loaded', 'compuciber_verificar_woocommerce', 20 );
+
+/**
+ * Registra el widget nativo de Compuciber AI Search
+ * cuando Elementor está instalado y activo.
+ */
+function compuciber_registrar_widget_elementor( $widgets_manager ) {
+
+    $archivo_widget =
+        plugin_dir_path( __FILE__ )
+        . 'elementor/widget-ai-search.php';
+
+    if ( ! file_exists( $archivo_widget ) ) {
+        return;
+    }
+
+    require_once $archivo_widget;
+
+    if (
+        class_exists(
+            'Compuciber_AI_Search_Elementor_Widget'
+        )
+    ) {
+        $widgets_manager->register(
+            new Compuciber_AI_Search_Elementor_Widget()
+        );
+    }
+}
+
+/**
+ * Conecta Compuciber AI Search con Elementor.
+ *
+ * Si Elementor no está instalado, este hook
+ * simplemente nunca se ejecutará y el buscador
+ * continuará funcionando normalmente.
+ */
+add_action(
+    'elementor/widgets/register',
+    'compuciber_registrar_widget_elementor'
+);
 
 /**
  * Cargar JavaScript del buscador
