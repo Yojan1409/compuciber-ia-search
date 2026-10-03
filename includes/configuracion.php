@@ -93,6 +93,8 @@ function compuciber_ai_search_registrar_opciones() {
 
         'compuciber_estadisticas',
 
+        'compuciber_aprendizaje_ranking',
+
     );
 
     foreach ( $opciones as $opcion ) {

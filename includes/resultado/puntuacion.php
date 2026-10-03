@@ -1633,6 +1633,45 @@ function compuciber_calcular_puntuacion_producto(
         );
     }
 
+    /*
+    * APRENDIZAJE DE RANKING - V2.0
+    *
+    * Utiliza el historial de selecciones como
+    * una señal adicional de relevancia.
+    *
+    * El bonus está limitado para evitar que
+    * la popularidad sustituya las reglas
+    * principales del motor de búsqueda.
+    */
+    if (
+        $puntuacion > 0
+        && get_option(
+            'compuciber_aprendizaje_ranking',
+            '0'
+        ) === '1'
+        && function_exists(
+            'compuciber_obtener_selecciones_para_busqueda'
+        )
+    ) {
+
+        $selecciones_aprendizaje =
+            compuciber_obtener_selecciones_para_busqueda(
+                absint( $producto->id ),
+                $busqueda_normalizada
+            );
+
+        if ( $selecciones_aprendizaje >= 2 ) {
+
+            $bonus_aprendizaje = min(
+                20,
+                $selecciones_aprendizaje * 2
+            );
+
+            $puntuacion += $bonus_aprendizaje;
+
+        }
+    }
+
     error_log(
         'SCORE FINAL DEBUG: '
         . $producto->nombre

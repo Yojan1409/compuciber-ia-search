@@ -1701,6 +1701,49 @@ function compuciber_ai_search_configuracion() {
 
                 </tr>
 
+                <tr>
+
+                                    <th scope="row">
+                                        Aprendizaje de ranking
+                                    </th>
+
+                                    <td>
+
+                                        <label>
+
+                                            <input
+                                                type="hidden"
+                                                name="compuciber_aprendizaje_ranking"
+                                                value="0"
+                                            >
+
+                                            <input
+                                                type="checkbox"
+                                                name="compuciber_aprendizaje_ranking"
+                                                value="1"
+                                                <?php checked(
+                                                    get_option(
+                                                        'compuciber_aprendizaje_ranking',
+                                                        '0'
+                                                    ),
+                                                    '1'
+                                                ); ?>
+                                            >
+
+                                            Activar aprendizaje de ranking
+
+                                        </label>
+
+                                        <p class="description">
+                                            Utiliza las selecciones de productos registradas
+                                            para mejorar progresivamente el orden de los
+                                            resultados de búsqueda.
+                                        </p>
+
+                                    </td>
+
+                                </tr>                
+
             </table>
 
             <?php submit_button( 'Guardar configuración' ); ?>

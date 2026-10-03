@@ -521,3 +521,88 @@ function compuciber_obtener_busquedas_con_mas_clicks(
         )
     );
 }
+
+/*
+ * ==========================================================
+ * APRENDIZAJE DE RANKING - V2.0
+ * ==========================================================
+ */
+
+/**
+ * Obtiene cuántas veces un producto ha sido seleccionado
+ * para una consulta determinada.
+ *
+ * Esta información se utiliza como una señal adicional
+ * de relevancia y nunca sustituye las reglas principales
+ * del motor de búsqueda.
+ */
+function compuciber_obtener_selecciones_para_busqueda(
+    $producto_id,
+    $busqueda
+) {
+
+    if (
+        get_option(
+            'compuciber_estadisticas',
+            '0'
+        ) !== '1'
+    ) {
+        return 0;
+    }
+
+    $producto_id = absint( $producto_id );
+
+    $busqueda = sanitize_text_field(
+        $busqueda
+    );
+
+    if (
+        $producto_id < 1
+        || empty( $busqueda )
+    ) {
+        return 0;
+    }
+    
+    static $cache = array();
+
+    $clave_busqueda = md5( $busqueda );
+
+    if ( ! isset( $cache[ $clave_busqueda ] ) ) {
+
+        global $wpdb;
+
+        $tabla =
+            $wpdb->prefix . 'compuciber_search_clicks';
+
+        $selecciones = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT producto_id, COUNT(*) AS total
+                FROM {$tabla}
+                WHERE busqueda = %s
+                GROUP BY producto_id",
+                $busqueda
+            )
+        );
+
+        $cache[ $clave_busqueda ] = array();
+
+        if ( ! empty( $selecciones ) ) {
+
+            foreach ( $selecciones as $seleccion ) {
+
+                $id = absint(
+                    $seleccion->producto_id
+                );
+
+                $cache[ $clave_busqueda ][ $id ] =
+                    absint( $seleccion->total );
+            }
+        }
+    }
+
+    return isset(
+        $cache[ $clave_busqueda ][ $producto_id ]
+    )
+        ? $cache[ $clave_busqueda ][ $producto_id ]
+        : 0;
+}
