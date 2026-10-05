@@ -65,6 +65,9 @@ add_action(
 
 function compuciber_ai_search_registrar_opciones() {
 
+    /*
+     * Opciones generales.
+     */
     $opciones = array(
 
         'compuciber_proveedor_ia',
@@ -73,14 +76,27 @@ function compuciber_ai_search_registrar_opciones() {
 
         'compuciber_openai_api_key',
 
-        'compuciber_modelo_ia',
+        /*
+         * Modelos independientes para Gemini.
+         */
+        'compuciber_gemini_modelo_texto',
 
-        'compuciber_modelo_embeddings',
+        'compuciber_gemini_modelo_embeddings',
 
-        'compuciber_modelo_multimodal',
+        'compuciber_gemini_modelo_multimodal',
 
-        'compuciber_modelo_voz',
+        /*
+         * Modelos independientes para OpenAI.
+         */
+        'compuciber_openai_modelo_texto',
 
+        'compuciber_openai_modelo_embeddings',
+
+        'compuciber_openai_modelo_multimodal',
+
+        /*
+         * Funciones del buscador.
+         */
         'compuciber_autocompletado',
 
         'compuciber_correccion',
@@ -95,9 +111,12 @@ function compuciber_ai_search_registrar_opciones() {
 
         'compuciber_aprendizaje_ranking',
 
-        'compuciber_clave_licencia',     
-
+        /*
+         * Licenciamiento.
+         */
+        'compuciber_clave_licencia',
     );
+
 
     foreach ( $opciones as $opcion ) {
 
@@ -105,7 +124,8 @@ function compuciber_ai_search_registrar_opciones() {
             'compuciber_ai_search_settings_group',
             $opcion,
             array(
-                'sanitize_callback' => 'sanitize_text_field',
+                'sanitize_callback' =>
+                    'sanitize_text_field',
             )
         );
     }

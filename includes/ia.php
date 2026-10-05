@@ -7,6 +7,43 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/proveedores/gemini.php';
 require_once __DIR__ . '/proveedores/openai.php';
 
+
+/**
+ * Obtiene la instancia del proveedor de IA seleccionado.
+ *
+ * Este es el punto central para registrar proveedores.
+ * Los proveedores deben implementar
+ * Compuciber_AIProviderInterface.
+ *
+ * @return Compuciber_AIProviderInterface
+ */
+function compuciber_obtener_proveedor_ia() {
+
+    $proveedor = get_option(
+        'compuciber_proveedor_ia',
+        'gemini'
+    );
+
+    $proveedor = sanitize_key(
+        (string) $proveedor
+    );
+
+    switch ( $proveedor ) {
+
+        case 'openai':
+
+            return new Compuciber_OpenAIProvider();
+
+
+        case 'gemini':
+
+        default:
+
+            return new Compuciber_GeminiProvider();
+    }
+}
+
+
 /**
  * Determina si una búsqueda de texto necesita
  * interpretación semántica mediante IA.
@@ -52,6 +89,8 @@ function compuciber_busqueda_necesita_ia( $busqueda ) {
 
     return false;
 }
+
+
 /*
  * ==========================================================
  * IA - BÚSQUEDA DE TEXTO
@@ -60,30 +99,8 @@ function compuciber_busqueda_necesita_ia( $busqueda ) {
 
 function compuciber_consultar_ia( $busqueda ) {
 
-    $proveedor = get_option(
-        'compuciber_proveedor_ia',
-        'gemini'
-    );
-
-    switch ( $proveedor ) {
-
-        case 'openai':
-
-            $ai_provider =
-                new Compuciber_OpenAIProvider();
-
-            break;
-
-
-        case 'gemini':
-
-        default:
-
-            $ai_provider =
-                new Compuciber_GeminiProvider();
-
-            break;
-    }
+    $ai_provider =
+        compuciber_obtener_proveedor_ia();
 
     return $ai_provider->consultar_texto(
         $busqueda
@@ -102,36 +119,15 @@ function compuciber_consultar_ia_imagen(
     $mime_type
 ) {
 
-    $proveedor = get_option(
-        'compuciber_proveedor_ia',
-        'gemini'
-    );
-
-    switch ( $proveedor ) {
-
-        case 'openai':
-
-            $ai_provider =
-                new Compuciber_OpenAIProvider();
-
-            break;
-
-
-        case 'gemini':
-
-        default:
-
-            $ai_provider =
-                new Compuciber_GeminiProvider();
-
-            break;
-    }
+    $ai_provider =
+        compuciber_obtener_proveedor_ia();
 
     return $ai_provider->consultar_imagen(
         $imagen_base64,
         $mime_type
     );
 }
+
 
 /**
  * Genera un embedding utilizando
@@ -147,32 +143,11 @@ function compuciber_generar_embedding(
     $tipo = 'producto'
 ) {
 
-    $proveedor = get_option(
-        'compuciber_proveedor_ia',
-        'gemini'
-    );
-
-    switch ( $proveedor ) {
-
-        case 'openai':
-
-            $ai_provider =
-                new Compuciber_OpenAIProvider();
-
-            break;
-
-        case 'gemini':
-        default:
-
-            $ai_provider =
-                new Compuciber_GeminiProvider();
-
-            break;
-    }
+    $ai_provider =
+        compuciber_obtener_proveedor_ia();
 
     return $ai_provider->generar_embedding(
         $texto,
         $tipo
     );
 }
-

@@ -27,6 +27,21 @@ function compuciber_generar_embedding_gemini(
         return false;
     }
 
+    $modelo = get_option(
+        'compuciber_gemini_modelo_embeddings',
+        'gemini-embedding-2'
+    );
+
+    $modelo = sanitize_text_field(
+        (string) $modelo
+    );
+
+    $modelo = trim( $modelo );
+
+    if ( empty( $modelo ) ) {
+        $modelo = 'gemini-embedding-2';
+    }    
+
     $texto = trim(
         wp_strip_all_tags(
             (string) $texto
@@ -59,8 +74,14 @@ function compuciber_generar_embedding_gemini(
     }
 
 
+    $url =
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+        . rawurlencode( $modelo )
+        . ':embedContent';
+
+
     $response = wp_remote_post(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent',
+        $url,
         array(
             'timeout' => 20,
 

@@ -315,15 +315,34 @@ function compuciber_indexar_producto(
     if ( $embedding_proveedor === 'openai' ) {
 
         $embedding_modelo = get_option(
-            'compuciber_modelo_embeddings',
+            'compuciber_openai_modelo_embeddings',
             'text-embedding-3-small'
         );
 
     } else {
 
-        $embedding_modelo = 'gemini-embedding-2';
-    }   
+        $embedding_modelo = get_option(
+            'compuciber_gemini_modelo_embeddings',
+            'gemini-embedding-2'
+        );
+    }
 
+    $embedding_modelo = sanitize_text_field(
+        (string) $embedding_modelo
+    );
+
+    $embedding_modelo = trim(
+        $embedding_modelo
+    );
+
+    if ( $embedding_modelo === '' ) {
+
+        $embedding_modelo = (
+            $embedding_proveedor === 'openai'
+        )
+            ? 'text-embedding-3-small'
+            : 'gemini-embedding-2';
+    }
     /*
     * Recuperar embedding existente.
     *

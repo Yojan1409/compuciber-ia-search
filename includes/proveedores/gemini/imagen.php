@@ -16,7 +16,7 @@ function compuciber_consultar_gemini_imagen(
     );
 
     $modelo = get_option(
-        'compuciber_modelo_multimodal',
+        'compuciber_gemini_modelo_multimodal',
         'gemini-3.6-flash'
     );
 

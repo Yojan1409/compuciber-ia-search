@@ -1182,21 +1182,6 @@ function compuciber_ai_search_configuracion() {
         ''
     );
 
-    $modelo_embeddings = get_option(
-        'compuciber_modelo_embeddings',
-        ''
-    );
-
-    $modelo_multimodal = get_option(
-        'compuciber_modelo_multimodal',
-        ''
-    );
-
-    $modelo_voz = get_option(
-        'compuciber_modelo_voz',
-        ''
-    );
-
     ?>
 
     <div class="wrap">
@@ -1639,24 +1624,104 @@ function compuciber_ai_search_configuracion() {
 
             <h2>Modelos de IA</h2>
 
+                <?php if ( $proveedor === 'gemini' ) : ?>
+
+            <!-- Conserva la configuración de OpenAI al guardar Gemini -->
+
+            <input
+                type="hidden"
+                name="compuciber_openai_modelo_texto"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_openai_modelo_texto',
+                        'gpt-5.6'
+                    )
+                ); ?>"
+            >
+
+            <input
+                type="hidden"
+                name="compuciber_openai_modelo_embeddings"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_openai_modelo_embeddings',
+                        'text-embedding-3-small'
+                    )
+                ); ?>"
+            >
+
+            <input
+                type="hidden"
+                name="compuciber_openai_modelo_multimodal"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_openai_modelo_multimodal',
+                        'gpt-5.6'
+                    )
+                ); ?>"
+            >
+
+        <?php else : ?>
+
+            <!-- Conserva la configuración de Gemini al guardar OpenAI -->
+
+            <input
+                type="hidden"
+                name="compuciber_gemini_modelo_texto"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_gemini_modelo_texto',
+                        'gemini-3.6-flash'
+                    )
+                ); ?>"
+            >
+
+            <input
+                type="hidden"
+                name="compuciber_gemini_modelo_embeddings"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_gemini_modelo_embeddings',
+                        'gemini-embedding-2'
+                    )
+                ); ?>"
+            >
+
+            <input
+                type="hidden"
+                name="compuciber_gemini_modelo_multimodal"
+                value="<?php echo esc_attr(
+                    get_option(
+                        'compuciber_gemini_modelo_multimodal',
+                        'gemini-3.6-flash'
+                    )
+                ); ?>"
+            >
+
+        <?php endif; ?>    
+
             <table class="form-table">
 
-                <tr>
+                <?php if ( $proveedor === 'gemini' ) : ?>
 
-                    <th scope="row">
-                        Modelo de texto
-                    </th>
+                    <!-- ==================================================
+                        GOOGLE GEMINI
+                        ================================================== -->
 
-                    <td>
+                    <tr>
 
-                        <?php if ( $proveedor === 'gemini' ) : ?>
+                        <th scope="row">
+                            Modelo de texto
+                        </th>
+
+                        <td>
 
                             <input
                                 type="text"
-                                name="compuciber_modelo_ia"
+                                name="compuciber_gemini_modelo_texto"
                                 value="<?php echo esc_attr(
                                     get_option(
-                                        'compuciber_modelo_ia',
+                                        'compuciber_gemini_modelo_texto',
                                         'gemini-3.6-flash'
                                     )
                                 ); ?>"
@@ -1665,19 +1730,96 @@ function compuciber_ai_search_configuracion() {
                             >
 
                             <p class="description">
-                                Modelo de texto utilizado por Google Gemini.
-                                Cambiar únicamente por un modelo compatible
-                                con la API de Gemini.
+                                Modelo utilizado por Google Gemini
+                                para interpretar búsquedas de texto.
                             </p>
 
-                        <?php else : ?>
+                        </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                        <th scope="row">
+                            Modelo de embeddings
+                        </th>
+
+                        <td>
 
                             <input
                                 type="text"
-                                name="compuciber_modelo_ia"
+                                name="compuciber_gemini_modelo_embeddings"
                                 value="<?php echo esc_attr(
                                     get_option(
-                                        'compuciber_modelo_ia',
+                                        'compuciber_gemini_modelo_embeddings',
+                                        'gemini-embedding-2'
+                                    )
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gemini-embedding-2"
+                            >
+
+                            <p class="description">
+                                Modelo utilizado por Google Gemini
+                                para generar embeddings semánticos.
+                            </p>
+
+                        </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                        <th scope="row">
+                            Modelo multimodal
+                        </th>
+
+                        <td>
+
+                            <input
+                                type="text"
+                                name="compuciber_gemini_modelo_multimodal"
+                                value="<?php echo esc_attr(
+                                    get_option(
+                                        'compuciber_gemini_modelo_multimodal',
+                                        'gemini-3.6-flash'
+                                    )
+                                ); ?>"
+                                class="regular-text"
+                                placeholder="gemini-3.6-flash"
+                            >
+
+                            <p class="description">
+                                Modelo utilizado por Google Gemini
+                                para analizar imágenes.
+                            </p>
+
+                        </td>
+
+                    </tr>
+
+                <?php else : ?>
+
+                    <!-- ==================================================
+                        OPENAI
+                        ================================================== -->
+
+                    <tr>
+
+                        <th scope="row">
+                            Modelo de texto
+                        </th>
+
+                        <td>
+
+                            <input
+                                type="text"
+                                name="compuciber_openai_modelo_texto"
+                                value="<?php echo esc_attr(
+                                    get_option(
+                                        'compuciber_openai_modelo_texto',
                                         'gpt-5.6'
                                     )
                                 ); ?>"
@@ -1686,111 +1828,82 @@ function compuciber_ai_search_configuracion() {
                             >
 
                             <p class="description">
-                                Modelo de texto utilizado por OpenAI.
+                                Modelo utilizado por OpenAI
+                                para interpretar búsquedas de texto.
                             </p>
 
-                        <?php endif; ?>
+                        </td>
 
-                    </td>
+                    </tr>
 
-                </tr>
 
-                <tr>
+                    <tr>
 
-                    <th scope="row">
-                        Modelo de embeddings
-                    </th>
+                        <th scope="row">
+                            Modelo de embeddings
+                        </th>
 
-                    <td>
-
-                        <?php if ( $proveedor === 'gemini' ) : ?>
+                        <td>
 
                             <input
                                 type="text"
-                                value="gemini-embedding-2"
-                                class="regular-text"
-                                readonly
-                            >
-
-                            <p class="description">
-                                Modelo de embeddings utilizado por Google Gemini.
-                            </p>
-
-                        <?php else : ?>
-
-                            <input
-                                type="text"
-                                name="compuciber_modelo_embeddings"
+                                name="compuciber_openai_modelo_embeddings"
                                 value="<?php echo esc_attr(
-                                    ! empty( $modelo_embeddings )
-                                        ? $modelo_embeddings
-                                        : 'text-embedding-3-small'
+                                    get_option(
+                                        'compuciber_openai_modelo_embeddings',
+                                        'text-embedding-3-small'
+                                    )
                                 ); ?>"
                                 class="regular-text"
                                 placeholder="text-embedding-3-small"
                             >
 
                             <p class="description">
-                                Modelo de embeddings utilizado por OpenAI.
+                                Modelo utilizado por OpenAI
+                                para generar embeddings semánticos.
                             </p>
 
-                        <?php endif; ?>
+                        </td>
 
-                    </td>
+                    </tr>
 
-                </tr>
 
-                <tr>
+                    <tr>
 
-                    <th scope="row">
-                        Modelo multimodal
-                    </th>
+                        <th scope="row">
+                            Modelo multimodal
+                        </th>
 
-                    <td>
-
-                        <?php if ( $proveedor === 'gemini' ) : ?>
+                        <td>
 
                             <input
                                 type="text"
-                                name="compuciber_modelo_multimodal"
+                                name="compuciber_openai_modelo_multimodal"
                                 value="<?php echo esc_attr(
-                                    ! empty( $modelo_multimodal )
-                                        ? $modelo_multimodal
-                                        : 'gemini-3.6-flash'
-                                ); ?>"
-                                class="regular-text"
-                                placeholder="gemini-3.6-flash"
-                            >
-
-                            <p class="description">
-                                Modelo multimodal utilizado por Google Gemini.
-                                Cambiar únicamente por un modelo compatible
-                                con entrada de imágenes en la API de Gemini.
-                            </p>
-
-                        <?php else : ?>
-
-                            <input
-                                type="text"
-                                name="compuciber_modelo_multimodal"
-                                value="<?php echo esc_attr(
-                                    ! empty( $modelo_multimodal )
-                                        ? $modelo_multimodal
-                                        : 'gpt-5.6'
+                                    get_option(
+                                        'compuciber_openai_modelo_multimodal',
+                                        'gpt-5.6'
+                                    )
                                 ); ?>"
                                 class="regular-text"
                                 placeholder="gpt-5.6"
                             >
 
                             <p class="description">
-                                Modelo multimodal utilizado por OpenAI.
+                                Modelo utilizado por OpenAI
+                                para analizar imágenes.
                             </p>
 
-                        <?php endif; ?>
+                        </td>
 
-                    </td>
+                    </tr>
 
-                </tr>
+                <?php endif; ?>
+
+
+                <!-- ======================================================
+                    VOZ
+                    ====================================================== -->
 
                 <tr>
 
@@ -1809,8 +1922,8 @@ function compuciber_ai_search_configuracion() {
 
                         <p class="description">
                             La búsqueda por voz utiliza el reconocimiento
-                            de voz disponible en el navegador y no requiere
-                            un modelo de IA configurado.
+                            disponible en el navegador y es independiente
+                            del proveedor de inteligencia artificial.
                         </p>
 
                     </td>

@@ -89,8 +89,8 @@ function compuciber_consultar_openai_imagen_api(
      */
     $modelo = trim(
         (string) get_option(
-            'compuciber_modelo_multimodal',
-            ''
+            'compuciber_openai_modelo_multimodal',
+            'gpt-5.6'
         )
     );
 

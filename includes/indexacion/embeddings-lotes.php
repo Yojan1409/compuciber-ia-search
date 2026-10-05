@@ -20,13 +20,31 @@ function compuciber_obtener_configuracion_embeddings() {
     if ( $proveedor === 'openai' ) {
 
         $modelo = get_option(
-            'compuciber_modelo_embeddings',
+            'compuciber_openai_modelo_embeddings',
             'text-embedding-3-small'
         );
 
     } else {
 
-        $modelo = 'gemini-embedding-2';
+        $modelo = get_option(
+            'compuciber_gemini_modelo_embeddings',
+            'gemini-embedding-2'
+        );
+    }
+
+    $modelo = sanitize_text_field(
+        (string) $modelo
+    );
+
+    $modelo = trim( $modelo );
+
+    if ( $modelo === '' ) {
+
+        $modelo = (
+            $proveedor === 'openai'
+        )
+            ? 'text-embedding-3-small'
+            : 'gemini-embedding-2';
     }
 
     return array(

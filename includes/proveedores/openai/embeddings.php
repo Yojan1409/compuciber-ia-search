@@ -41,7 +41,7 @@ function compuciber_generar_embedding_openai(
      * Modelo configurable desde el panel.
      */
     $modelo = get_option(
-        'compuciber_modelo_embeddings',
+        'compuciber_openai_modelo_embeddings',
         'text-embedding-3-small'
     );
 

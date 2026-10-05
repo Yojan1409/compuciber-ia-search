@@ -29,7 +29,7 @@ function compuciber_consultar_gemini( $busqueda ) {
      * se utiliza el modelo predeterminado.
      */
     $modelo = get_option(
-        'compuciber_modelo_ia',
+        'compuciber_gemini_modelo_texto',
         'gemini-3.6-flash'
     );
 

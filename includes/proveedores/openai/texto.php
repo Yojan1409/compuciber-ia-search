@@ -57,8 +57,8 @@ function compuciber_consultar_openai_texto(
      */
     $modelo = trim(
         (string) get_option(
-            'compuciber_modelo_ia',
-            ''
+            'compuciber_openai_modelo_texto',
+            'gpt-5.6'
         )
     );
 
