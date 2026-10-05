@@ -118,6 +118,10 @@ function compuciber_obtener_datos_instalacion() {
 
     return array(
 
+        'producto' => 'compuciber-ai-search',
+
+        'plataforma' => 'wordpress-woocommerce',    
+
         'id_instalacion' =>
             compuciber_obtener_id_instalacion(),    
 
@@ -150,8 +154,10 @@ function compuciber_obtener_datos_instalacion() {
 /**
  * Obtiene el identificador único de esta instalación.
  *
- * Si todavía no existe, genera uno y lo almacena
- * permanentemente en las opciones de WordPress.
+ * El identificador queda asociado al dominio actual.
+ * Si WordPress es clonado a otro dominio, se genera
+ * automáticamente un nuevo UUID para evitar que dos
+ * tiendas compartan la misma identidad.
  *
  * @return string
  */
@@ -162,20 +168,125 @@ function compuciber_obtener_id_instalacion() {
         ''
     );
 
-    if ( ! empty( $id_instalacion ) ) {
+    $dominio_guardado = get_option(
+        'compuciber_dominio_instalacion',
+        ''
+    );
+
+    $dominio_actual = wp_parse_url(
+        home_url(),
+        PHP_URL_HOST
+    );
+
+    if ( empty( $dominio_actual ) ) {
+        $dominio_actual = '';
+    }
+
+    $dominio_actual = strtolower(
+        sanitize_text_field(
+            $dominio_actual
+        )
+    );
+
+    $dominio_guardado = strtolower(
+        sanitize_text_field(
+            $dominio_guardado
+        )
+    );
+
+    /*
+     * Si ya existe un UUID y pertenece al mismo
+     * dominio, conservamos la identidad actual.
+     */
+    if (
+        ! empty( $id_instalacion )
+        && ! empty( $dominio_guardado )
+        && $dominio_guardado === $dominio_actual
+    ) {
         return sanitize_text_field(
             $id_instalacion
         );
     }
 
     /*
-     * Generamos un UUID único para esta instalación.
+     * Si existe un UUID antiguo pero todavía no
+     * habíamos guardado su dominio, lo conservamos
+     * y asociamos al dominio actual.
+     *
+     * Esto permite actualizar instalaciones creadas
+     * antes de incorporar el control multidominio.
+     */
+    if (
+        ! empty( $id_instalacion )
+        && empty( $dominio_guardado )
+    ) {
+
+        update_option(
+            'compuciber_dominio_instalacion',
+            $dominio_actual,
+            false
+        );
+
+        return sanitize_text_field(
+            $id_instalacion
+        );
+    }
+
+    /*
+    * Si ya existía una instalación asociada a otro
+    * dominio, estamos ante una nueva identidad.
+    *
+    * No permitimos que la nueva tienda herede la
+    * autorización de licencia de la instalación
+    * anterior.
+    */
+    if (
+        ! empty( $id_instalacion )
+        && ! empty( $dominio_guardado )
+        && $dominio_guardado !== $dominio_actual
+    ) {
+
+        update_option(
+            'compuciber_estado_licencia',
+            'sin_licencia'
+        );
+
+        delete_option(
+            'compuciber_ultima_validacion_licencia'
+        );
+
+        delete_option(
+            'compuciber_limite_instalaciones'
+        );
+
+        delete_option(
+            'compuciber_instalaciones_activas'
+        );
+
+        delete_option(
+            'compuciber_fecha_expiracion_licencia'
+        );        
+
+        delete_transient(
+            'compuciber_validacion_licencia_lock'
+        );
+    }
+
+    /*
+     * Si no existe UUID o el dominio cambió,
+     * generamos una identidad nueva.
      */
     $id_instalacion = wp_generate_uuid4();
 
     update_option(
         'compuciber_id_instalacion',
         $id_instalacion,
+        false
+    );
+
+    update_option(
+        'compuciber_dominio_instalacion',
+        $dominio_actual,
         false
     );
 
@@ -339,11 +450,22 @@ function compuciber_guardar_licencia_validada(
         ? sanitize_key( $resultado['estado'] )
         : '';
 
+    $tipo_respuesta =
+        isset( $resultado['tipo_respuesta'] )
+            ? sanitize_key(
+                $resultado['tipo_respuesta']
+            )
+            : '';
+
     /*
-     * Esta función solamente acepta licencias
-     * confirmadas expresamente como activas.
-     */
-    if ( $estado !== 'activa' ) {
+    * Solamente guardamos una licencia cuando
+    * el servidor la confirma expresamente
+    * como válida y activa.
+    */
+    if (
+        $tipo_respuesta !== 'valida'
+        || $estado !== 'activa'
+    ) {
         return;
     }
 
@@ -360,6 +482,13 @@ function compuciber_guardar_licencia_validada(
                 $resultado['instalaciones_activas']
             )
             : 1;
+
+    $fecha_expiracion =
+        isset( $resultado['fecha_expiracion'] )
+            ? sanitize_text_field(
+                $resultado['fecha_expiracion']
+            )
+            : '';            
 
     if ( $limite_instalaciones < 1 ) {
         $limite_instalaciones = 1;
@@ -387,6 +516,13 @@ function compuciber_guardar_licencia_validada(
         $instalaciones_activas,
         false
     );
+
+    update_option(
+        'compuciber_fecha_expiracion_licencia',
+        $fecha_expiracion,
+        false
+    );    
+    
 }
 
 /**
@@ -447,6 +583,9 @@ function compuciber_guardar_licencia_rechazada(
     delete_option(
         'compuciber_instalaciones_activas'
     );
+    delete_option(
+        'compuciber_fecha_expiracion_licencia'
+    );    
 }
 
 /**
@@ -512,6 +651,22 @@ function compuciber_obtener_instalaciones_disponibles() {
 }
 
 /**
+ * Obtiene la fecha de expiración informada
+ * por el servidor de licencias.
+ *
+ * @return string
+ */
+function compuciber_obtener_fecha_expiracion_licencia() {
+
+    return sanitize_text_field(
+        get_option(
+            'compuciber_fecha_expiracion_licencia',
+            ''
+        )
+    );
+}
+
+/**
  * Invalida la validación anterior cuando cambia
  * la clave de licencia.
  *
@@ -567,6 +722,10 @@ function compuciber_detectar_cambio_clave_licencia(
 
     delete_option(
         'compuciber_instalaciones_activas'
+    );
+
+    delete_option(
+        'compuciber_fecha_expiracion_licencia'
     );
 
     delete_transient(

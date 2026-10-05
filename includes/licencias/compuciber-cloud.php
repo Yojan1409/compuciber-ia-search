@@ -111,6 +111,51 @@ function compuciber_normalizar_respuesta_licencia(
                 ? absint( $datos['instalaciones_activas'] )
                 : 1;
 
+        $fecha_expiracion =
+            isset( $datos['fecha_expiracion'] )
+                ? sanitize_text_field(
+                    $datos['fecha_expiracion']
+                )
+                : ''; 
+                
+        /*
+        * La fecha de expiración, cuando exista,
+        * debe utilizar el formato YYYY-MM-DD.
+        *
+        * Si el servidor devuelve otro formato,
+        * descartamos la fecha en lugar de guardar
+        * información ambigua.
+        */
+        if (
+            ! empty( $fecha_expiracion )
+            && ! preg_match(
+                '/^\d{4}-\d{2}-\d{2}$/',
+                $fecha_expiracion
+            )
+            
+        ) {
+            $fecha_expiracion = '';
+        } 
+        
+        if ( ! empty( $fecha_expiracion ) ) {
+
+            $partes_fecha = explode(
+                '-',
+                $fecha_expiracion
+            );
+
+            if (
+                count( $partes_fecha ) !== 3
+                || ! checkdate(
+                    (int) $partes_fecha[1],
+                    (int) $partes_fecha[2],
+                    (int) $partes_fecha[0]
+                )
+            ) {
+                $fecha_expiracion = '';
+            }
+        }        
+
         /*
         * Una licencia válida debe permitir como mínimo
         * una instalación.
@@ -125,6 +170,7 @@ function compuciber_normalizar_respuesta_licencia(
             'tipo_respuesta'         => 'valida',
             'limite_instalaciones'   => $limite_instalaciones,
             'instalaciones_activas'  => $instalaciones_activas,
+            'fecha_expiracion' => $fecha_expiracion,
             'mensaje'                => isset( $datos['mensaje'] )
                 ? sanitize_text_field(
                     $datos['mensaje']
@@ -163,6 +209,74 @@ class Compuciber_CloudLicenseProvider
     implements Compuciber_LicenseProviderInterface {
 
     /**
+     * Realiza una solicitud al servidor de licencias
+     * de Compuciber Cloud.
+     *
+     * Centraliza la comunicación HTTP para que las
+     * distintas operaciones de licenciamiento utilicen
+     * el mismo mecanismo.
+     *
+     * @param array $datos_envio Datos que se enviarán al servidor.
+     *
+     * @return array|WP_Error
+     */
+    private function realizar_solicitud(
+        $datos_envio
+    ) {
+
+        if ( ! is_array( $datos_envio ) ) {
+
+            return new WP_Error(
+                'compuciber_datos_solicitud_invalidos',
+                'Los datos de la solicitud de licencia no son válidos.'
+            );
+        }    
+
+        $url_servidor =
+            compuciber_obtener_url_servidor_licencias();
+
+        if ( empty( $url_servidor ) ) {
+
+            return new WP_Error(
+                'compuciber_servidor_no_configurado',
+                'Servidor de licencias no configurado.'
+            );
+        }
+
+        return wp_remote_post(
+            $url_servidor,
+            array(
+                'timeout'             => 10,
+                'redirection'         => 0,
+                'limit_response_size' => 1024 * 64,
+
+                'headers' => array(
+
+                    'Accept' =>
+                        'application/json',
+
+                    'Content-Type' =>
+                        'application/json',
+
+                    'User-Agent' =>
+                        'Compuciber-AI-Search/' .
+                        (
+                            defined(
+                                'COMPUCIBER_AI_SEARCH_VERSION'
+                            )
+                                ? COMPUCIBER_AI_SEARCH_VERSION
+                                : 'unknown'
+                        ),
+                ),
+
+                'body' => wp_json_encode(
+                    $datos_envio
+                ),
+            )
+        );
+    }
+
+    /**
      * Valida una licencia para una instalación
      * mediante el servidor de Compuciber Cloud.
      *
@@ -175,6 +289,7 @@ class Compuciber_CloudLicenseProvider
      *
      * @return array
      */
+    
     public function validar(
         $clave,
         $instalacion
@@ -198,60 +313,40 @@ class Compuciber_CloudLicenseProvider
             );
         }
         /*
-        * Obtenemos el endpoint configurado para
-        * el servidor de licenciamiento.
-        */
-        $url_servidor =
-            compuciber_obtener_url_servidor_licencias();
-
-        /*
-        * Si todavía no existe un servidor configurado,
-        * detenemos aquí la validación.
-        *
-        * Esto evita realizar solicitudes hacia
-        * direcciones inexistentes o incorrectas.
-        */
-        if ( empty( $url_servidor ) ) {
-
-            return array(
-                'valida'         => false,
-                'estado'         => 'sin_licencia',
-                'tipo_respuesta' => 'error_conexion',
-                'mensaje'        => 'Servidor de licencias no configurado.',
-            );
-        }
-
-
-        /*
         * Preparamos los datos que serán enviados
         * al servidor de licenciamiento.
         */
         $datos_envio = array(
-            'licencia'    => $clave,
-            'instalacion' => $instalacion,
+
+            /*
+            * Operación solicitada al servidor.
+            */
+            'accion' =>
+                'validar_licencia',
+
+            /*
+            * Clave introducida por el administrador.
+            */
+            'licencia' =>
+                $clave,
+
+            /*
+            * Información de esta instalación
+            * WordPress/WooCommerce.
+            */
+            'instalacion' =>
+                $instalacion,
         );
 
 
         /*
-        * Realizamos la solicitud mediante la API HTTP
-        * nativa de WordPress.
+        * Realizamos la solicitud mediante el método
+        * HTTP centralizado del proveedor.
         */
-        $respuesta = wp_remote_post(
-            $url_servidor,
-            array(
-                'timeout'     => 10,
-                'redirection' => 0,
-
-                'headers' => array(
-                    'Accept'       => 'application/json',
-                    'Content-Type' => 'application/json',
-                ),
-
-                'body' => wp_json_encode(
-                    $datos_envio
-                ),
-            )
-        );
+        $respuesta =
+            $this->realizar_solicitud(
+                $datos_envio
+            );
 
 
         /*
@@ -262,11 +357,21 @@ class Compuciber_CloudLicenseProvider
         */
         if ( is_wp_error( $respuesta ) ) {
 
+            $mensaje_error =
+                $respuesta->get_error_message();
+
+            if ( empty( $mensaje_error ) ) {
+                $mensaje_error =
+                    'No fue posible conectar con el servidor de licencias.';
+            }
+
             return array(
                 'valida'         => false,
                 'estado'         => 'sin_licencia',
                 'tipo_respuesta' => 'error_conexion',
-                'mensaje'        => 'No fue posible conectar con el servidor de licencias.',
+                'mensaje'        => sanitize_text_field(
+                    $mensaje_error
+                ),
             );
         }
 

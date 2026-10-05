@@ -1573,9 +1573,14 @@ function compuciber_ai_search_configuracion() {
                                         $instalaciones_disponibles =
                                             compuciber_obtener_instalaciones_disponibles();
 
+                                        $fecha_expiracion =
+                                            compuciber_obtener_fecha_expiracion_licencia();
+
                                         ?>
+                                        
 
                                         <p class="description">
+                                            
                                             Instalaciones:
                                             <strong>
                                                 <?php
@@ -1603,6 +1608,20 @@ function compuciber_ai_search_configuracion() {
                                             </strong>.
                                         </p>
 
+                                        <?php if ( ! empty( $fecha_expiracion ) ) : ?>
+
+                                            <p class="description">
+                                                Fecha de expiración:
+                                                <strong>
+                                                    <?php
+                                                    echo esc_html(
+                                                        $fecha_expiracion
+                                                    );
+                                                    ?>
+                                                </strong>
+                                            </p>
+
+                                        <?php endif; ?>
                                     <?php endif; ?>
 
 
