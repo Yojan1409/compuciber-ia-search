@@ -83,10 +83,7 @@ function compuciber_preparar_datos_ia(
                 compuciber_normalizar_texto(
                     $caracteristica
                 );
-
-            error_log(
-                'CARACTERISTICA NORMALIZADA: [' . $caracteristica . ']'
-            );            
+         
 
             /*
             * Las características técnicas con números

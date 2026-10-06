@@ -1,627 +1,463 @@
 # Compuciber AI Search
 
-Buscador inteligente de productos para tiendas WordPress con
-WooCommerce.
+**Versión:** 2.0.0  
+**Propietario del desarrollo:** COMPUCIBER S.A.C.  
+**Plataforma:** WordPress + WooCommerce  
+**Formato de entrega:** código fuente + plugin ZIP instalable + documentación + repositorio Git
 
-**Versión documentada:** 1.0.0\
-**Plataforma:** WordPress + WooCommerce\
-**Estado:** Versión V1.0
+## 1. Propiedad y alcance de la entrega
 
-## Descripción
+El código fuente de Compuciber AI Search se entrega como desarrollo bajo propiedad de **COMPUCIBER S.A.C.**
 
-Compuciber AI Search añade un buscador inteligente para productos de
-WooCommerce. El plugin utiliza un índice propio de productos y combina
-búsqueda tradicional, corrección, tolerancia a errores, sinónimos y,
-cuando está habilitada, interpretación mediante un proveedor de IA.
+La entrega debe conservar todos los componentes esenciales necesarios para instalar, mantener y continuar desarrollando el buscador. Ninguna parte esencial del motor de búsqueda debe quedar únicamente en poder del desarrollador.
 
-WooCommerce continúa siendo la fuente de verdad de los productos,
-precios, stock, SKU y demás datos comerciales.
+Los únicos componentes que pueden permanecer fuera del repositorio son servicios externos expresamente utilizados por el plugin, como las APIs de proveedores de inteligencia artificial o un futuro servidor externo de licencias/SaaS. Estos servicios no sustituyen el código fuente del buscador.
 
-## Funciones de V1.0
+## 2. Entregables del proyecto
 
--   Integración con WooCommerce.
--   Indexación automática de productos publicados.
--   Actualización automática del índice cuando los productos cambian.
--   Barra de búsqueda inteligente.
--   Autocompletado.
--   Búsqueda por palabras incompletas.
--   Corrección de errores frecuentes.
--   Fuzzy search.
--   Búsqueda por SKU.
--   Búsqueda por marca.
--   Búsqueda por modelo.
--   Búsqueda por categoría.
--   Búsqueda por atributos.
--   Búsqueda por etiquetas y contenido indexado.
--   Detección de características técnicas como GB, TB, SSD y HDD.
--   Búsqueda por rangos de precio.
--   Sinónimos.
--   Puntuación y ordenamiento por relevancia.
--   Interpretación mediante IA cuando la búsqueda semántica está
-    habilitada.
--   Panel administrativo.
--   Shortcode.
--   Bloque Gutenberg.
+La entrega del proyecto comprende:
 
-## Funciones posteriores
+- Código fuente completo del plugin.
+- Plugin ZIP instalable.
+- Esquema de base de datos utilizado.
+- Documentación técnica.
+- Documentación de instalación y actualización.
+- Relación de dependencias.
+- Relación de APIs externas.
+- Credenciales y configuración separadas del código fuente.
+- Instrucciones de compilación, cuando exista frontend compilado.
+- Repositorio Git.
+- Historial y versionado del proyecto.
 
-Según la hoja de requerimientos:
+## 3. Descripción técnica
 
--   **V1.1:** búsqueda por voz.
--   **V1.2:** búsqueda mediante imagen.
--   **V2.0:** estadísticas avanzadas, evolución del ranking y otras
-    funciones de producto.
+Compuciber AI Search es un plugin de búsqueda inteligente para WooCommerce. Combina un índice local de productos con autocomplete, fuzzy search, corrección, sinónimos, ranking técnico, búsqueda semántica, embeddings, búsqueda por voz, búsqueda por imagen, estadísticas y aprendizaje de ranking basado en interacciones históricas.
 
-Estas funciones posteriores no se presentan como funcionalidades
-terminadas de V1.0.
+WooCommerce y el índice local constituyen la fuente de productos. La inteligencia artificial puede interpretar consultas o imágenes, pero no debe crear productos inexistentes.
 
-## Requisitos
+## 4. Funcionalidades principales
 
--   WordPress.
--   WooCommerce activo.
--   PHP compatible con la instalación.
--   Para la interpretación mediante IA: proveedor configurado y clave
-    API correspondiente.
+El plugin incorpora:
 
-El buscador base puede realizar sus operaciones principales sin depender
-obligatoriamente de una llamada a IA.
+- búsqueda por nombre;
+- SKU;
+- marca;
+- modelo;
+- categorías;
+- atributos;
+- etiquetas;
+- contenido indexado;
+- productos simples y variables;
+- autocomplete;
+- fuzzy search;
+- corrección de errores;
+- sinónimos;
+- ranking de relevancia;
+- coincidencias técnicas;
+- búsqueda semántica;
+- embeddings;
+- búsqueda por voz;
+- búsqueda por imagen;
+- estadísticas;
+- aprendizaje de ranking;
+- integración Gutenberg;
+- shortcode;
+- integración PHP;
+- widget nativo de Elementor;
+- sistema cliente de licencias;
+- identificación de instalaciones;
+- preparación para múltiples tiendas;
+- preparación para integración SaaS.
 
-## Instalación
+## 5. Arquitectura principal
 
-1.  Entrar en **Plugins → Añadir nuevo plugin**.
-2.  Seleccionar **Subir plugin**.
-3.  Seleccionar el ZIP de Compuciber AI Search.
-4.  Instalar y activar el plugin.
-5.  Verificar que WooCommerce esté activo.
-6.  Abrir la configuración del plugin.
+```text
+compuciber-ia-search/
+├── assets/
+│   ├── css/
+│   ├── images/
+│   └── js/
+├── blocks/
+├── elementor/
+│   └── widget-ai-search.php
+├── includes/
+│   ├── indexacion/
+│   ├── proveedores/
+│   │   ├── gemini/
+│   │   ├── openai/
+│   │   ├── gemini.php
+│   │   ├── openai.php
+│   │   └── interfaz.php
+│   ├── resultado/
+│   ├── licencias/
+│   ├── admin-panel.php
+│   ├── configuracion.php
+│   ├── estadisticas.php
+│   ├── fuzzy.php
+│   ├── ia.php
+│   ├── imagenes.php
+│   ├── indexacion.php
+│   ├── licencias.php
+│   ├── resultados.php
+│   ├── sinonimos.php
+│   └── sugerencias.php
+├── CHANGELOG.md
+├── compuciber-ai-search.php
+└── README.md
+```
 
-## Indexación automática
+## 6. Arquitectura de proveedores de IA
 
-El plugin crea una tabla de índice propia y registra los productos
-publicados de WooCommerce.
+Los proveedores implementan:
 
-El índice almacena información como:
+`Compuciber_AIProviderInterface`
 
--   nombre;
--   SKU;
--   marca;
--   modelo;
--   categorías;
--   atributos;
--   etiquetas;
--   contenido;
--   precio;
--   precio de oferta;
--   stock;
--   variaciones;
--   URL;
--   imagen;
--   texto de búsqueda;
--   fecha de actualización.
+Contrato principal:
 
-Los cambios de productos se sincronizan mediante los hooks
-correspondientes de WordPress y WooCommerce.
+- `consultar_texto()`
+- `consultar_imagen()`
+- `generar_embedding()`
 
-## Uso mediante shortcode
+La selección está centralizada mediante:
 
-La barra puede insertarse mediante:
+`compuciber_obtener_proveedor_ia()`
+
+Proveedores implementados:
+
+- Google Gemini.
+- OpenAI.
+
+Cada proveedor conserva opciones independientes para su API key y modelos de texto, embeddings e imagen.
+
+La búsqueda por voz es independiente de estos proveedores y utiliza Web Speech API.
+
+## 7. Funcionamiento sin IA
+
+La indisponibilidad de una API de IA no elimina el motor local. Continúan disponibles, según configuración:
+
+- búsqueda por nombre;
+- SKU;
+- marca;
+- modelo;
+- atributos;
+- categorías;
+- autocomplete;
+- fuzzy search;
+- corrección;
+- ranking local.
+
+Esto evita que el funcionamiento esencial del buscador dependa exclusivamente de un proveedor externo.
+
+## 8. Base de datos y esquema
+
+El plugin utiliza tablas propias dentro de la base de datos de WordPress, empleando el prefijo configurado en cada instalación.
+
+### Índice de productos
+
+Tabla lógica:
+
+`{prefix}compuciber_product_index`
+
+Campos principales del índice:
+
+- `id`
+- `nombre`
+- `sku`
+- `marca`
+- `modelo`
+- `categorias`
+- `atributos`
+- `etiquetas`
+- `contenido`
+- `precio`
+- `oferta`
+- `stock`
+- `variaciones`
+- `texto_busqueda`
+
+El proyecto también utiliza persistencia para estadísticas, selecciones/interacciones y datos necesarios para las funciones incorporadas en versiones posteriores.
+
+**Fuente autoritativa del esquema:** las funciones PHP de creación y actualización de tablas incluidas en el código fuente, especialmente los módulos de indexación/activación y las rutinas de base de datos del plugin. Para una entrega formal debe conservarse dicho código junto con el repositorio.
+
+No se requiere entregar una copia con datos comerciales reales de una tienda. El requisito se satisface mediante el esquema y las rutinas reproducibles de creación/migración.
+
+## 9. Indexación
+
+La indexación obtiene información de WooCommerce y mantiene el índice del plugin.
+
+Se contemplan hooks de creación y actualización de productos. El índice permite realizar búsquedas locales incluso cuando no existe una API de IA configurada.
+
+Los embeddings almacenan además la identidad de proveedor/modelo necesaria para determinar su compatibilidad con la configuración activa.
+
+## 10. Estadísticas y aprendizaje de ranking
+
+La V2.0 incorpora:
+
+- total de búsquedas;
+- búsquedas con resultados;
+- búsquedas sin resultados;
+- selecciones;
+- tasa de éxito;
+- CTR global;
+- búsquedas por canal;
+- búsquedas populares;
+- productos seleccionados;
+- consultas que generan selecciones;
+- evolución temporal.
+
+El aprendizaje de ranking utiliza interacciones históricas para aplicar un bonus limitado a productos que ya poseen relevancia base. No constituye un modelo de machine learning autónomo.
+
+## 11. Sistema de licencias y múltiples instalaciones
+
+El plugin contiene el código cliente necesario para:
+
+- clave de licencia;
+- UUID por instalación;
+- identificación del dominio;
+- estado de licencia;
+- validación remota configurable;
+- caché;
+- periodo de gracia;
+- validación manual;
+- validación periódica;
+- límites de instalaciones informados por un servidor externo.
+
+El plugin no incluye actualmente un backend comercial de licencias operado por COMPUCIBER. Si posteriormente se contrata o desarrolla ese servicio, debe documentarse como servicio externo o incorporarse su código fuente a la entrega según lo acordado.
+
+## 12. Preparación SaaS
+
+La preparación SaaS de V2.0 corresponde al lado cliente del plugin:
+
+- interfaz/contrato;
+- cliente HTTP;
+- endpoint configurable;
+- datos de instalación;
+- normalización de respuestas;
+- caché;
+- cron;
+- periodo de gracia.
+
+No debe interpretarse como la existencia de un backend SaaS completo dentro del plugin.
+
+## 13. Dependencias
+
+Dependencias de plataforma:
+
+- WordPress.
+- WooCommerce.
+
+Integraciones opcionales o condicionadas:
+
+- Elementor, para utilizar el widget nativo.
+- Gutenberg/Block Editor, para el bloque correspondiente.
+- Web Speech API del navegador, para búsqueda por voz.
+
+El plugin utiliza las APIs y funciones nativas de WordPress para solicitudes HTTP, opciones, hooks, cron, administración y base de datos.
+
+## 14. APIs externas
+
+### Google Gemini
+
+Uso:
+
+- interpretación de texto;
+- análisis de imágenes;
+- embeddings.
+
+La API key se configura desde WordPress y no debe incluirse en el repositorio ni en el ZIP de distribución.
+
+### OpenAI
+
+El código incorpora un proveedor para:
+
+- interpretación de texto;
+- análisis de imágenes;
+- embeddings.
+
+La API key se configura independientemente y no debe incluirse en el repositorio ni en el ZIP.
+
+### Web Speech API
+
+Se utiliza desde navegadores compatibles para reconocimiento de voz. No corresponde a una credencial almacenada por el plugin.
+
+### Servicio externo de licencias/SaaS
+
+La V2.0 dispone de un cliente configurable, pero el endpoint comercial definitivo debe ser suministrado/configurado cuando exista el servicio correspondiente.
+
+## 15. Credenciales y configuración
+
+Las credenciales deben permanecer separadas del código fuente.
+
+No deben incluirse en Git ni en el ZIP:
+
+- API keys de Gemini;
+- API keys de OpenAI;
+- credenciales de WordPress;
+- credenciales de hosting;
+- contraseñas;
+- tokens privados;
+- claves de servicios futuros.
+
+Las API keys del plugin se administran mediante opciones/configuración de WordPress.
+
+Antes de distribuir un ZIP debe comprobarse que no existan secretos codificados directamente en archivos PHP, JavaScript, README, CHANGELOG u otros archivos.
+
+## 16. Frontend y compilación
+
+En la estructura actual documentada, los recursos frontend se distribuyen como archivos fuente dentro de `assets/`, junto con las integraciones correspondientes.
+
+No se ha definido en esta entrega un proceso obligatorio de compilación con Node.js, npm, Vite, Webpack u otra cadena de build.
+
+Por tanto, mientras la estructura permanezca así, **no existe un paso de compilación obligatorio para instalar el plugin**.
+
+Si posteriormente se introduce frontend compilado, deberán incorporarse al repositorio:
+
+- archivos fuente;
+- `package.json`;
+- lockfile correspondiente;
+- versión de Node requerida;
+- comandos de instalación;
+- comando de build;
+- instrucciones para reproducir los archivos distribuidos.
+
+## 17. Instalación
+
+1. Realizar una copia de seguridad del sitio.
+2. Ingresar a WordPress.
+3. Ir a **Plugins → Añadir plugin → Subir plugin**.
+4. Seleccionar `compuciber-ia-search.zip`.
+5. Instalar.
+6. Activar.
+7. Abrir la configuración de Compuciber AI Search.
+8. Configurar funciones y, opcionalmente, proveedor/API de IA.
+9. Ejecutar o verificar la indexación.
+10. Insertar el buscador mediante shortcode, Gutenberg, Elementor o integración PHP.
+11. Realizar pruebas de búsqueda.
+
+Shortcode:
 
 `[compuciber_ai_search]`
 
-## Uso mediante Gutenberg
-
-El plugin incluye el bloque **Compuciber AI Search** para insertar el
-buscador desde Gutenberg.
-
-## Panel administrativo
-
-El panel permite consultar el estado de WooCommerce, la indexación y
-configurar funciones como:
-
--   proveedor de IA;
--   claves API;
--   modelo de IA;
--   modelo de embeddings;
--   modelo multimodal;
--   modelo de voz;
--   autocompletado;
--   corrección;
--   búsqueda semántica;
--   búsqueda por voz;
--   búsqueda por imagen;
--   estadísticas.
-
-Las claves API se mantienen en el backend.
-
-## Motor de búsqueda
-
-El flujo general es:
-
-1.  Recepción de la consulta.
-2.  Normalización.
-3.  Corrección.
-4.  Expansión mediante sinónimos.
-5.  Detección de términos y características técnicas.
-6.  Comparación con el índice.
-7.  Cálculo de puntuaciones.
-8.  Ordenamiento.
-9.  Obtención de los resultados finales.
-
-La búsqueda local puede funcionar sin depender de la IA.
-
-## Interpretación mediante IA
-
-Cuando la búsqueda semántica está habilitada, el plugin puede enviar la
-consulta al proveedor configurado para interpretar la intención y
-extraer información útil.
-
-La IA no debe inventar productos. Los resultados finales proceden del
-catálogo/indexación de WooCommerce.
-
-## Proveedores
-
-La arquitectura permite seleccionar el proveedor de IA.
-
-Proveedores integrados:
-
--   Gemini.
--   OpenAI.
-
-La integración está separada mediante módulos de proveedores.
-
-## Arquitectura
-
-``` text
-compuciber-ia-search/
-├── assets/
-│   ├── css/
-│   └── js/
-├── blocks/
-│   └── buscadores/
-├── includes/
-│   ├── indexacion/
-│   ├── proveedores/
-│   ├── resultado/
-│   ├── admin-panel.php
-│   ├── configuracion.php
-│   ├── correcciones.php
-│   ├── fuzzy.php
-│   ├── ia.php
-│   ├── indexacion.php
-│   ├── resultados.php
-│   ├── sinonimos.php
-│   └── sugerencias.php
-└── compuciber-ai-search.php
-```
-
-## Seguridad
-
--   Comprobaciones de acceso mediante WordPress.
--   Sanitización de entradas.
--   Consultas SQL preparadas cuando corresponde.
--   Nonces para las operaciones AJAX correspondientes.
--   Claves API almacenadas en el backend.
-
-## Catálogos grandes
-
-La búsqueda utiliza una tabla propia de índice para evitar depender
-directamente de una consulta compleja sobre todos los metadatos de
-WooCommerce.
-
-No existe un límite artificial de 50 productos para el catálogo. El
-límite de resultados visibles es independiente del número total de
-productos indexados.
-
-La arquitectura está preparada para el escenario de referencia de
-**2,500 productos** indicado en los requerimientos. En catálogos
-considerablemente mayores podrían realizarse optimizaciones adicionales
-de rendimiento.
-
-## Pruebas realizadas
-
-Se verificaron búsquedas relacionadas con:
-
--   SKU y códigos de producto.
--   Marca y modelo.
--   Términos incompletos.
--   Errores ortográficos.
--   Sinónimos.
--   Categorías.
--   Atributos.
--   Características como `512 GB`, `512 GB SSD` y `SSD`.
--   Rangos de precio.
--   Consultas combinadas.
--   Autocompletado.
--   Consultas sin resultados.
-
-Ejemplos:
-
-`hp g10`\
-`hp 250r`\
-`D2DX8AT`\
-`laptp hp`\
-`hp 16gb 512`\
-`impresora termica`\
-`inpresora termica`\
-`laptop lenovo`\
-`mouse logitech`\
-`512 GB SSD`
+## 18. Actualización desde una versión anterior
 
-## Desarrollo
+No se recomienda desinstalar el plugin para actualizarlo.
 
-Esta versión corresponde al desarrollo del proyecto de prácticas de
-Senati para Compuciber.
-
-La V1.0 constituye la base funcional del buscador inteligente. Las
-siguientes versiones ampliarán las capacidades de voz, imagen,
-estadísticas y ranking.
-
-## Licencia
-
-La licencia y las condiciones de distribución deberán definirse antes de
-una publicación comercial del plugin.
-
-------------------------------------------------------------------------
-
-## Instalación
+Procedimiento:
 
-1.  Descargar el ZIP del plugin.
-2.  Entrar al administrador de WordPress.
-3.  Ir a **Plugins → Añadir nuevo plugin**.
-4.  Seleccionar **Subir plugin**.
-5.  Seleccionar el archivo ZIP.
-6.  Instalar y activar **Compuciber AI Search**.
-7.  Verificar que WooCommerce esté activo.
-8.  Configurar las opciones necesarias desde el panel del plugin.
+1. realizar copia de seguridad;
+2. subir el nuevo ZIP;
+3. permitir que WordPress reemplace la versión instalada;
+4. conservar/revisar configuración;
+5. comprobar las tablas y el índice;
+6. comprobar búsquedas;
+7. comprobar estadísticas;
+8. comprobar las funciones de IA configuradas.
 
-------------------------------------------------------------------------
+Las actualizaciones que modifiquen el esquema de base de datos deben acompañarse de rutinas reproducibles de migración.
 
-## Indexación automática
+## 19. Repositorio Git
 
-El plugin utiliza una tabla propia para indexar los productos de
-WooCommerce.
+El repositorio Git forma parte de la entrega.
 
-La información indexada incluye:
+Debe entregarse a COMPUCIBER S.A.C. con acceso suficiente para conservar y continuar el desarrollo.
 
--   Nombre.
--   SKU.
--   Marca.
--   Modelo.
--   Categorías.
--   Atributos.
--   Etiquetas.
--   Contenido.
--   Precio.
--   Precio de oferta.
--   Stock.
--   Variaciones.
--   URL.
--   Imagen.
--   Texto de búsqueda.
--   Fecha de actualización.
+El repositorio debe contener:
 
-Los productos publicados se incorporan automáticamente al índice y los
-cambios relevantes se sincronizan mediante hooks de WordPress y
-WooCommerce.
-
-------------------------------------------------------------------------
-
-## Búsqueda inteligente
-
-El flujo general de búsqueda es:
-
-1.  Recibir la consulta.
-2.  Normalizar el texto.
-3.  Aplicar correcciones.
-4.  Expandir sinónimos.
-5.  Detectar características técnicas.
-6.  Comparar con el índice.
-7.  Calcular puntuaciones.
-8.  Ordenar por relevancia.
-9.  Mostrar los resultados.
-
-El sistema permite combinar criterios como producto, marca, modelo, SKU,
-categoría, atributos, características técnicas y precio.
-
-------------------------------------------------------------------------
-
-## Fuzzy Search
-
-El plugin incorpora búsqueda tolerante a errores mediante fuzzy search.
-
-Esta función permite encontrar coincidencias aunque el término
-introducido no coincida exactamente con el texto almacenado en el
-índice.
-
-El fuzzy search complementa el sistema de corrección.
-
-------------------------------------------------------------------------
-
-## Panel administrativo
-
-El plugin incorpora un panel administrativo propio dentro de WordPress.
-
-Permite configurar:
-
--   Proveedor de IA.
--   Clave API de Gemini.
--   Clave API de OpenAI.
--   Modelo de IA.
--   Modelo de embeddings.
--   Modelo multimodal.
--   Modelo de voz.
--   Autocompletado.
--   Corrección.
--   Búsqueda semántica.
--   Búsqueda por voz.
--   Búsqueda por imagen.
--   Estadísticas.
-
-También muestra información sobre WooCommerce, productos indexados,
-última sincronización, proveedor de IA y estado del índice.
-
-------------------------------------------------------------------------
-
-## Shortcode
-
-El buscador puede insertarse mediante:
-
-``` text
-[compuciber_ai_search]
-```
-
-------------------------------------------------------------------------
-
-## Gutenberg
-
-El plugin incluye un bloque Gutenberg denominado **Compuciber AI
-Search**.
-
-La implementación se encuentra en:
-
-``` text
-blocks/
-└── buscadores/
-    └── index.js
-```
-
-------------------------------------------------------------------------
-
-## Estructura del plugin
+- código fuente;
+- README;
+- CHANGELOG;
+- historial de commits;
+- ramas que formen parte de la entrega, cuando corresponda;
+- tags/releases cuando se utilicen;
+- archivos necesarios para reproducir el plugin.
 
-``` text
-compuciber-ia-search/
-├── assets/
-│   ├── css/
-│   ├── js/
-│   └── images/
-│       └── logo.png
-├── blocks/
-│   └── buscadores/
-│       └── index.js
-├── includes/
-│   ├── indexacion/
-│   ├── proveedores/
-│   ├── resultado/
-│   ├── admin-panel.php
-│   ├── configuracion.php
-│   ├── correcciones.php
-│   ├── fuzzy.php
-│   ├── ia.php
-│   ├── indexacion.php
-│   ├── resultados.php
-│   ├── sinonimos.php
-│   └── sugerencias.php
-├── README.md
-├── CHANGELOG.md
-└── compuciber-ai-search.php
-```
+No deben incluirse secretos ni credenciales.
 
-------------------------------------------------------------------------
-
-## Índice de productos
-
-La tabla utilizada es:
-
-``` text
-wp_compuciber_product_index
-```
-
-El prefijo `wp_` puede variar según la instalación de WordPress.
-
-Campos principales:
-
-``` text
-id
-nombre
-sku
-marca
-modelo
-categorias
-atributos
-etiquetas
-contenido
-precio
-precio_oferta
-stock
-variaciones
-texto_busqueda
-url
-imagen
-actualizado
-```
-
-El ID del producto de WooCommerce se utiliza como identificador
-principal.
-
-------------------------------------------------------------------------
-
-## Catálogos grandes
-
-El plugin no establece un límite artificial de 50 productos para el
-catálogo.
-
-La cantidad total de productos indexados es independiente del número de
-sugerencias o resultados mostrados al usuario.
-
-La arquitectura está preparada para el escenario de aproximadamente
-2,500 productos indicado en los requerimientos.
-
-------------------------------------------------------------------------
-
-## Seguridad
-
-El plugin utiliza mecanismos de seguridad de WordPress, incluyendo:
-
--   Comprobaciones `ABSPATH`.
--   Sanitización de datos.
--   Consultas SQL preparadas cuando corresponde.
--   Nonces para operaciones AJAX.
--   Validación de solicitudes.
--   Claves API almacenadas en el backend.
-
-Las claves API no se incluyen directamente en el código fuente.
-
-------------------------------------------------------------------------
-
-## Compatibilidad con WooCommerce
-
-WooCommerce es la fuente principal de información de los productos.
-
-El plugin obtiene información directamente de WooCommerce para mantener
-actualizado el índice.
-
-------------------------------------------------------------------------
-
-## Pruebas realizadas
-
-La V1.0 fue probada en un entorno local de WordPress + WooCommerce.
-
-Se probaron búsquedas por:
-
--   SKU.
--   Marca.
--   Modelo.
--   Categoría.
--   Atributos.
--   Palabras incompletas.
--   Corrección.
--   Fuzzy search.
--   Sinónimos.
--   Características técnicas.
--   SSD y HDD.
--   Rangos de precio.
--   Autocompletado.
--   Consultas sin resultados.
-
-Consultas utilizadas:
-
-``` text
-hp 250r
-hp 16gb 512
-hp 512gb
-laptop menos de 2000
-laptop menos de 1900
-laptop más de 2000
-laptop más de 3000
-laptp hp
-laptop hp 250r
-D2DX8AT
-D2DX8AT laptop
-lenovo
-laptop lenovo
-250R
-teclados
-16 GB
-512 GB SSD
-512GB SSD
-SSD
-512 GB HDD
-mouse logitech
-teclado
-999xyz
-```
-
-------------------------------------------------------------------------
-
-## Estado de V1.0
-
-La versión 1.0 contiene las funciones principales definidas para la
-primera etapa:
-
--   WooCommerce.
--   Indexación automática.
--   Barra inteligente.
--   Autocompletado.
--   SKU.
--   Marca.
--   Modelo.
--   Categoría.
--   Atributos.
--   Fuzzy search.
--   Corrección.
--   Sinónimos.
--   Búsqueda mediante IA.
--   Panel administrativo.
-
-------------------------------------------------------------------------
-
-## Próximas versiones
-
-### V1.1 --- Búsqueda por voz
-
-Búsqueda mediante el micrófono del navegador y conversión de voz a
-texto.
-
-### V1.2 --- Búsqueda por imagen
-
-Carga de imágenes y análisis mediante inteligencia artificial para
-encontrar productos relacionados.
-
-### V2.0 --- Funciones avanzadas
-
--   Estadísticas avanzadas.
--   Consultas sin resultados.
--   Mejoras del ranking.
--   Funciones administrativas adicionales.
--   Soporte para múltiples tiendas.
--   SaaS y licenciamiento.
-
-------------------------------------------------------------------------
-
-## Versionado
-
-``` text
-V1.0.0 → Buscador inteligente y funciones principales
-V1.1.0 → Búsqueda por voz
-V1.2.0 → Búsqueda por imagen
-V2.0.0 → Funciones avanzadas
-```
-
-------------------------------------------------------------------------
-
-## Proyecto
-
-**Compuciber AI Search** fue desarrollado como proyecto de prácticas
-profesionales de **SENATI** para **Compuciber**.
-
-El objetivo es proporcionar un buscador inteligente para tiendas
-WooCommerce manteniendo WooCommerce como fuente principal de
-información.
-
-------------------------------------------------------------------------
-
-## Autor
-
-**Compuciber**
-
-Proyecto desarrollado para Compuciber -- Prácticas SENATI.
-
-------------------------------------------------------------------------
-
-## Licencia
-
-Este proyecto pertenece a Compuciber.
-
-El código y los recursos incluidos están destinados al desarrollo del
-proyecto Compuciber AI Search.
+## 20. Versionado
+
+Historial funcional documentado:
+
+- **V1.0.0:** base del buscador inteligente, WooCommerce, indexación, autocomplete, fuzzy, corrección, sinónimos, búsqueda semántica y administración.
+- **V1.1.0:** búsqueda por voz.
+- **V1.2.0:** búsqueda por imagen.
+- **V2.0.0:** estadísticas avanzadas, aprendizaje de ranking, licencias, múltiples instalaciones, preparación SaaS, Elementor y arquitectura ampliada de proveedores.
+
+El archivo `CHANGELOG.md` conserva el detalle del historial.
+
+## 21. Entrega del ZIP
+
+El ZIP distribuible debe contener la carpeta completa del plugin y todo el código necesario para su funcionamiento.
+
+No debe depender de archivos esenciales existentes únicamente en el equipo del desarrollador.
+
+Antes de entregar:
+
+- verificar versión;
+- eliminar archivos temporales;
+- eliminar trazas de debug innecesarias;
+- verificar ausencia de credenciales;
+- probar instalación/actualización;
+- comprobar indexación;
+- ejecutar regresión de búsqueda.
+
+## 22. Compatibilidad probada durante el desarrollo
+
+Entorno registrado durante las pruebas:
+
+- WordPress 7.1.2.
+- WooCommerce 11.1.2.
+- PHP 8.2.29.
+
+También se realizaron pruebas con cambio de tema y una instalación externa de WordPress/WooCommerce.
+
+## 23. Estado de validación
+
+Probado durante el desarrollo:
+
+- instalación mediante ZIP;
+- indexación;
+- búsqueda local;
+- autocomplete;
+- SKU;
+- fuzzy search;
+- coincidencias técnicas;
+- Gemini;
+- búsqueda semántica con Gemini;
+- búsqueda por imagen con Gemini;
+- persistencia independiente de modelos Gemini/OpenAI;
+- funcionamiento sin API de IA;
+- widget Elementor;
+- estadísticas;
+- aprendizaje de ranking;
+- arquitectura cliente de licencias.
+
+Pendiente de validación final antes de considerar una entrega de producción cerrada:
+
+- limpieza final de logs de depuración;
+- prueba real de OpenAI con una API key válida;
+- revisión final de migraciones de base de datos;
+- regresión completa del ZIP V2.0.0;
+- prueba final de actualización sobre una instalación anterior.
+
+## 24. Continuidad del desarrollo
+
+La arquitectura se ha organizado para que COMPUCIBER S.A.C. pueda continuar el proyecto desde el código entregado.
+
+Para añadir un proveedor de IA adicional se debe:
+
+1. implementar `Compuciber_AIProviderInterface`;
+2. crear sus módulos de texto, imagen y embeddings;
+3. registrar sus opciones;
+4. incorporarlo al selector central de proveedores;
+5. añadir su configuración administrativa;
+6. documentar sus dependencias y API.
+
+El motor de búsqueda local no necesita ser reescrito para este proceso.
+
+## 25. Propiedad del desarrollo
+
+El código fuente entregado del plugin Compuciber AI Search queda bajo propiedad de **COMPUCIBER S.A.C.**, conforme a los términos contractuales aplicables al proyecto.
+
+La entrega técnica contempla código fuente, esquema de datos, documentación, configuración reproducible, repositorio Git e historial de versiones.
+
+No deben existir componentes esenciales del buscador cuyo código fuente permanezca únicamente en poder del desarrollador, salvo servicios externos expresamente acordados y documentados.

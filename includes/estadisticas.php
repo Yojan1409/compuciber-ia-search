@@ -4,6 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+define( 'COMPUCIBER_ESTADISTICAS_VERSION', '2.0' );
+
 /*
  * ==========================================================
  * ESTADÍSTICAS DE BÚSQUEDAS
@@ -67,6 +69,38 @@ function compuciber_crear_tabla_selecciones() {
 
     dbDelta( $sql );
 }
+
+/**
+ * Verifica y actualiza automáticamente
+ * el esquema de las tablas de estadísticas.
+ */
+function compuciber_verificar_esquema_estadisticas() {
+
+    $version_actual = get_option(
+        'compuciber_estadisticas_version',
+        ''
+    );
+
+    if (
+        $version_actual !==
+        COMPUCIBER_ESTADISTICAS_VERSION
+    ) {
+
+        compuciber_crear_tabla_estadisticas();
+        compuciber_crear_tabla_selecciones();
+
+        update_option(
+            'compuciber_estadisticas_version',
+            COMPUCIBER_ESTADISTICAS_VERSION
+        );
+    }
+}
+
+add_action(
+    'plugins_loaded',
+    'compuciber_verificar_esquema_estadisticas',
+    21
+);
 
 /**
  * Registra una búsqueda.
