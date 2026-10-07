@@ -85,6 +85,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/admin-correcciones.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/estadisticas.php';
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/exportacion-excel.php';
+
 /**
  * Verifica WooCommerce después de que WordPress haya cargado los plugins.
  */

@@ -640,3 +640,242 @@ function compuciber_obtener_selecciones_para_busqueda(
         ? $cache[ $clave_busqueda ][ $producto_id ]
         : 0;
 }
+
+/*
+ * ==========================================================
+ * EXPORTACIÓN DE ESTADÍSTICAS - CSV / EXCEL
+ * ==========================================================
+ */
+
+/**
+ * Exporta las estadísticas del buscador en formato CSV.
+ *
+ * El archivo utiliza UTF-8 con BOM para que Microsoft Excel
+ * reconozca correctamente tildes, eñes y otros caracteres.
+ */
+function compuciber_exportar_estadisticas_csv() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die(
+            esc_html__(
+                'No tienes permisos para exportar estas estadísticas.',
+                'compuciber-ai-search'
+            )
+        );
+    }
+
+    check_admin_referer(
+        'compuciber_exportar_estadisticas'
+    );
+
+    global $wpdb;
+
+    $tabla_busquedas =
+        $wpdb->prefix . 'compuciber_search_stats';
+
+    $tabla_clicks =
+        $wpdb->prefix . 'compuciber_search_clicks';
+
+
+    /*
+     * ======================================================
+     * BÚSQUEDAS AGRUPADAS
+     * ======================================================
+     */
+
+    $estadisticas = $wpdb->get_results(
+        "SELECT
+            busqueda,
+            MAX(busqueda_interpretada)
+                AS busqueda_interpretada,
+            tipo,
+            COUNT(*) AS veces_buscada,
+            SUM(
+                CASE
+                    WHEN resultados > 0 THEN 1
+                    ELSE 0
+                END
+            ) AS con_resultados,
+            SUM(
+                CASE
+                    WHEN resultados = 0 THEN 1
+                    ELSE 0
+                END
+            ) AS sin_resultados,
+            SUM(resultados)
+                AS total_resultados,
+            MAX(fecha)
+                AS ultima_busqueda
+        FROM {$tabla_busquedas}
+        GROUP BY busqueda, tipo
+        ORDER BY veces_buscada DESC,
+            ultima_busqueda DESC"
+    );
+
+
+    /*
+     * ======================================================
+     * SELECCIONES AGRUPADAS POR BÚSQUEDA
+     * ======================================================
+     */
+
+    $selecciones = $wpdb->get_results(
+        "SELECT
+            busqueda,
+            COUNT(*) AS total
+        FROM {$tabla_clicks}
+        WHERE busqueda <> ''
+        GROUP BY busqueda"
+    );
+
+    $selecciones_por_busqueda = array();
+
+    foreach ( $selecciones as $seleccion ) {
+
+        $clave = (string) $seleccion->busqueda;
+
+        $selecciones_por_busqueda[ $clave ] =
+            (int) $seleccion->total;
+    }
+
+
+    /*
+     * ======================================================
+     * PREPARACIÓN DEL ARCHIVO
+     * ======================================================
+     */
+
+    $nombre_archivo =
+        'compuciber-estadisticas-'
+        . wp_date( 'Y-m-d-His' )
+        . '.csv';
+
+    nocache_headers();
+
+    header(
+        'Content-Type: text/csv; charset=UTF-8'
+    );
+
+    header(
+        'Content-Disposition: attachment; filename="'
+        . $nombre_archivo
+        . '"'
+    );
+
+    header(
+        'Pragma: no-cache'
+    );
+
+    header(
+        'Expires: 0'
+    );
+
+
+    /*
+     * BOM UTF-8.
+     *
+     * Permite que Excel abra correctamente
+     * caracteres como á, é, í, ó, ú y ñ.
+     */
+    echo "\xEF\xBB\xBF";
+
+    $salida = fopen(
+        'php://output',
+        'w'
+    );
+
+    if ( false === $salida ) {
+        exit;
+    }
+
+
+    /*
+     * Separador punto y coma.
+     *
+     * Es más compatible con configuraciones regionales
+     * de Excel que utilizan coma decimal.
+     */
+    $separador = ';';
+
+
+    /*
+     * Encabezados.
+     */
+    fputcsv(
+        $salida,
+        array(
+            'Búsqueda',
+            'Búsqueda interpretada',
+            'Tipo',
+            'Veces buscada',
+            'Con resultados',
+            'Sin resultados',
+            'Total resultados mostrados',
+            'Selecciones',
+            'Última búsqueda',
+        ),
+        $separador
+    );
+
+
+    /*
+     * ======================================================
+     * DATOS
+     * ======================================================
+     */
+
+    foreach ( $estadisticas as $estadistica ) {
+
+        $busqueda =
+            (string) $estadistica->busqueda;
+
+        $total_selecciones =
+            isset(
+                $selecciones_por_busqueda[
+                    $busqueda
+                ]
+            )
+                ? $selecciones_por_busqueda[
+                    $busqueda
+                ]
+                : 0;
+
+        fputcsv(
+            $salida,
+            array(
+                $busqueda,
+                (string)
+                    $estadistica->busqueda_interpretada,
+                (string)
+                    $estadistica->tipo,
+                (int)
+                    $estadistica->veces_buscada,
+                (int)
+                    $estadistica->con_resultados,
+                (int)
+                    $estadistica->sin_resultados,
+                (int)
+                    $estadistica->total_resultados,
+                (int)
+                    $total_selecciones,
+                (string)
+                    $estadistica->ultima_busqueda,
+            ),
+            $separador
+        );
+    }
+
+    fclose( $salida );
+
+    exit;
+}
+
+
+/*
+ * Endpoint seguro del administrador para descargar
+ * el archivo de estadísticas.
+ */
+add_action(
+    'admin_post_compuciber_exportar_estadisticas',
+    'compuciber_exportar_estadisticas_csv'
+);

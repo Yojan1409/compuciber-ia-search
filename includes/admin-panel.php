@@ -142,10 +142,69 @@ if (
 
         <h1>AI Product Search</h1>
 
-        <p>
-            Panel de control del buscador inteligente
-            de productos WooCommerce.
-        </p>
+            <p>
+                Panel de control del buscador inteligente
+                de productos WooCommerce.
+            </p>        
+
+            <h2>Exportar estadísticas</h2>
+
+            <p>
+                Descarga los datos registrados por el buscador
+                para su análisis y elaboración de reportes.
+            </p>
+
+            <?php if (
+                get_option(
+                    'compuciber_estadisticas',
+                    '0'
+                ) === '1'
+            ) : ?>
+
+                <p>
+                    <a
+                        href="<?php
+                            echo esc_url(
+                                wp_nonce_url(
+                                    admin_url(
+                                        'admin-post.php?action=compuciber_exportar_estadisticas'
+                                    ),
+                                    'compuciber_exportar_estadisticas'
+                                )
+                            );
+                        ?>"
+                        class="button button-secondary"
+                    >
+                        Exportar CSV
+                    </a>
+
+                    <a
+                        href="<?php
+                            echo esc_url(
+                                wp_nonce_url(
+                                    admin_url(
+                                        'admin-post.php?action=compuciber_exportar_estadisticas_excel'
+                                    ),
+                                    'compuciber_exportar_estadisticas_excel'
+                                )
+                            );
+                        ?>"
+                        class="button button-secondary"
+                    >
+                        Exportar Excel
+                    </a>
+                </p>
+
+            <?php else : ?>
+
+                <p>
+                    <em>
+                        Activa las estadísticas para habilitar
+                        las opciones de exportación.
+                    </em>
+                </p>
+
+            <?php endif; ?>     
 
         <hr>
 
