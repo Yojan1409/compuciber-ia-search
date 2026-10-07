@@ -49,6 +49,16 @@ function compuciber_ai_search_menu() {
         'compuciber-ai-search-sinonimos',
         'compuciber_pagina_sinonimos'
     );
+
+    add_submenu_page(
+        'compuciber-ai-search',
+        'Correcciones',
+        'Correcciones',
+        'manage_options',
+        'compuciber-ai-search-correcciones',
+        'compuciber_pagina_correcciones'
+    );
+
 }
 
 add_action(

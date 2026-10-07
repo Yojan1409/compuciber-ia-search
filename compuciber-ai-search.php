@@ -81,6 +81,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/fuzzy.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/sinonimos.php';
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/admin-correcciones.php';
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/estadisticas.php';
 
 /**
@@ -695,16 +697,107 @@ function compuciber_ai_search_shortcode()
 
         if ( ! empty( $busqueda ) ) {
 
+            /*
+            * ======================================================
+            * PRIMERA BÚSQUEDA
+            * ======================================================
+            *
+            * Siempre intentamos primero con el motor local.
+            * Esto evita consumir IA cuando WooCommerce ya puede
+            * resolver correctamente la consulta.
+            */
+
             $productos =
                 compuciber_buscar_productos_inteligente(
                     $busqueda,
                     $interpretacion
                 );
-                /*
-                * ======================================================
-                * REGISTRO DE ESTADÍSTICAS
-                * ======================================================
-                */
+
+
+            /*
+            * ======================================================
+            * FALLBACK DE IA
+            * ======================================================
+            *
+            * Si:
+            *
+            * 1. La búsqueda local no encontró productos.
+            * 2. Todavía no existe una interpretación de IA.
+            * 3. La búsqueda semántica está activada.
+            *
+            * Entonces damos una segunda oportunidad a la consulta
+            * mediante el proveedor de IA configurado.
+            *
+            * Esto permite resolver errores no registrados en las
+            * correcciones personalizadas sin consumir IA en todas
+            * las búsquedas.
+            */
+
+            if (
+                $productos instanceof WP_Query
+                && ! $productos->have_posts()
+                && empty( $interpretacion )
+                && get_option(
+                    'compuciber_busqueda_semantica',
+                    '0'
+                ) === '1'
+            ) {
+
+                $interpretacion_ia =
+                    compuciber_consultar_ia(
+                        $busqueda_original
+                    );
+
+                if (
+                    is_array( $interpretacion_ia )
+                    && ! empty( $interpretacion_ia )
+                ) {
+
+                    $interpretacion =
+                        $interpretacion_ia;
+
+
+                    /*
+                    * Si la IA propone una búsqueda corregida,
+                    * utilizamos esa versión en el segundo intento.
+                    */
+
+                    if (
+                        ! empty(
+                            $interpretacion[
+                                'busqueda_corregida'
+                            ]
+                        )
+                    ) {
+
+                        $busqueda =
+                            sanitize_text_field(
+                                $interpretacion[
+                                    'busqueda_corregida'
+                                ]
+                            );
+                    }
+
+
+                    /*
+                    * Segunda búsqueda utilizando la
+                    * interpretación obtenida mediante IA.
+                    */
+
+                    $productos =
+                        compuciber_buscar_productos_inteligente(
+                            $busqueda,
+                            $interpretacion
+                        );
+                }
+            }
+
+
+            /*
+            * ======================================================
+            * REGISTRO DE ESTADÍSTICAS
+            * ======================================================
+            */
 
                 $tipo_busqueda = 'texto';
 
