@@ -378,7 +378,7 @@ function compuciber_calcular_puntuacion_producto(
 
     $ancla_categoria =
         compuciber_obtener_ancla_categoria(
-            $palabras_busqueda
+            compuciber_obtener_palabras( $busqueda )
         );
 
     if ( ! empty( $ancla_categoria ) ) {
@@ -824,12 +824,96 @@ function compuciber_calcular_puntuacion_producto(
         }
     }
 
+    /*
+    * PRODUCTO EQUIVALENTE POR SINÓNIMOS
+    *
+    * Utiliza todos los grupos configurados.
+    * No depende de nombres de productos escritos
+    * manualmente en el código.
+    */
     if (
         ! empty( $datos_ia['producto'] )
         && $coincidencias_producto === 0
     ) {
 
-        return 0;
+        $producto_equivalente = false;
+
+        $texto_identificacion =
+            compuciber_normalizar_texto(
+                $titulo . ' '
+                . $categorias . ' '
+                . $atributos . ' '
+                . $texto
+            );
+
+        $sinonimos = compuciber_obtener_sinonimos();
+
+        foreach (
+            $datos_ia['producto']
+            as $palabra_producto
+        ) {
+
+            $palabra_producto =
+                compuciber_normalizar_texto(
+                    $palabra_producto
+                );
+
+            foreach (
+                $sinonimos
+                as $principal => $variantes
+            ) {
+
+                $grupo = array_merge(
+                    array( $principal ),
+                    is_array( $variantes )
+                        ? $variantes
+                        : array()
+                );
+
+                $pertenece_grupo = false;
+
+                foreach ( $grupo as $termino ) {
+
+                    if (
+                        compuciber_normalizar_texto(
+                            $termino
+                        ) === $palabra_producto
+                    ) {
+
+                        $pertenece_grupo = true;
+                        break;
+                    }
+                }
+
+                if ( ! $pertenece_grupo ) {
+                    continue;
+                }
+
+                foreach ( $grupo as $termino ) {
+
+                    if (
+                        compuciber_contiene_sinonimo(
+                            $texto_identificacion,
+                            $termino
+                        )
+                    ) {
+
+                        $producto_equivalente = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if ( $producto_equivalente ) {
+                break;
+            }
+        }
+
+        if ( ! $producto_equivalente ) {
+            return 0;
+        }
+
+        $puntuacion += 20;
     }
 
     /*
@@ -1335,7 +1419,11 @@ function compuciber_calcular_puntuacion_producto(
 
     $anclas_busqueda = array();
 
-    foreach ( $palabras_busqueda as $palabra_busqueda ) {
+    $palabras_originales = compuciber_obtener_palabras(
+        $busqueda
+    );
+
+    foreach ( $palabras_originales as $palabra_busqueda ) {
 
         $palabra_busqueda =
             compuciber_normalizar_texto(
@@ -1435,21 +1523,39 @@ function compuciber_calcular_puntuacion_producto(
         $terminos_genericos = array(
             'laptop',
             'portatil',
-            'portátil',
             'computadora',
             'ordenador',
+            'pc',
             'monitor',
             'mouse',
             'raton',
-            'ratón',
             'teclado',
             'impresora',
-            'impresora termica',
-            'impresora térmica',
             'lector',
-            'producto'
-        );
+            'producto',
 
+            // Finalidad o uso.
+            'estudiar',
+            'estudio',
+            'estudiante',
+            'estudiantes',
+            'trabajar',
+            'trabajo',
+            'oficina',
+            'negocio',
+            'negocios',
+            'clases',
+            'virtuales',
+            'gamer',
+            'gaming',
+            'jugar',
+            'juegos',
+            'diseno',
+            'editar',
+            'edicion',
+            'uso',
+            'ideal'
+        );
         if (
             isset(
                 $datos_anclas_catalogo['terminos'][

@@ -185,7 +185,30 @@ function compuciber_obtener_sinonimos() {
 
 
 /**
- * Expande una búsqueda utilizando los sinónimos.
+ * Comprueba si un texto contiene un término completo.
+ * Evita coincidencias parciales dentro de otras palabras.
+ */
+function compuciber_contiene_sinonimo( $texto, $termino ) {
+
+    $texto = compuciber_normalizar_texto( $texto );
+    $termino = compuciber_normalizar_texto( $termino );
+
+    if ( $texto === '' || $termino === '' ) {
+        return false;
+    }
+
+    return preg_match(
+        '/(?<![a-z0-9])'
+        . preg_quote( $termino, '/' )
+        . '(?![a-z0-9])/i',
+        $texto
+    ) === 1;
+}
+
+
+/**
+ * Expande una búsqueda utilizando los grupos
+ * de sinónimos predeterminados y personalizados.
  */
 function compuciber_expandir_sinonimos( $texto ) {
 
@@ -193,83 +216,67 @@ function compuciber_expandir_sinonimos( $texto ) {
         $texto
     );
 
-    if ( empty( $texto_normalizado ) ) {
+    if ( $texto_normalizado === '' ) {
         return '';
     }
 
     $sinonimos = compuciber_obtener_sinonimos();
 
     $terminos = array(
-        $texto
+        $texto_normalizado
     );
 
-    foreach (
-        $sinonimos
-        as $principal => $variantes
-    ) {
+    foreach ( $sinonimos as $principal => $variantes ) {
 
-        $principal_normalizado =
-            compuciber_normalizar_texto(
-                $principal
+        $grupo = array_merge(
+            array( $principal ),
+            is_array( $variantes ) ? $variantes : array()
+        );
+
+        $grupo_normalizado = array();
+
+        foreach ( $grupo as $termino ) {
+
+            $termino = compuciber_normalizar_texto(
+                $termino
             );
 
-        if (
-            strpos(
-                $texto_normalizado,
-                $principal_normalizado
-            ) !== false
-        ) {
-
-            $terminos[] = $principal;
-
-            foreach (
-                $variantes
-                as $variante
-            ) {
-
-                $terminos[] = $variante;
+            if ( $termino !== '' ) {
+                $grupo_normalizado[] = $termino;
             }
+        }
 
+        $grupo_normalizado = array_values(
+            array_unique( $grupo_normalizado )
+        );
+
+        $coincide = false;
+
+        foreach ( $grupo_normalizado as $termino ) {
+
+            if (
+                compuciber_contiene_sinonimo(
+                    $texto_normalizado,
+                    $termino
+                )
+            ) {
+                $coincide = true;
+                break;
+            }
+        }
+
+        if ( ! $coincide ) {
             continue;
         }
 
-        foreach (
-            $variantes
-            as $variante
-        ) {
-
-            $variante_normalizado =
-                compuciber_normalizar_texto(
-                    $variante
-                );
-
-            if (
-                strpos(
-                    $texto_normalizado,
-                    $variante_normalizado
-                ) !== false
-            ) {
-
-                $terminos[] = $principal;
-
-                foreach (
-                    $variantes
-                    as $otra_variante
-                ) {
-
-                    $terminos[] = $otra_variante;
-                }
-
-                break;
-            }
+        foreach ( $grupo_normalizado as $termino ) {
+            $terminos[] = $termino;
         }
     }
 
     return implode(
         ' ',
-        array_unique(
-            $terminos
-        )
+        array_unique( $terminos )
     );
 }
 
