@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Obtiene el proveedor y modelo de embeddings
- * que deben utilizarse actualmente.
+ * configurados actualmente.
  *
  * @return array
  */
@@ -17,34 +17,33 @@ function compuciber_obtener_configuracion_embeddings() {
         'gemini'
     );
 
-    if ( $proveedor === 'openai' ) {
+    $proveedor = (
+        $proveedor === 'openai'
+    ) ? 'openai' : 'gemini';
 
-        $modelo = get_option(
-            'compuciber_openai_modelo_embeddings',
-            'text-embedding-3-small'
-        );
+    $opcion_modelo = (
+        $proveedor === 'openai'
+    )
+        ? 'compuciber_openai_modelo_embeddings'
+        : 'compuciber_gemini_modelo_embeddings';
 
-    } else {
+    $modelo_predeterminado = (
+        $proveedor === 'openai'
+    )
+        ? 'text-embedding-3-small'
+        : 'gemini-embedding-2';
 
-        $modelo = get_option(
-            'compuciber_gemini_modelo_embeddings',
-            'gemini-embedding-2'
-        );
-    }
-
-    $modelo = sanitize_text_field(
-        (string) $modelo
+    $modelo = trim(
+        sanitize_text_field(
+            (string) get_option(
+                $opcion_modelo,
+                $modelo_predeterminado
+            )
+        )
     );
 
-    $modelo = trim( $modelo );
-
     if ( $modelo === '' ) {
-
-        $modelo = (
-            $proveedor === 'openai'
-        )
-            ? 'text-embedding-3-small'
-            : 'gemini-embedding-2';
+        $modelo = $modelo_predeterminado;
     }
 
     return array(
@@ -55,16 +54,75 @@ function compuciber_obtener_configuracion_embeddings() {
 
 
 /**
- * Obtiene el estado real de los embeddings
- * almacenados en el índice.
+ * Comprueba si un embedding corresponde
+ * al proveedor, modelo y texto actuales.
  *
- * Un embedding se considera actualizado
- * únicamente cuando:
+ * @param object $producto Fila del índice.
+ * @param array  $configuracion Configuración actual.
  *
- * - existe un vector;
- * - pertenece al proveedor actual;
- * - pertenece al modelo actual;
- * - su hash corresponde al texto semántico actual.
+ * @return bool
+ */
+function compuciber_embedding_esta_actualizado(
+    $producto,
+    $configuracion
+) {
+
+    if ( ! is_object( $producto ) ) {
+        return false;
+    }
+
+    $texto = trim(
+        (string) ( $producto->texto_embedding ?? '' )
+    );
+
+    if ( $texto === '' ) {
+        return false;
+    }
+
+    $embedding = (string) (
+        $producto->embedding ?? ''
+    );
+
+    if ( $embedding === '' ) {
+        return false;
+    }
+
+    $hash_guardado = (string) (
+        $producto->hash_embedding ?? ''
+    );
+
+    if ( $hash_guardado === '' ) {
+        return false;
+    }
+
+    $hash_actual = hash(
+        'sha256',
+        $texto
+    );
+
+    return (
+        (string) (
+            $producto->embedding_proveedor ?? ''
+        ) === (string) $configuracion['proveedor']
+
+        && (string) (
+            $producto->embedding_modelo ?? ''
+        ) === (string) $configuracion['modelo']
+
+        && hash_equals(
+            $hash_guardado,
+            $hash_actual
+        )
+    );
+}
+
+
+/**
+ * Obtiene el estado de los embeddings.
+ *
+ * Los productos sin texto semántico se
+ * contabilizan por separado porque no
+ * pueden procesarse mediante la API.
  *
  * @return array
  */
@@ -73,18 +131,10 @@ function compuciber_obtener_estado_embeddings() {
     global $wpdb;
 
     $tabla =
-        $wpdb->prefix
-        . 'compuciber_product_index';
+        $wpdb->prefix . 'compuciber_product_index';
 
     $configuracion =
         compuciber_obtener_configuracion_embeddings();
-
-    $proveedor_actual =
-        $configuracion['proveedor'];
-
-    $modelo_actual =
-        $configuracion['modelo'];
-
 
     $productos = $wpdb->get_results(
         "SELECT
@@ -96,83 +146,58 @@ function compuciber_obtener_estado_embeddings() {
         FROM {$tabla}"
     );
 
-
     $estado = array(
         'total'      => 0,
         'generados'  => 0,
         'pendientes' => 0,
+        'sin_texto'  => 0,
     );
 
-
-    if ( empty( $productos ) ) {
+    if ( ! is_array( $productos ) ) {
         return $estado;
     }
-
 
     foreach ( $productos as $producto ) {
 
         $estado['total']++;
 
-        $texto_embedding = trim(
+        $texto = trim(
             (string) $producto->texto_embedding
         );
 
-
-        /*
-         * Sin texto semántico no existe
-         * un embedding válido.
-         */
-        if ( $texto_embedding === '' ) {
-
-            $estado['pendientes']++;
-
+        if ( $texto === '' ) {
+            $estado['sin_texto']++;
             continue;
         }
 
-
-        $hash_actual = hash(
-            'sha256',
-            $texto_embedding
-        );
-
-
-        $embedding_valido =
-            ! empty( $producto->embedding )
-            && (string) $producto->embedding_proveedor
-                === (string) $proveedor_actual
-            && (string) $producto->embedding_modelo
-                === (string) $modelo_actual
-            && hash_equals(
-                (string) $producto->hash_embedding,
-                $hash_actual
-            );
-
-
-        if ( $embedding_valido ) {
-
+        if (
+            compuciber_embedding_esta_actualizado(
+                $producto,
+                $configuracion
+            )
+        ) {
             $estado['generados']++;
-
         } else {
-
             $estado['pendientes']++;
         }
     }
 
-
     return $estado;
 }
 
+
 /**
- * Genera embeddings para un lote limitado
- * de productos del índice.
+ * Genera embeddings pendientes por lotes.
  *
- * Procesa productos que:
- * - no tienen embedding;
- * - tienen un embedding de otro proveedor;
- * - tienen un embedding de otro modelo;
- * - tienen un embedding desactualizado.
+ * Características:
+ * - máximo 5 productos por ejecución;
+ * - presupuesto de tiempo;
+ * - bloqueo contra ejecuciones simultáneas;
+ * - manejo de errores por producto;
+ * - conservación de embeddings válidos;
+ * - recuento actualizado al finalizar.
  *
- * @param int $limite Cantidad máxima por lote.
+ * @param int $limite Tamaño solicitado.
  *
  * @return array
  */
@@ -183,316 +208,346 @@ function compuciber_generar_lote_embeddings(
     global $wpdb;
 
     $tabla =
-        $wpdb->prefix
-        . 'compuciber_product_index';
+        $wpdb->prefix . 'compuciber_product_index';
 
-
-    $configuracion =
-        compuciber_obtener_configuracion_embeddings();
-
-    $embedding_proveedor =
-        $configuracion['proveedor'];
-
-    $embedding_modelo =
-        $configuracion['modelo'];
-
-
-    /*
-     * Normalizar tamaño del lote.
-     */
-    $limite = absint( $limite );
-
-    if ( $limite < 1 ) {
-        $limite = 1;
-    }
-
-    /*
-     * Evitamos lotes excesivamente grandes.
-     */
-    if ( $limite > 20 ) {
-        $limite = 20;
-    }
-
-
-    /*
-     * Obtenemos candidatos del índice.
-     *
-     * La validación del hash se realiza
-     * posteriormente en PHP para no depender
-     * de funciones SHA de la base de datos.
-     */
-    $candidatos = $wpdb->get_results(
-        "SELECT
-            id,
-            texto_embedding,
-            hash_embedding,
-            embedding,
-            embedding_proveedor,
-            embedding_modelo
-        FROM {$tabla}
-        ORDER BY id ASC"
+    $limite = max(
+        1,
+        min( 5, absint( $limite ) )
     );
-
-
-    $productos_pendientes = array();
-
-
-    /*
-     * Determinar qué productos necesitan
-     * generar o regenerar su embedding.
-     */
-    if ( ! empty( $candidatos ) ) {
-
-        foreach ( $candidatos as $producto ) {
-
-            $texto_embedding = trim(
-                (string) $producto->texto_embedding
-            );
-
-            /*
-             * Si no existe texto semántico,
-             * no podemos generar un embedding.
-             */
-            if ( $texto_embedding === '' ) {
-                continue;
-            }
-
-
-            $hash_actual = hash(
-                'sha256',
-                $texto_embedding
-            );
-
-
-            $embedding_vacio =
-                empty( $producto->embedding );
-
-            $proveedor_distinto =
-                (string) $producto->embedding_proveedor
-                !==
-                (string) $embedding_proveedor;
-
-            $modelo_distinto =
-                (string) $producto->embedding_modelo
-                !==
-                (string) $embedding_modelo;
-
-            $hash_distinto =
-                ! hash_equals(
-                    (string) $producto->hash_embedding,
-                    $hash_actual
-                );
-
-
-            if (
-                $embedding_vacio
-                || $proveedor_distinto
-                || $modelo_distinto
-                || $hash_distinto
-            ) {
-
-                $productos_pendientes[] =
-                    absint( $producto->id );
-            }
-        }
-    }
-
-
-    /*
-     * Cantidad pendiente antes de procesar
-     * este lote.
-     */
-    $total_pendientes =
-        count( $productos_pendientes );
-
-
-    /*
-     * Procesamos únicamente la cantidad
-     * correspondiente al lote actual.
-     */
-    $productos_lote = array_slice(
-        $productos_pendientes,
-        0,
-        $limite
-    );
-
 
     $resultado = array(
         'procesados' => 0,
         'generados'  => 0,
         'fallidos'   => 0,
-        'pendientes' => $total_pendientes,
+        'pendientes' => 0,
+        'bloqueado'  => false,
+        'tiempo_agotado' => false,
     );
 
+    /*
+     * Bloqueo atómico mediante una opción
+     * de WordPress.
+     *
+     * Evita que dos peticiones procesen
+     * simultáneamente el mismo lote.
+     */
+    $opcion_bloqueo =
+        'compuciber_embeddings_lote_lock';
 
-    if ( ! empty( $productos_lote ) ) {
+    $token_bloqueo = wp_generate_uuid4();
+
+    $inicio = microtime( true );
+
+    $bloqueo_existente = get_option(
+        $opcion_bloqueo,
+        false
+    );
+
+    /*
+    * Recuperar bloqueos abandonados.
+    *
+    * No se elimina un bloqueo mientras
+    * pueda existir una ejecución activa.
+    */
+    if ( is_array( $bloqueo_existente ) ) {
+
+        $creado = absint(
+            $bloqueo_existente['creado'] ?? 0
+        );
+
+        if (
+            $creado > 0
+            && ( time() - $creado ) > 180
+        ) {
+
+            /*
+            * Comprobar nuevamente el token
+            * antes de intentar recuperarlo.
+            */
+            $bloqueo_actual = get_option(
+                $opcion_bloqueo,
+                false
+            );
+
+            if (
+                is_array( $bloqueo_actual )
+                && ( $bloqueo_actual['token'] ?? '' )
+                    === ( $bloqueo_existente['token'] ?? '' )
+            ) {
+                delete_option( $opcion_bloqueo );
+            }
+        }
+    }
+
+    $bloqueo_adquirido = add_option(
+        $opcion_bloqueo,
+        array(
+            'token'  => $token_bloqueo,
+            'creado' => time(),
+        ),
+        '',
+        false
+    );
+
+    if ( ! $bloqueo_adquirido ) {
+
+        $resultado['bloqueado'] = true;
+
+        $estado =
+            compuciber_obtener_estado_embeddings();
+
+        $resultado['pendientes'] =
+            $estado['pendientes'];
+
+        return $resultado;
+    }
+
+    try {
+
+        $configuracion =
+            compuciber_obtener_configuracion_embeddings();
+
+        /*
+         * Cada petición HTTP al proveedor
+         * puede esperar hasta 20 segundos.
+         *
+         * Limitamos inicialmente el lote a
+         * un presupuesto de 25 segundos.
+         *
+         * Este presupuesto se comprueba antes
+         * de comenzar cada producto; no
+         * interrumpe una petición HTTP activa.
+         */
+        $presupuesto_segundos = 25;
+
+        $max_execution_time = (int) ini_get(
+            'max_execution_time'
+        );
+
+        if ( $max_execution_time > 0 ) {
+
+            $presupuesto_segundos = min(
+                $presupuesto_segundos,
+                max(
+                    1,
+                    $max_execution_time - 5
+                )
+            );
+        }
+
+        $candidatos = $wpdb->get_results(
+            "SELECT
+                id,
+                texto_embedding,
+                hash_embedding,
+                embedding,
+                embedding_proveedor,
+                embedding_modelo
+            FROM {$tabla}
+            ORDER BY id ASC"
+        );
+
+        /*
+        * Rotar el punto de inicio entre lotes
+        * para que un producto fallido no impida
+        * procesar otros pendientes.
+        */
+        $ultimo_id = absint(
+            get_option(
+                'compuciber_embeddings_ultimo_id',
+                0
+            )
+        );
+
+        $productos_lote = array();
+
+        if ( is_array( $candidatos ) ) {
+
+            foreach ( $candidatos as $producto ) {
+
+                if (
+                    trim(
+                        (string) $producto->texto_embedding
+                    ) === ''
+                ) {
+                    continue;
+                }
+
+                if (
+                    compuciber_embedding_esta_actualizado(
+                        $producto,
+                        $configuracion
+                    )
+                ) {
+                    continue;
+                }
+
+                /*
+                * Primero se procesan productos posteriores
+                * al último ID utilizado.
+                */
+                if ( absint( $producto->id ) > $ultimo_id ) {
+
+                    $productos_lote[] =
+                        absint( $producto->id );
+                }
+
+                if (
+                    count( $productos_lote ) >= $limite
+                ) {
+                    break;
+                }
+            }
+        }
+
+        /*
+        * Si llegamos al final del índice,
+        * volver a comenzar desde el principio.
+        */
+        if (
+            empty( $productos_lote )
+            && $ultimo_id > 0
+        ) {
+
+            update_option(
+                'compuciber_embeddings_ultimo_id',
+                0,
+                false
+            );
+
+            foreach ( $candidatos as $producto ) {
+
+                if (
+                    trim(
+                        (string) $producto->texto_embedding
+                    ) === ''
+                ) {
+                    continue;
+                }
+
+                if (
+                    compuciber_embedding_esta_actualizado(
+                        $producto,
+                        $configuracion
+                    )
+                ) {
+                    continue;
+                }
+
+                $productos_lote[] =
+                    absint( $producto->id );
+
+                if (
+                    count( $productos_lote ) >= $limite
+                ) {
+                    break;
+                }
+            }
+        }
 
         foreach ( $productos_lote as $product_id ) {
 
-            $product_id =
-                absint( $product_id );
+            /*
+             * No comenzar otra generación si
+             * el presupuesto ya se consumió.
+             */
+            if (
+                ( microtime( true ) - $inicio )
+                >= $presupuesto_segundos
+            ) {
 
-            if ( ! $product_id ) {
-                continue;
+                $resultado['tiempo_agotado'] = true;
+                break;
             }
-
 
             $resultado['procesados']++;
 
-
-            /*
-             * El indexador normal se encarga
-             * de generar o regenerar el vector.
-             */
-            compuciber_indexar_producto(
+            update_option(
+                'compuciber_embeddings_ultimo_id',
                 $product_id,
-                true
-            );
+                false
+            );            
 
+            try {
 
-            /*
-             * Volvemos a leer la información
-             * después de intentar generar
-             * el embedding.
-             */
-            $embedding_generado =
-                $wpdb->get_row(
-                    $wpdb->prepare(
-                        "SELECT
-                            texto_embedding,
-                            hash_embedding,
-                            embedding,
-                            embedding_proveedor,
-                            embedding_modelo
-                        FROM {$tabla}
-                        WHERE id = %d",
-                        $product_id
-                    )
+                compuciber_indexar_producto(
+                    $product_id,
+                    true
                 );
 
-
-            $generacion_correcta = false;
-
-
-            if (
-                $embedding_generado
-                && ! empty(
-                    $embedding_generado->embedding
-                )
-            ) {
-
-                $texto_actual = trim(
-                    (string)
-                    $embedding_generado->texto_embedding
-                );
-
-                $hash_actual = hash(
-                    'sha256',
-                    $texto_actual
-                );
-
-
-                $hash_correcto =
-                    hash_equals(
-                        (string)
-                        $embedding_generado->hash_embedding,
-                        $hash_actual
+                $producto_actualizado =
+                    $wpdb->get_row(
+                        $wpdb->prepare(
+                            "SELECT
+                                texto_embedding,
+                                hash_embedding,
+                                embedding,
+                                embedding_proveedor,
+                                embedding_modelo
+                            FROM {$tabla}
+                            WHERE id = %d",
+                            $product_id
+                        )
                     );
 
-                $proveedor_correcto =
-                    (string)
-                    $embedding_generado->embedding_proveedor
-                    ===
-                    (string) $embedding_proveedor;
-
-                $modelo_correcto =
-                    (string)
-                    $embedding_generado->embedding_modelo
-                    ===
-                    (string) $embedding_modelo;
-
-
                 if (
-                    $hash_correcto
-                    && $proveedor_correcto
-                    && $modelo_correcto
+                    compuciber_embedding_esta_actualizado(
+                        $producto_actualizado,
+                        $configuracion
+                    )
                 ) {
 
-                    $generacion_correcta = true;
+                    $resultado['generados']++;
+
+                } else {
+
+                    $resultado['fallidos']++;
                 }
-            }
 
-
-            if ( $generacion_correcta ) {
-
-                $resultado['generados']++;
-
-            } else {
+            } catch ( Throwable $error ) {
 
                 $resultado['fallidos']++;
+
+                /*
+                 * No registrar claves API ni
+                 * contenido semántico del producto.
+                 */
+                error_log(
+                    '[Compuciber AI Search] '
+                    . 'Error generando embedding '
+                    . 'del producto ID '
+                    . absint( $product_id )
+                    . '. Tipo: '
+                    . get_class( $error )
+                );
             }
         }
-    }
 
+        $estado =
+            compuciber_obtener_estado_embeddings();
 
-    /*
-     * Recalcular pendientes después
-     * de procesar el lote.
-     */
-    $candidatos_finales = $wpdb->get_results(
-        "SELECT
-            texto_embedding,
-            hash_embedding,
-            embedding,
-            embedding_proveedor,
-            embedding_modelo
-        FROM {$tabla}"
-    );
+        $resultado['pendientes'] =
+            $estado['pendientes'];
 
+    } finally {
 
-    $pendientes_finales = 0;
+        /*
+         * Liberar únicamente nuestro bloqueo.
+         */
+        $bloqueo_actual = get_option(
+            $opcion_bloqueo,
+            false
+        );
 
-
-    if ( ! empty( $candidatos_finales ) ) {
-
-        foreach ( $candidatos_finales as $producto ) {
-
-            $texto_embedding = trim(
-                (string) $producto->texto_embedding
-            );
-
-            if ( $texto_embedding === '' ) {
-                continue;
-            }
-
-
-            $hash_actual = hash(
-                'sha256',
-                $texto_embedding
-            );
-
-
-            if (
-                empty( $producto->embedding )
-                || (string) $producto->embedding_proveedor
-                    !== (string) $embedding_proveedor
-                || (string) $producto->embedding_modelo
-                    !== (string) $embedding_modelo
-                || ! hash_equals(
-                    (string) $producto->hash_embedding,
-                    $hash_actual
-                )
-            ) {
-
-                $pendientes_finales++;
-            }
+        if (
+            is_array( $bloqueo_actual )
+            && (
+                $bloqueo_actual['token'] ?? ''
+            ) === $token_bloqueo
+        ) {
+            delete_option( $opcion_bloqueo );
         }
     }
-
-
-    $resultado['pendientes'] =
-        $pendientes_finales;
-
 
     return $resultado;
 }

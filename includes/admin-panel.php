@@ -119,12 +119,19 @@ if (
                 $estado_embeddings['pendientes']
             );
 
+        $embeddings_sin_texto =
+            absint(
+                $estado_embeddings['sin_texto'] ?? 0
+            );            
+
     } else {
 
         $embeddings_generados = 0;
 
         $embeddings_pendientes =
             $productos_indexados;
+
+        $embeddings_sin_texto = 0;    
     }
 
     $ultima_sincronizacion = $wpdb->get_var(
@@ -389,53 +396,102 @@ if (
                     </td>
                 </tr>
 
+                <tr>
+                    <td>Productos sin texto semántico</td>
+                    <td>
+                        <strong>
+                            <?php echo esc_html( $embeddings_sin_texto ); ?>
+                        </strong>
+                    </td>
+                </tr>                
+
             </tbody>
 
         </table>
+        <?php
+        $estado_lote = isset( $_GET['embeddings'] )
+            ? sanitize_key( wp_unslash( $_GET['embeddings'] ) )
+            : '';
 
+        $estados_permitidos = array(
+            'completado',
+            'parcial',
+            'fallidos',
+            'bloqueado',
+        );
 
-        <?php if (
-            isset( $_GET['embeddings'] )
-            && $_GET['embeddings'] === 'procesados'
-        ) : ?>
+        if ( in_array( $estado_lote, $estados_permitidos, true ) ) :
 
-            <div class="notice notice-success is-dismissible">
+            $procesados = isset( $_GET['procesados'] )
+                ? absint( $_GET['procesados'] )
+                : 0;
+
+            $generados = isset( $_GET['generados'] )
+                ? absint( $_GET['generados'] )
+                : 0;
+
+            $fallidos = isset( $_GET['fallidos'] )
+                ? absint( $_GET['fallidos'] )
+                : 0;
+
+            $pendientes = isset( $_GET['pendientes'] )
+                ? absint( $_GET['pendientes'] )
+                : 0;
+
+            $clase_aviso = 'notice-success';
+            $mensaje = 'Lote procesado correctamente.';
+
+            if ( $estado_lote === 'bloqueado' ) {
+
+                $clase_aviso = 'notice-warning';
+
+                $mensaje =
+                    'Ya existe un lote de embeddings en ejecución. '
+                    . 'Espera a que termine antes de intentarlo nuevamente.';
+
+            } elseif ( $estado_lote === 'fallidos' ) {
+
+                $clase_aviso = 'notice-error';
+
+                $mensaje =
+                    'El lote terminó con uno o más fallos. '
+                    . 'Los productos pendientes podrán reintentarse.';
+
+            } elseif ( $estado_lote === 'parcial' ) {
+
+                $clase_aviso = 'notice-warning';
+
+                $mensaje =
+                    'El lote se detuvo por el límite de tiempo preventivo. '
+                    . 'Puedes continuar procesando los pendientes.';
+            }
+        ?>
+
+            <div class="notice <?php echo esc_attr( $clase_aviso ); ?> is-dismissible">
 
                 <p>
-                    Lote procesado.
-                    Generados:
                     <strong>
-                        <?php
-                        echo esc_html(
-                            absint(
-                                $_GET['generados'] ?? 0
-                            )
-                        );
-                        ?>
-                    </strong>
-
-                    | Fallidos:
-                    <strong>
-                        <?php
-                        echo esc_html(
-                            absint(
-                                $_GET['fallidos'] ?? 0
-                            )
-                        );
-                        ?>
-                    </strong>
-
-                    | Pendientes:
-                    <strong>
-                        <?php
-                        echo esc_html(
-                            absint(
-                                $_GET['pendientes'] ?? 0
-                            )
-                        );
-                        ?>
+                        <?php echo esc_html( $mensaje ); ?>
                     </strong>
                 </p>
+
+                <?php if ( $estado_lote !== 'bloqueado' ) : ?>
+
+                    <p>
+                        Procesados:
+                        <strong><?php echo esc_html( $procesados ); ?></strong>
+
+                        | Generados:
+                        <strong><?php echo esc_html( $generados ); ?></strong>
+
+                        | Fallidos:
+                        <strong><?php echo esc_html( $fallidos ); ?></strong>
+
+                        | Pendientes:
+                        <strong><?php echo esc_html( $pendientes ); ?></strong>
+                    </p>
+
+                <?php endif; ?>
 
             </div>
 
@@ -479,15 +535,32 @@ if (
 
             </form>
 
-        <?php else : ?>
+            <?php else : ?>
 
-            <p>
-                <strong>
-                    Todos los productos indexados tienen embedding.
-                </strong>
-            </p>
+                <?php if ( $embeddings_sin_texto > 0 ) : ?>
 
-        <?php endif; ?>        
+                    <p>
+                        <strong>
+                            No quedan embeddings pendientes de generación.
+                        </strong>
+                        Sin embargo, existen
+                        <?php echo esc_html( $embeddings_sin_texto ); ?>
+                        productos sin texto semántico que requieren
+                        revisar su indexación.
+                    </p>
+
+                <?php else : ?>
+
+                    <p>
+                        <strong>
+                            Todos los productos indexados tienen
+                            su embedding actualizado.
+                        </strong>
+                    </p>
+
+                <?php endif; ?>
+
+            <?php endif; ?>    
 
         <br>
 
@@ -1677,7 +1750,7 @@ function compuciber_ai_search_configuracion() {
 
                                 </td>
                             </tr>
-                            </tr>                            
+                                                       
 
                         </table>
 
@@ -2279,40 +2352,58 @@ function compuciber_admin_generar_embeddings() {
         );
     }
 
-
     /*
-     * Procesamos un máximo de 5 productos
-     * por petición para evitar timeouts
-     * y consumo excesivo de API.
+     * Procesar un máximo de cinco productos.
      */
     $resultado =
         compuciber_generar_lote_embeddings( 5 );
 
+    /*
+     * Determinar el estado de la operación.
+     */
+    if ( ! empty( $resultado['bloqueado'] ) ) {
+
+        $estado = 'bloqueado';
+
+    } elseif (
+        (int) $resultado['fallidos'] > 0
+    ) {
+
+        $estado = 'fallidos';
+
+    } elseif (
+        ! empty( $resultado['tiempo_agotado'] )
+    ) {
+
+        $estado = 'parcial';
+
+    } else {
+
+        $estado = 'completado';
+    }
 
     /*
-     * Regresamos al Dashboard mostrando
-     * el resultado del lote.
+     * Regresar al Dashboard.
      */
     $url = add_query_arg(
         array(
-            'page'        => 'compuciber-ai-search',
-            'embeddings'  => 'procesados',
-            'procesados'  => absint(
+            'page'       => 'compuciber-ai-search',
+            'embeddings' => $estado,
+            'procesados' => absint(
                 $resultado['procesados']
             ),
-            'generados'   => absint(
+            'generados' => absint(
                 $resultado['generados']
             ),
-            'fallidos'    => absint(
+            'fallidos' => absint(
                 $resultado['fallidos']
             ),
-            'pendientes'  => absint(
+            'pendientes' => absint(
                 $resultado['pendientes']
             ),
         ),
         admin_url( 'admin.php' )
     );
-
 
     wp_safe_redirect( $url );
     exit;
