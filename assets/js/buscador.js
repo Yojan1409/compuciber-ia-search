@@ -1,266 +1,261 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    const input = document.getElementById(
-        'compuciber-search-input'
-    );
+    document.querySelectorAll('.compuciber-ai-search').forEach(function (root) {
 
-    const suggestions = document.getElementById(
-        'compuciber-suggestions'
-    );
+        const input = root.querySelector('.compuciber-search-input');
 
-    if (!input || !suggestions) {
-        return;
-    }
+        const suggestions = root.querySelector('.compuciber-suggestions');
 
-    let timeout;
-    let requestNumber = 0;
-
-
-    /*
-     * ======================================================
-     * AUTOCOMPLETADO
-     * ======================================================
-     */
-
-    input.addEventListener('input', function () {
-
-        clearTimeout(timeout);
-
-        const term = input.value.trim();
-
-        requestNumber++;
-
-        const currentRequest = requestNumber;
-
-        suggestions.innerHTML = '';
-
-        if (term.length < 2) {
+        if (!input || !suggestions) {
             return;
         }
 
-        timeout = setTimeout(function () {
-
-            const url =
-                CompuciberSearch.ajaxUrl +
-                '?action=compuciber_sugerencias' +
-                '&term=' +
-                encodeURIComponent(term);
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-
-                    if (
-                        currentRequest !== requestNumber
-                    ) {
-                        return;
-                    }
-
-                    if (
-                        input.value.trim() !== term
-                    ) {
-                        return;
-                    }
-
-                    suggestions.innerHTML = '';
-
-                    if (
-                        !data.success ||
-                        !Array.isArray(data.data) ||
-                        data.data.length === 0
-                    ) {
-                        return;
-                    }
-
-                    data.data.forEach(function (product) {
-
-                        const item =
-                            document.createElement('a');
-
-                        item.href =
-                            product.url;
-
-                        item.className =
-                            'compuciber-suggestion-item';
-
-                        item.classList.add(
-                            'compuciber-product-result'
-                        );
-
-                        item.dataset.productId =
-                            product.id;
-
-                        item.dataset.search =
-                            term;
-
-                        /*
-                        * ==================================================
-                        * IMAGEN
-                        * ==================================================
-                        */
-
-                        const image =
-                            document.createElement('img');
-
-                        image.src =
-                            product.image;
-
-                        image.alt =
-                            product.title;
-
-                        image.className =
-                            'compuciber-suggestion-image';
+        let timeout;
+        let requestNumber = 0;
 
 
-                        /*
-                        * ==================================================
-                        * CONTENIDO
-                        * ==================================================
-                        */
+        /*
+         * ======================================================
+         * AUTOCOMPLETADO
+         * ======================================================
+         */
 
-                        const content =
-                            document.createElement('div');
+        input.addEventListener('input', function () {
 
-                        content.className =
-                            'compuciber-suggestion-content';
+            clearTimeout(timeout);
 
+            const term = input.value.trim();
 
-                        /*
-                        * Nombre del producto.
-                        */
+            requestNumber++;
 
-                        const title =
-                            document.createElement('div');
+            const currentRequest = requestNumber;
 
-                        title.className =
-                            'compuciber-suggestion-title';
+            suggestions.innerHTML = '';
 
-                        title.textContent =
-                            product.title;
+            if (term.length < 2) {
+                return;
+            }
 
+            timeout = setTimeout(function () {
 
-                        /*
-                        * Atributos.
-                        */
+                const url =
+                    CompuciberSearch.ajaxUrl +
+                    '?action=compuciber_sugerencias' +
+                    '&term=' +
+                    encodeURIComponent(term);
 
-                        const attributes =
-                            document.createElement('div');
-
-                        attributes.className =
-                            'compuciber-suggestion-attributes';
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
 
                         if (
-                            Array.isArray(
-                                product.attributes
-                            ) &&
-                            product.attributes.length > 0
+                            currentRequest !== requestNumber
                         ) {
-
-                            attributes.textContent =
-                                product.attributes.join(
-                                    ' | '
-                                );
-
+                            return;
                         }
 
+                        if (
+                            input.value.trim() !== term
+                        ) {
+                            return;
+                        }
 
-                        /*
-                        * Precio.
-                        */
-
-                        const price =
-                            document.createElement('div');
-
-                        price.className =
-                            'compuciber-suggestion-price';
-
-                        price.innerHTML =
-                            product.price || '';
-
-
-                        /*
-                        * Disponibilidad.
-                        */
-
-                        const availability =
-                            document.createElement('div');
-
-                        availability.className =
-                            'compuciber-suggestion-stock';
-
-                        availability.textContent =
-                            product.availability;
-
-
-                        /*
-                        * Construcción de la tarjeta.
-                        */
-
-                        content.appendChild(
-                            title
-                        );
+                        suggestions.innerHTML = '';
 
                         if (
-                            attributes.textContent
+                            !data.success ||
+                            !Array.isArray(data.data) ||
+                            data.data.length === 0
                         ) {
+                            return;
+                        }
+
+                        data.data.forEach(function (product) {
+
+                            const item =
+                                document.createElement('a');
+
+                            item.href =
+                                product.url;
+
+                            item.className =
+                                'compuciber-suggestion-item';
+
+                            item.classList.add(
+                                'compuciber-product-result'
+                            );
+
+                            item.dataset.productId =
+                                product.id;
+
+                            item.dataset.search =
+                                term;
+
+                            /*
+                            * ==================================================
+                            * IMAGEN
+                            * ==================================================
+                            */
+
+                            const image =
+                                document.createElement('img');
+
+                            image.src =
+                                product.image;
+
+                            image.alt =
+                                product.title;
+
+                            image.className =
+                                'compuciber-suggestion-image';
+
+
+                            /*
+                            * ==================================================
+                            * CONTENIDO
+                            * ==================================================
+                            */
+
+                            const content =
+                                document.createElement('div');
+
+                            content.className =
+                                'compuciber-suggestion-content';
+
+
+                            /*
+                            * Nombre del producto.
+                            */
+
+                            const title =
+                                document.createElement('div');
+
+                            title.className =
+                                'compuciber-suggestion-title';
+
+                            title.textContent =
+                                product.title;
+
+
+                            /*
+                            * Atributos.
+                            */
+
+                            const attributes =
+                                document.createElement('div');
+
+                            attributes.className =
+                                'compuciber-suggestion-attributes';
+
+                            if (
+                                Array.isArray(
+                                    product.attributes
+                                ) &&
+                                product.attributes.length > 0
+                            ) {
+
+                                attributes.textContent =
+                                    product.attributes.join(
+                                        ' | '
+                                    );
+
+                            }
+
+
+                            /*
+                            * Precio.
+                            */
+
+                            const price =
+                                document.createElement('div');
+
+                            price.className =
+                                'compuciber-suggestion-price';
+
+                            price.innerHTML =
+                                product.price || '';
+
+
+                            /*
+                            * Disponibilidad.
+                            */
+
+                            const availability =
+                                document.createElement('div');
+
+                            availability.className =
+                                'compuciber-suggestion-stock';
+
+                            availability.textContent =
+                                product.availability;
+
+
+                            /*
+                            * Construcción de la tarjeta.
+                            */
 
                             content.appendChild(
-                                attributes
+                                title
                             );
-                        }
 
-                        content.appendChild(
-                            price
-                        );
+                            if (
+                                attributes.textContent
+                            ) {
 
-                        content.appendChild(
-                            availability
-                        );
+                                content.appendChild(
+                                    attributes
+                                );
+                            }
+
+                            content.appendChild(
+                                price
+                            );
+
+                            content.appendChild(
+                                availability
+                            );
 
 
-                        item.appendChild(
-                            image
-                        );
+                            item.appendChild(
+                                image
+                            );
 
-                        item.appendChild(
-                            content
-                        );
+                            item.appendChild(
+                                content
+                            );
 
 
-                        suggestions.appendChild(
-                            item
+                            suggestions.appendChild(
+                                item
+                            );
+
+                        });
+
+                    })
+                    .catch(error => {
+
+                        console.error(
+                            'Error en búsqueda:',
+                            error
                         );
 
                     });
 
-                })
-                .catch(error => {
-
-                    console.error(
-                        'Error en búsqueda:',
-                        error
-                    );
-
-                });
-
-        }, 300);
-    });
+            }, 300);
+        });
 
 
-    /*
-     * ======================================================
-     * BÚSQUEDA POR VOZ
-     * ======================================================
-     */
+        /*
+         * ======================================================
+         * BÚSQUEDA POR VOZ
+         * ======================================================
+         */
 
-    const voiceButton =
-        document.getElementById(
-            'compuciber-voice-button'
-        );
+        const voiceButton = root.querySelector('.compuciber-voice-button');
 
-    function compuciber_icono_microfono() {
+        function compuciber_icono_microfono() {
 
-        return `
+            return `
             <svg 
                 class="compuciber-mic-svg"
                 viewBox="0 0 24 24"
@@ -271,269 +266,260 @@ document.addEventListener('DOMContentLoaded', function () {
             </svg>
         `;
 
-    }
+        }
 
 
-    if (voiceButton) {
-        voiceButton.innerHTML =
-            compuciber_icono_microfono();
+        if (voiceButton) {
+            voiceButton.innerHTML =
+                compuciber_icono_microfono();
 
-        const SpeechRecognition =
-            window.SpeechRecognition ||
-            window.webkitSpeechRecognition;
-
-
-        if (!SpeechRecognition) {
-
-            voiceButton.style.display = 'none';
-
-            console.warn(
-                'Este navegador no admite búsqueda por voz.'
-            );
-
-        } else {
-
-            const recognition =
-                new SpeechRecognition();
-
-            recognition.lang = 'es-PE';
-
-            recognition.continuous = false;
-
-            recognition.interimResults = false;
-
-            recognition.maxAlternatives = 1;
+            const SpeechRecognition =
+                window.SpeechRecognition ||
+                window.webkitSpeechRecognition;
 
 
-            let escuchando = false;
-            let reconocimientoActivo = false;
-            const estadoVoz =
-                document.getElementById(
-                    'compuciber-voice-status'
+            if (!SpeechRecognition) {
+
+                voiceButton.style.display = 'none';
+
+                console.warn(
+                    'Este navegador no admite búsqueda por voz.'
+                );
+
+            } else {
+
+                const recognition =
+                    new SpeechRecognition();
+
+                recognition.lang = 'es-PE';
+
+                recognition.continuous = false;
+
+                recognition.interimResults = false;
+
+                recognition.maxAlternatives = 1;
+
+
+                let escuchando = false;
+                let reconocimientoActivo = false;
+
+
+                /*
+                 * ==================================================
+                 * BOTÓN DEL MICRÓFONO
+                 * ==================================================
+                 */
+
+                voiceButton.addEventListener(
+                    'click',
+                    function () {
+
+                        if (escuchando || reconocimientoActivo) {
+
+                            console.log(
+                                'El reconocimiento ya está iniciado.'
+                            );
+
+                            return;
+                        }
+
+                        try {
+
+                            escuchando = true;
+                            reconocimientoActivo = true;
+
+                            voiceButton.innerHTML =
+                                compuciber_icono_microfono();
+
+                            voiceButton.classList.add(
+                                'compuciber-voice-listening'
+                            );
+
+                            voiceButton.innerHTML =
+                                compuciber_icono_microfono() +
+                                '<span class="compuciber-voice-text">Escuchando...</span>';
+
+                            voiceButton.setAttribute(
+                                'aria-label',
+                                'Escuchando...'
+                            );
+
+                            console.log(
+                                'Iniciando reconocimiento de voz...'
+                            );
+
+                            recognition.start();
+
+                        } catch (error) {
+
+                            console.error(
+                                'No se pudo iniciar el reconocimiento de voz:',
+                                error
+                            );
+
+                            escuchando = false;
+
+                            voiceButton.innerHTML =
+                                compuciber_icono_microfono();
+                            reconocimientoActivo = false;
+
+                            voiceButton.classList.remove(
+                                'compuciber-voice-listening'
+                            );
+
+                            voiceButton.setAttribute(
+                                'aria-label',
+                                'Buscar por voz'
+                            );
+
+                        }
+
+                    }
                 );
 
 
-            /*
-             * ==================================================
-             * BOTÓN DEL MICRÓFONO
-             * ==================================================
-             */
+                /*
+                 * ==================================================
+                 * RESULTADO DEL RECONOCIMIENTO
+                 * ==================================================
+                 */
 
-            voiceButton.addEventListener(
-                'click',
-                function () {
+                recognition.addEventListener(
+                    'result',
+                    function (event) {
 
-                    if (escuchando || reconocimientoActivo) {
+                        const texto =
+                            event.results[0][0].transcript;
 
                         console.log(
-                            'El reconocimiento ya está iniciado.'
+                            'Texto reconocido:',
+                            texto
                         );
-
-                        return;
-                    }
-
-                    try {
-
-                        escuchando = true;
-                        reconocimientoActivo = true;
-
-                        voiceButton.innerHTML =
-                            compuciber_icono_microfono();
-
-                        voiceButton.classList.add(
-                            'compuciber-voice-listening'
-                        );
-
                         voiceButton.innerHTML =
                             compuciber_icono_microfono() +
-                            '<span class="compuciber-voice-text">Escuchando...</span>';
+                            '<span class="compuciber-voice-text">Procesando...</span>';
 
-                        voiceButton.setAttribute(
-                            'aria-label',
-                            'Escuchando...'
-                        );
+                        input.value = texto;
+
+                        /*
+                        * Marca que esta búsqueda proviene de voz.
+                        */
+                        let voiceSource = input.form.querySelector('input[name="cis_source"]');
+
+                        if (!voiceSource) {
+
+                            voiceSource =
+                                document.createElement('input');
+
+                            voiceSource.type = 'hidden';
+
+                            voiceSource.name =
+                                'cis_source';
+
+                            input.form.appendChild(
+                                voiceSource
+                            );
+                        }
+
+                        voiceSource.value = 'voz';
+
+                        /*
+                        * Ejecuta automáticamente la búsqueda
+                        * después de reconocer la voz.
+                        */
+                        const formularioBusqueda =
+                            input.closest('form');
+
+                        if (formularioBusqueda) {
+
+                            formularioBusqueda.submit();
+
+                        }
+
+                    }
+                );
+
+
+                /*
+                 * ==================================================
+                 * FINALIZACIÓN
+                 * ==================================================
+                 */
+
+                recognition.addEventListener(
+                    'end',
+                    function () {
 
                         console.log(
-                            'Iniciando reconocimiento de voz...'
-                        );
-
-                        recognition.start();
-
-                    } catch (error) {
-
-                        console.error(
-                            'No se pudo iniciar el reconocimiento de voz:',
-                            error
+                            'Reconocimiento de voz finalizado.'
                         );
 
                         escuchando = false;
 
-                        voiceButton.innerHTML =
-                            compuciber_icono_microfono();
                         reconocimientoActivo = false;
 
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
                         voiceButton.classList.remove(
                             'compuciber-voice-listening'
                         );
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
 
                         voiceButton.setAttribute(
                             'aria-label',
                             'Buscar por voz'
                         );
 
+                        voiceButton.disabled = false;
+
                     }
-
-                }
-            );
+                );
 
 
-            /*
-             * ==================================================
-             * RESULTADO DEL RECONOCIMIENTO
-             * ==================================================
-             */
+                /*
+                 * ==================================================
+                 * ERRORES
+                 * ==================================================
+                 */
 
-            recognition.addEventListener(
-                'result',
-                function (event) {
+                recognition.addEventListener(
+                    'error',
+                    function (event) {
 
-                    const texto =
-                        event.results[0][0].transcript;
-
-                    console.log(
-                        'Texto reconocido:',
-                        texto
-                    );
-                    voiceButton.innerHTML =
-                        compuciber_icono_microfono() +
-                        '<span class="compuciber-voice-text">Procesando...</span>';
-
-                    input.value = texto;
-
-                    /*
-                    * Marca que esta búsqueda proviene de voz.
-                    */
-                    let voiceSource =
-                        document.getElementById(
-                            'compuciber-search-source'
+                        console.error(
+                            'Error de reconocimiento de voz:',
+                            event.error
                         );
 
-                    if (!voiceSource) {
+                        escuchando = false;
+                        reconocimientoActivo = false;
 
-                        voiceSource =
-                            document.createElement('input');
-
-                        voiceSource.type = 'hidden';
-                        voiceSource.id =
-                            'compuciber-search-source';
-
-                        voiceSource.name =
-                            'cis_source';
-
-                        input.form.appendChild(
-                            voiceSource
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
+                        voiceButton.classList.remove(
+                            'compuciber-voice-listening'
                         );
-                    }
+                        voiceButton.innerHTML =
+                            compuciber_icono_microfono();
 
-                    voiceSource.value = 'voz';
+                        voiceButton.setAttribute(
+                            'aria-label',
+                            'Buscar por voz'
+                        );
 
-                    /*
-                    * Ejecuta automáticamente la búsqueda
-                    * después de reconocer la voz.
-                    */
-                    const formularioBusqueda =
-                        input.closest('form');
-
-                    if (formularioBusqueda) {
-
-                        formularioBusqueda.submit();
+                        voiceButton.disabled = false;
 
                     }
+                );
 
-                }
-            );
-
-
-            /*
-             * ==================================================
-             * FINALIZACIÓN
-             * ==================================================
-             */
-
-            recognition.addEventListener(
-                'end',
-                function () {
-
-                    console.log(
-                        'Reconocimiento de voz finalizado.'
-                    );
-
-                    escuchando = false;
-
-                    reconocimientoActivo = false;
-
-                    voiceButton.innerHTML =
-                        compuciber_icono_microfono();
-                    voiceButton.classList.remove(
-                        'compuciber-voice-listening'
-                    );
-                    voiceButton.innerHTML =
-                        compuciber_icono_microfono();
-
-                    voiceButton.setAttribute(
-                        'aria-label',
-                        'Buscar por voz'
-                    );
-
-                    voiceButton.disabled = false;
-
-                }
-            );
-
-
-            /*
-             * ==================================================
-             * ERRORES
-             * ==================================================
-             */
-
-            recognition.addEventListener(
-                'error',
-                function (event) {
-
-                    console.error(
-                        'Error de reconocimiento de voz:',
-                        event.error
-                    );
-
-                    escuchando = false;
-                    reconocimientoActivo = false;
-
-                    voiceButton.innerHTML =
-                        compuciber_icono_microfono();
-                    voiceButton.classList.remove(
-                        'compuciber-voice-listening'
-                    );
-                    voiceButton.innerHTML =
-                        compuciber_icono_microfono();
-
-                    voiceButton.setAttribute(
-                        'aria-label',
-                        'Buscar por voz'
-                    );
-
-                    voiceButton.disabled = false;
-
-                }
-            );
+            }
 
         }
 
-    }
+        function compuciber_icono_camara() {
 
-    function compuciber_icono_camara() {
-
-        return `
+            return `
         <svg 
             class="compuciber-camera-svg"
             viewBox="0 0 24 24"
@@ -543,282 +529,269 @@ document.addEventListener('DOMContentLoaded', function () {
         </svg>
     `;
 
-    }
-    /*
-     * ======================================================
-     * BÚSQUEDA POR IMAGEN
-     * ======================================================
-     */
+        }
+        /*
+         * ======================================================
+         * BÚSQUEDA POR IMAGEN
+         * ======================================================
+         */
 
-    const imageButton =
-        document.getElementById(
-            'compuciber-image-button'
-        );
-    const aiStatus =
-        document.getElementById(
-            'compuciber-ai-status'
-        );
+        const imageButton = root.querySelector('.compuciber-image-button');
 
-    const imageInput =
-        document.getElementById(
-            'compuciber-image-input'
-        );
+        const aiStatus = root.querySelector('.compuciber-ai-status');
+
+        const imageInput = root.querySelector('.compuciber-image-input');
 
 
-    if (imageButton && imageInput) {
+        if (imageButton && imageInput) {
 
-        imageButton.addEventListener(
-            'click',
-            function () {
+            imageButton.addEventListener(
+                'click',
+                function () {
 
-                imageInput.click();
+                    imageInput.click();
 
-            }
-        );
-
-
-        imageInput.addEventListener(
-            'change',
-            function () {
-
-                if (
-                    !imageInput.files ||
-                    !imageInput.files.length
-                ) {
-                    return;
                 }
+            );
 
 
-                const archivo =
-                    imageInput.files[0];
+            imageInput.addEventListener(
+                'change',
+                function () {
 
-
-                /*
-                 * Estado de Gemini mientras
-                 * analiza la fotografía.
-                 */
-
-                imageButton.innerHTML = '⏳';
-                imageButton.disabled = true;
-
-                if (aiStatus) {
-                    aiStatus.textContent =
-                        'Analizando imagen con IA...';
-                }
-
-                imageButton.classList.add(
-                    'compuciber-image-loading'
-                );
-
-
-                const formulario =
-                    new FormData();
-
-                formulario.append(
-                    'action',
-                    'compuciber_busqueda_imagen'
-                );
-
-                formulario.append(
-                    'nonce',
-                    CompuciberSearch.imageNonce
-                );
-
-                formulario.append(
-                    'imagen',
-                    archivo
-                );
-
-
-                fetch(
-                    CompuciberSearch.ajaxUrl,
-                    {
-                        method: 'POST',
-                        body: formulario
+                    if (
+                        !imageInput.files ||
+                        !imageInput.files.length
+                    ) {
+                        return;
                     }
-                )
 
-                    .then(
-                        response => response.json()
+
+                    const archivo =
+                        imageInput.files[0];
+
+
+                    /*
+                     * Estado de Gemini mientras
+                     * analiza la fotografía.
+                     */
+
+                    imageButton.innerHTML = '⏳';
+                    imageButton.disabled = true;
+
+                    if (aiStatus) {
+                        aiStatus.textContent =
+                            'Analizando imagen con IA...';
+                    }
+
+                    imageButton.classList.add(
+                        'compuciber-image-loading'
+                    );
+
+
+                    const formulario =
+                        new FormData();
+
+                    formulario.append(
+                        'action',
+                        'compuciber_busqueda_imagen'
+                    );
+
+                    formulario.append(
+                        'nonce',
+                        CompuciberSearch.imageNonce
+                    );
+
+                    formulario.append(
+                        'imagen',
+                        archivo
+                    );
+
+
+                    fetch(
+                        CompuciberSearch.ajaxUrl,
+                        {
+                            method: 'POST',
+                            body: formulario
+                        }
                     )
 
-                    .then(
-                        data => {
+                        .then(
+                            response => response.json()
+                        )
 
-                            if (!data.success) {
+                        .then(
+                            data => {
 
-                                console.error(
-                                    'Error en búsqueda por imagen:',
-                                    data.data
-                                );
+                                if (!data.success) {
 
-                                alert(
-                                    data.data ||
-                                    'No se pudo analizar la imagen.'
-                                );
-
-                                return;
-                            }
-
-
-                            const busqueda =
-                                data.data.busqueda;
-
-                            const interpretacion =
-                                data.data.interpretacion;
-
-                            if (aiStatus && interpretacion) {
-
-                                aiStatus.textContent =
-                                    'Producto detectado: ' +
-                                    (
-                                        interpretacion.producto ||
-                                        'producto'
+                                    console.error(
+                                        'Error en búsqueda por imagen:',
+                                        data.data
                                     );
 
-                            }
-
-
-                            if (!busqueda) {
-
-                                alert(
-                                    'No se pudo identificar el producto.'
-                                );
-
-                                return;
-                            }
-
-
-                            console.log(
-                                'Búsqueda generada por imagen:',
-                                busqueda
-                            );
-
-                            console.log(
-                                'Interpretación de Gemini:',
-                                interpretacion
-                            );
-
-                            input.value =
-                                busqueda;
-
-
-                            /*
-                             * Guarda la interpretación completa
-                             * de Gemini para que PHP pueda utilizarla
-                             * sin volver a consultar la IA.
-                             */
-
-                            let campoIA =
-                                document.getElementById(
-                                    'compuciber-ai-interpretacion'
-                                );
-
-
-                            if (!campoIA) {
-
-                                campoIA =
-                                    document.createElement(
-                                        'input'
+                                    alert(
+                                        data.data ||
+                                        'No se pudo analizar la imagen.'
                                     );
 
-                                campoIA.type = 'hidden';
+                                    return;
+                                }
 
-                                campoIA.id =
-                                    'compuciber-ai-interpretacion';
 
-                                campoIA.name =
-                                    'cis_ai';
+                                const busqueda =
+                                    data.data.busqueda;
+
+                                const interpretacion =
+                                    data.data.interpretacion;
+
+                                if (aiStatus && interpretacion) {
+
+                                    aiStatus.textContent =
+                                        'Producto detectado: ' +
+                                        (
+                                            interpretacion.producto ||
+                                            'producto'
+                                        );
+
+                                }
+
+
+                                if (!busqueda) {
+
+                                    alert(
+                                        'No se pudo identificar el producto.'
+                                    );
+
+                                    return;
+                                }
+
+
+                                console.log(
+                                    'Búsqueda generada por imagen:',
+                                    busqueda
+                                );
+
+                                console.log(
+                                    'Interpretación de Gemini:',
+                                    interpretacion
+                                );
+
+                                input.value =
+                                    busqueda;
+
+
+                                /*
+                                 * Guarda la interpretación completa
+                                 * de Gemini para que PHP pueda utilizarla
+                                 * sin volver a consultar la IA.
+                                 */
+
+                                let campoIA = input.form.querySelector('input[name="cis_ai"]');
+
+
+                                if (!campoIA) {
+
+                                    campoIA =
+                                        document.createElement(
+                                            'input'
+                                        );
+
+                                    campoIA.type = 'hidden';
+
+                                    campoIA.name =
+                                        'cis_ai';
+
+                                    const formularioBusqueda =
+                                        input.closest('form');
+
+                                    if (
+                                        formularioBusqueda
+                                    ) {
+
+                                        formularioBusqueda.appendChild(
+                                            campoIA
+                                        );
+
+                                    }
+
+                                }
+
+
+                                if (campoIA) {
+
+                                    campoIA.value =
+                                        JSON.stringify(
+                                            interpretacion || {}
+                                        );
+
+                                }
+
+
+                                /*
+                                 * Envia automáticamente
+                                 * la búsqueda.
+                                 */
 
                                 const formularioBusqueda =
                                     input.closest('form');
+
 
                                 if (
                                     formularioBusqueda
                                 ) {
 
-                                    formularioBusqueda.appendChild(
-                                        campoIA
-                                    );
+                                    formularioBusqueda.submit();
 
                                 }
 
                             }
+                        )
 
+                        .catch(
+                            error => {
 
-                            if (campoIA) {
+                                console.error(
+                                    'Error de conexión:',
+                                    error
+                                );
 
-                                campoIA.value =
-                                    JSON.stringify(
-                                        interpretacion || {}
-                                    );
-
-                            }
-
-
-                            /*
-                             * Envia automáticamente
-                             * la búsqueda.
-                             */
-
-                            const formularioBusqueda =
-                                input.closest('form');
-
-
-                            if (
-                                formularioBusqueda
-                            ) {
-
-                                formularioBusqueda.submit();
+                                alert(
+                                    'Ocurrió un error al procesar la imagen.'
+                                );
 
                             }
+                        )
 
-                        }
-                    )
+                        .finally(
+                            function () {
 
-                    .catch(
-                        error => {
+                                imageButton.innerHTML =
+                                    compuciber_icono_camara();
 
-                            console.error(
-                                'Error de conexión:',
-                                error
-                            );
+                                imageButton.classList.remove(
+                                    'compuciber-image-loading'
+                                );
 
-                            alert(
-                                'Ocurrió un error al procesar la imagen.'
-                            );
+                                imageButton.disabled =
+                                    false;
 
-                        }
-                    )
+                                imageInput.value =
+                                    '';
 
-                    .finally(
-                        function () {
+                                if (aiStatus) {
+                                    aiStatus.textContent = '';
+                                }
 
-                            imageButton.innerHTML =
-                                compuciber_icono_camara();
-
-                            imageButton.classList.remove(
-                                'compuciber-image-loading'
-                            );
-
-                            imageButton.disabled =
-                                false;
-
-                            imageInput.value =
-                                '';
-
-                            if (aiStatus) {
-                                aiStatus.textContent = '';
                             }
+                        );
 
-                        }
-                    );
+                }
+            );
 
-            }
-        );
+        }
 
-    }
-
+    }); // Fin de la inicialización de cada buscador.        
     /*
     * ======================================================
     * ESTADÍSTICAS - PRODUCTO SELECCIONADO

@@ -2305,6 +2305,45 @@ function compuciber_ai_search_configuracion() {
 
             </table>
 
+            <h2>Destino de las búsquedas</h2>
+
+            <p>
+                Selecciona dónde se mostrarán los resultados
+                de tu buscador inteligente.
+            </p>
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        Página de resultados
+                    </th>
+                    <td>
+                        <?php
+                        wp_dropdown_pages(
+                            array(
+                                'name' => 'compuciber_pagina_resultados',
+                                'id' => 'compuciber_pagina_resultados',
+                                'selected' => absint(
+                                    get_option(
+                                        'compuciber_pagina_resultados',
+                                        0
+                                    )
+                                ),
+                                'show_option_none' =>
+                                    'Usar página actual',
+                                'option_none_value' => '0',
+                            )
+                        );
+                        ?>
+
+                        <p class="description">
+                            La página seleccionada debe contener
+                            el shortcode [ai_product_search].
+                        </p>
+                    </td>
+                </tr>
+            </table>
+
             <?php submit_button( 'Guardar configuración' ); ?>
 
         </form>

@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2..0'
+        '2.0.0'
     );
 }
 
@@ -482,8 +482,37 @@ add_action(
  * Shortcode:
  * [compuciber_ai_search]
  */
-function compuciber_ai_search_shortcode()
+function compuciber_ai_search_shortcode( $atts = array() )
 {
+    $atts = shortcode_atts(
+        array( 'solo_barra' => 'no' ),
+        is_array( $atts ) ? $atts : array(),
+        'ai_product_search'
+    );
+
+    $solo_barra = in_array(
+        strtolower( (string) $atts['solo_barra'] ),
+        array( 'si', '1', 'true', 'yes' ),
+        true
+    );
+
+    $pagina_resultados_id = absint(
+        get_option( 'compuciber_pagina_resultados', 0 )
+    );
+
+    $pagina_configurada =
+        $pagina_resultados_id > 0
+        && get_post_type( $pagina_resultados_id ) === 'page'
+        && get_post_status( $pagina_resultados_id ) === 'publish';
+
+    $url_resultados = $pagina_configurada
+        ? get_permalink( $pagina_resultados_id )
+        : '';
+
+    $mostrar_resultados = ! $solo_barra && (
+        ! $pagina_configurada
+        || is_page( $pagina_resultados_id )
+    );
 
     $busqueda_original = isset( $_GET['cis_q'] )
         ? sanitize_text_field(
@@ -495,9 +524,9 @@ function compuciber_ai_search_shortcode()
 
     $interpretacion = array();
 
-    $busqueda = compuciber_corregir_busqueda(
-        $busqueda_original
-    );
+    $busqueda = $mostrar_resultados
+        ? compuciber_corregir_busqueda( $busqueda_original )
+        : $busqueda_original;
 
 
     /*
@@ -539,7 +568,8 @@ function compuciber_ai_search_shortcode()
 
 
     if (
-        ! empty( $busqueda_original )
+        $mostrar_resultados
+        && ! empty( $busqueda_original )
         && empty( $interpretacion )
         && get_option(
             'compuciber_busqueda_semantica',
@@ -602,13 +632,13 @@ function compuciber_ai_search_shortcode()
 
     <div class="compuciber-ai-search">
 
-        <form method="get">
+        <form method="get" action="<?php echo esc_url( $url_resultados ); ?>">
 
             <div class="compuciber-search-box">
 
                 <input
                     type="search"
-                    id="compuciber-search-input"
+                    class="compuciber-search-input"
                     name="cis_q"
                     value="<?php echo esc_attr( $busqueda_original ); ?>"
                     placeholder="¿Qué producto estás buscando?"
@@ -619,7 +649,7 @@ function compuciber_ai_search_shortcode()
 
                     <button
                         type="button"
-                        id="compuciber-voice-button"
+                        class="compuciber-voice-button"
                         aria-label="Buscar por voz"
                         title="Buscar por voz"
                     >
@@ -639,7 +669,7 @@ function compuciber_ai_search_shortcode()
 
                     <button
                         type="button"
-                        id="compuciber-image-button"
+                        class="compuciber-image-button"
                         aria-label="Buscar por imagen"
                         title="Buscar por imagen"
                     >
@@ -654,7 +684,7 @@ function compuciber_ai_search_shortcode()
 
                     <input
                         type="file"
-                        id="compuciber-image-input"
+                        class="compuciber-image-input"
                         accept="image/*"
                         style="display:none;"
                     >
@@ -697,7 +727,7 @@ function compuciber_ai_search_shortcode()
 
         <?php
 
-        if ( ! empty( $busqueda ) ) {
+        if ( $mostrar_resultados && ! empty( $busqueda ) ) {
 
             /*
             * ======================================================
@@ -853,35 +883,45 @@ function compuciber_ai_search_shortcode()
 
                 echo '<h3>Resultados</h3>';
 
-                echo '<ul>';
+                echo '<div class="cis-results-grid">';
 
                 while ( $productos->have_posts() ) {
-
                     $productos->the_post();
 
-                    echo '<li>';
+                    $producto_id = get_the_ID();
+                    $producto_wc = wc_get_product( $producto_id );
 
-                    echo '<a href="'
-                        . esc_url( get_permalink() )
-                        . '" class="compuciber-product-result"'
-                        . ' data-product-id="'
-                        . esc_attr( get_the_ID() )
-                        . '"'
-                        . ' data-search="'
-                        . esc_attr( $busqueda_original )
-                        . '">';
+                    if ( ! $producto_wc || ! $producto_wc->is_visible() ) {
+                        continue;
+                    }
 
-                    echo esc_html(
-                        get_the_title()
-                    );
+                    echo '<a href="' . esc_url( get_permalink( $producto_id ) ) . '"'
+                        . ' class="compuciber-product-result cis-result-card"'
+                        . ' data-product-id="' . esc_attr( $producto_id ) . '"'
+                        . ' data-search="' . esc_attr( $busqueda_original ) . '">';
+
+                    echo '<span class="cis-result-image">'
+                        . wp_kses_post( $producto_wc->get_image( 'woocommerce_thumbnail' ) )
+                        . '</span>';
+
+                    echo '<span class="cis-result-title">'
+                        . esc_html( $producto_wc->get_name() )
+                        . '</span>';
+
+                    echo '<span class="cis-result-price">'
+                        . wp_kses_post( $producto_wc->get_price_html() )
+                        . '</span>';
+
+                    echo '<span class="cis-result-stock">'
+                        . esc_html( $producto_wc->is_in_stock() ? 'Disponible' : 'Agotado' )
+                        . '</span>';
+
+                    echo '<span class="cis-result-more">Ver producto →</span>';
 
                     echo '</a>';
-
-                    echo '</li>';
-
                 }
 
-                echo '</ul>';
+                echo '</div>';
 
             } else {
 
@@ -911,6 +951,11 @@ function compuciber_ai_search_shortcode()
 
 add_shortcode(
     'compuciber_ai_search',
+    'compuciber_ai_search_shortcode'
+);
+
+add_shortcode(
+    'ai_product_search',
     'compuciber_ai_search_shortcode'
 );
 

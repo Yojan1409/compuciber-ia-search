@@ -376,23 +376,6 @@ function compuciber_calcular_puntuacion_producto(
         $producto->categorias
     );
 
-    $ancla_categoria =
-        compuciber_obtener_ancla_categoria(
-            compuciber_obtener_palabras( $busqueda )
-        );
-
-    if ( ! empty( $ancla_categoria ) ) {
-
-        if (
-            strpos(
-                $categorias,
-                $ancla_categoria
-            ) === false
-        ) {
-            return 0;
-        }
-    }
-
     $atributos = compuciber_normalizar_texto(
         $producto->atributos
     );
@@ -423,6 +406,167 @@ function compuciber_calcular_puntuacion_producto(
     $sku = compuciber_normalizar_texto(
         $producto->sku
     );
+
+    /*
+    * VALIDACIÓN DE IDENTIDAD DEL PRODUCTO
+    *
+    * No depende de la IA.
+    * Evita que una característica secundaria
+    * sustituya el tipo de producto solicitado.
+    */
+
+    $consulta_tipo = compuciber_normalizar_texto(
+        $busqueda
+    );
+
+    $identidad_producto = compuciber_normalizar_texto(
+        $titulo . ' ' . $categorias
+    );
+
+    /*
+    * Reglas de identificación.
+    *
+    * Primero se evalúan los tipos específicos.
+    * Las expresiones compuestas tienen prioridad.
+    */
+
+    $tipos_producto = array(
+
+        'laptop' => array(
+            'consulta' => array(
+                'computadora portatil',
+                'ordenador portatil',
+                'laptop',
+                'notebook',
+                'portatil'
+            ),
+            'producto' => array(
+                'laptop',
+                'notebook',
+                'portatil'
+            )
+        ),
+
+        'mouse' => array(
+            'consulta' => array(
+                'mouse',
+                'raton',
+                'mause',
+                'maus'
+            ),
+            'producto' => array(
+                'mouse',
+                'raton',
+                'mause',
+                'maus'
+            )
+        ),
+
+        'teclado' => array(
+            'consulta' => array(
+                'teclado',
+                'keyboard'
+            ),
+            'producto' => array(
+                'teclado',
+                'keyboard'
+            )
+        ),
+
+        'audifonos' => array(
+            'consulta' => array(
+                'audifonos',
+                'auriculares',
+                'headset',
+                'headphones'
+            ),
+            'producto' => array(
+                'audifonos',
+                'auriculares',
+                'headset',
+                'headphones'
+            )
+        ),
+
+        'monitor' => array(
+            'consulta' => array(
+                'monitor',
+                'pantalla',
+                'display'
+            ),
+            'producto' => array(
+                'monitor',
+                'pantalla',
+                'display'
+            )
+        )
+    );
+
+    $tipo_solicitado = '';
+
+    foreach ( $tipos_producto as $tipo => $reglas ) {
+
+        foreach ( $reglas['consulta'] as $termino ) {
+
+            if (
+                compuciber_contiene_termino(
+                    $consulta_tipo,
+                    $termino
+                )
+            ) {
+
+                $tipo_solicitado = $tipo;
+                break 2;
+            }
+        }
+    }
+
+    if ( $tipo_solicitado !== '' ) {
+
+        /*
+        * No bloquear búsquedas exactas
+        * de SKU o modelo.
+        */
+
+        $coincidencia_identificador =
+            (
+                $sku !== ''
+                && $sku === $consulta_tipo
+            )
+            ||
+            (
+                $modelo !== ''
+                && $modelo === $consulta_tipo
+            );
+
+        if ( ! $coincidencia_identificador ) {
+
+            $tipo_valido = false;
+
+            foreach (
+                $tipos_producto[
+                    $tipo_solicitado
+                ]['producto']
+                as $termino
+            ) {
+
+                if (
+                    compuciber_contiene_termino(
+                        $identidad_producto,
+                        $termino
+                    )
+                ) {
+
+                    $tipo_valido = true;
+                    break;
+                }
+            }
+
+            if ( ! $tipo_valido ) {
+                return 0;
+            }
+        }
+    }
 
     /*
     * PRECIO

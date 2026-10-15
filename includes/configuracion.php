@@ -127,7 +127,16 @@ function compuciber_ai_search_registrar_opciones() {
         'compuciber_clave_licencia',
     );
 
-
+    register_setting(
+        'compuciber_ai_search_settings_group',
+        'compuciber_pagina_resultados',
+        array(
+            'type'              => 'integer',
+            'sanitize_callback' => 'absint',
+            'default'           => 0,
+        )
+    );
+    
     foreach ( $opciones as $opcion ) {
 
         register_setting(
