@@ -100,6 +100,10 @@ function compuciber_preparar_datos_ia(
                     '/\b\d+(?:\.\d+)?\s*(gb|tb|mb)(?:\s+(ssd|hdd))?\b/i',
                     $caracteristica
                 )
+                || preg_match(
+                    '/\b(?:talla|size)\s+(?:xxxs|xxs|xs|s|m|l|xl|xxl|xxxl|\d{1,3})\b/i',
+                    $caracteristica
+                )
             ) {
 
                 $datos['caracteristicas'][] =
@@ -986,8 +990,7 @@ function compuciber_calcular_puntuacion_producto(
             compuciber_normalizar_texto(
                 $titulo . ' '
                 . $categorias . ' '
-                . $atributos . ' '
-                . $texto
+                . $atributos
             );
 
         $sinonimos = compuciber_obtener_sinonimos();
@@ -1066,53 +1069,54 @@ function compuciber_calcular_puntuacion_producto(
 
     $coincidencias_marca = 0;
 
-    foreach (
-        $datos_ia['marca']
-        as $palabra
-    ) {
+    foreach ( $datos_ia['marca'] as $palabra ) {
 
         if (
-            strpos(
-                $marca,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $marca, $palabra )
         ) {
 
             $puntuacion += 40;
             $coincidencias_marca++;
 
         } elseif (
-            strpos(
-                $titulo,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $titulo, $palabra )
         ) {
 
             $puntuacion += 35;
             $coincidencias_marca++;
 
         } elseif (
-            strpos(
-                $texto,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $atributos, $palabra )
         ) {
 
-            $puntuacion += 15;
+            $puntuacion += 20;
             $coincidencias_marca++;
         }
     }
 
+    // Una marca solicitada explícitamente debe coincidir.
+    $marca_solicitada = false;
 
+    foreach ( $datos_ia['marca'] as $palabra ) {
+
+        if (
+            compuciber_contiene_termino( $consulta_tipo, $palabra )
+        ) {
+            $marca_solicitada = true;
+            break;
+        }
+    }
+
+    if ( $marca_solicitada && $coincidencias_marca === 0 ) {
+        return 0;
+    }
+
+    // Penalizar una interpretación de marca no confirmada.
     if (
         ! empty( $datos_ia['marca'] )
         && $coincidencias_marca === 0
     ) {
-
-        $puntuacion =
-            floor(
-                $puntuacion * 0.20
-            );
+        $puntuacion = floor( $puntuacion * 0.20 );
     }
 
 
@@ -1122,43 +1126,50 @@ function compuciber_calcular_puntuacion_producto(
 
     $coincidencias_modelo = 0;
 
-    foreach (
-        $datos_ia['modelo']
-        as $palabra
-    ) {
+    foreach ( $datos_ia['modelo'] as $palabra ) {
 
         if (
-            strpos(
-                $modelo,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $modelo, $palabra )
         ) {
 
             $puntuacion += 50;
             $coincidencias_modelo++;
 
         } elseif (
-            strpos(
-                $titulo,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $titulo, $palabra )
         ) {
 
             $puntuacion += 45;
             $coincidencias_modelo++;
 
         } elseif (
-            strpos(
-                $texto,
-                $palabra
-            ) !== false
+            compuciber_contiene_termino( $atributos, $palabra )
         ) {
 
-            $puntuacion += 20;
+            $puntuacion += 25;
             $coincidencias_modelo++;
         }
     }
 
+    // Exigir el modelo cuando el cliente lo escribió.
+    $modelo_solicitado = false;
+
+    foreach ( $datos_ia['modelo'] as $palabra ) {
+
+        if (
+            compuciber_contiene_termino( $consulta_tipo, $palabra )
+        ) {
+            $modelo_solicitado = true;
+            break;
+        }
+    }
+
+    if (
+        $modelo_solicitado
+        && $coincidencias_modelo === 0
+    ) {
+        return 0;
+    }
 
     /*
     * CARACTERÍSTICAS
@@ -1854,11 +1865,79 @@ function compuciber_calcular_puntuacion_producto(
 
     if ( $existe_coincidencia_real ) {
 
-        $fuzzy =
-            compuciber_fuzzy_puntuacion(
-                $busqueda,
-                $texto
+        $fuzzy = compuciber_fuzzy_puntuacion(
+            $busqueda,
+            $texto
+        );
+
+    } elseif (
+        $puntuacion === 0
+        && empty( $datos_ia['producto'] )
+        && empty( $datos_ia['marca'] )
+        && empty( $datos_ia['modelo'] )
+        && empty( $datos_ia['caracteristicas'] )
+        && count( compuciber_obtener_palabras( $busqueda ) ) === 1
+        && preg_match( '/^[a-z]{7,}$/', $busqueda_normalizada )
+    ) {
+
+        /*
+        * Rescate fuzzy conservador.
+        *
+        * Compara solamente con el nombre y categorías.
+        * No utiliza descripciones ni SKU.
+        */
+
+        $palabras_identidad = array_unique(
+            array_merge(
+                array_slice(
+                    compuciber_obtener_palabras( $titulo ),
+                    0,
+                    3
+                ),
+                compuciber_obtener_palabras( $categorias )
+            )
+        );
+
+        foreach ( $palabras_identidad as $palabra_identidad ) {
+
+            if (
+                ! preg_match(
+                    '/^[a-z]{7,}$/',
+                    $palabra_identidad
+                )
+            ) {
+                continue;
+            }
+
+            if (
+                abs(
+                    strlen( $busqueda_normalizada )
+                    - strlen( $palabra_identidad )
+                ) > 2
+            ) {
+                continue;
+            }
+
+            $distancia = levenshtein(
+                $busqueda_normalizada,
+                $palabra_identidad
             );
+
+            $maxima_distancia = min(
+                strlen( $busqueda_normalizada ) >= 8 ? 2 : 1,
+                strlen( $palabra_identidad ) >= 8 ? 2 : 1
+            );
+
+            if (
+                $distancia > 0
+                && $distancia <= $maxima_distancia
+            ) {
+                $fuzzy = max(
+                    $fuzzy,
+                    $distancia === 1 ? 10 : 6
+                );
+            }
+        }
     }
 
 

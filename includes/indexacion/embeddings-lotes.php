@@ -97,7 +97,7 @@ function compuciber_embedding_esta_actualizado(
 
     $hash_actual = hash(
         'sha256',
-        $texto
+        'catalogo-general-v2|' . $texto
     );
 
     return (

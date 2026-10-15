@@ -301,7 +301,7 @@ function compuciber_indexar_producto(
     */
     $hash_embedding = hash(
         'sha256',
-        $texto_embedding
+        'catalogo-general-v2|' . $texto_embedding
     );
 
     /*

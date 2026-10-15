@@ -78,7 +78,6 @@ function compuciber_obtener_sinonimos() {
 
         'memoria ram' => array(
             'ram',
-            'memoria',
         ),
 
         'tarjeta grafica' => array(
@@ -88,7 +87,6 @@ function compuciber_obtener_sinonimos() {
         ),
 
         'fuente de poder' => array(
-            'fuente',
             'fuente de alimentacion',
             'fuente de alimentación',
             'power supply',
@@ -98,8 +96,6 @@ function compuciber_obtener_sinonimos() {
         'webcam' => array(
             'camara web',
             'cámara web',
-            'camara',
-            'cámara',
         ),
 
         'ticketera' => array(

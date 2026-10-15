@@ -75,16 +75,16 @@ function compuciber_generar_embedding_openai(
     if ( $tipo === 'consulta' ) {
 
         $contenido_embedding =
-            'Representa esta consulta para buscar productos '
-            . 'tecnológicos semánticamente relacionados: '
+            'Representa esta consulta de compra para encontrar productos '
+            . 'relacionados por significado en un catálogo WooCommerce: '
             . $texto;
 
     } else {
 
         $contenido_embedding =
-            'Representa este producto tecnológico para que '
-            . 'pueda ser recuperado mediante búsquedas '
-            . 'semánticamente relacionadas: '
+            'Representa este producto de un catálogo WooCommerce para que '
+            . 'pueda encontrarse mediante búsquedas por significado, '
+            . 'necesidad y uso: '
             . $texto;
     }
 

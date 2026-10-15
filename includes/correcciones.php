@@ -27,8 +27,10 @@ function compuciber_obtener_correcciones() {
         'logitehc'    => 'logitech',
         'inalambrico' => 'inalámbrico',
         'wireles'     => 'wireless',
+        'inpresora'   => 'impresora',
         'monior'      => 'monitor',
         'samsumg'     => 'samsung',
+        
     );
 
     $personalizadas = get_option(
@@ -84,6 +86,10 @@ function compuciber_obtener_correcciones() {
  * Corrige palabras conocidas dentro de una búsqueda.
  */
 function compuciber_corregir_busqueda( $busqueda ) {
+    // Respetar la opción de corrección del administrador.
+    if ( get_option( 'compuciber_correccion', '1' ) !== '1' ) {
+        return $busqueda;
+    }
 
     $correcciones =
         compuciber_obtener_correcciones();
@@ -98,6 +104,30 @@ function compuciber_corregir_busqueda( $busqueda ) {
     if ( ! is_array( $palabras ) ) {
         return $busqueda;
     }
+
+// Identificar si realmente hay algo que corregir.
+    $hay_correccion = false;
+
+    foreach ( $palabras as $palabra ) {
+        if ( isset( $correcciones[ $palabra ] ) ) {
+            $hay_correccion = true;
+            break;
+        }
+    }
+
+    if ( ! $hay_correccion ) {
+        return $busqueda;
+    }
+
+    // Un SKU existente tiene prioridad sobre la corrección.
+    if (
+        function_exists( 'wc_get_product_id_by_sku' )
+        && wc_get_product_id_by_sku(
+            trim( (string) $busqueda )
+        )
+    ) {
+        return $busqueda;
+    }    
 
     foreach ( $palabras as &$palabra ) {
 

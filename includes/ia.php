@@ -99,12 +99,46 @@ function compuciber_busqueda_necesita_ia( $busqueda ) {
 
 function compuciber_consultar_ia( $busqueda ) {
 
-    $ai_provider =
-        compuciber_obtener_proveedor_ia();
+    $proveedor = sanitize_key(
+        (string) get_option(
+            'compuciber_proveedor_ia',
+            'gemini'
+        )
+    );
 
-    return $ai_provider->consultar_texto(
+    error_log(
+        'CIS DIAG IA-TEXTO: inicio | proveedor='
+        . $proveedor
+    );
+
+    $ai_provider = compuciber_obtener_proveedor_ia();
+
+    $respuesta = $ai_provider->consultar_texto(
         $busqueda
     );
+
+    if ( is_array( $respuesta ) ) {
+
+        error_log(
+            'CIS DIAG IA-TEXTO: respuesta array | claves='
+            . implode( ',', array_keys( $respuesta ) )
+        );
+
+    } elseif ( $respuesta === false ) {
+
+        error_log(
+            'CIS DIAG IA-TEXTO: proveedor devolvio false'
+        );
+
+    } else {
+
+        error_log(
+            'CIS DIAG IA-TEXTO: tipo de respuesta='
+            . gettype( $respuesta )
+        );
+    }
+
+    return $respuesta;
 }
 
 

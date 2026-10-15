@@ -83,8 +83,19 @@ function compuciber_buscar_productos_inteligente(
 
     $embedding_consulta = false;
 
+    /*
+    * Generar embedding únicamente si:
+    * - La búsqueda semántica está activada.
+    * - La consulta necesita IA.
+    * - La función de embeddings existe.
+    */
+
     if (
-        function_exists(
+        get_option(
+            'compuciber_busqueda_semantica',
+            '0'
+        ) === '1'
+        && function_exists(
             'compuciber_busqueda_necesita_ia'
         )
         && compuciber_busqueda_necesita_ia(
@@ -100,7 +111,10 @@ function compuciber_buscar_productos_inteligente(
                 $busqueda,
                 'consulta'
             );
-    }    
+    }   
+
+    $configuracion_embeddings =
+    compuciber_obtener_configuracion_embeddings();
 
     $productos_puntuados = array();
 
@@ -140,6 +154,10 @@ function compuciber_buscar_productos_inteligente(
             is_array( $embedding_consulta )
             && ! empty( $embedding_consulta )
             && ! empty( $producto->embedding )
+            && compuciber_embedding_esta_actualizado(
+                    $producto,
+                    $configuracion_embeddings
+                )            
             && isset( $producto->embedding_proveedor )
             && isset( $producto->embedding_modelo )
         ) {

@@ -66,20 +66,31 @@ function compuciber_optimizar_imagen_ia( $ruta_imagen ) {
     );
 
 
-    $resultado =
-        $imagen->save(
-            $archivo
-        );
+    if ( ! $archivo ) {
+        return false;
+    }
 
+    $resultado = $imagen->save( $archivo );
 
     if (
         is_wp_error( $resultado )
+        || empty( $resultado['path'] )
     ) {
 
-        return false;
+        if ( is_file( $archivo ) ) {
+            @unlink( $archivo );
+        }
 
+        return false;
     }
 
+    // WordPress puede modificar la extensión al guardar.
+    if (
+        $resultado['path'] !== $archivo
+        && is_file( $archivo )
+    ) {
+        @unlink( $archivo );
+    }
 
     return $resultado['path'];
 

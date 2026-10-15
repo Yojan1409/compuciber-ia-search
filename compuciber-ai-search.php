@@ -283,64 +283,128 @@ function compuciber_ajax_busqueda_imagen() {
         );
     }
 
+    $mime_original = wp_get_image_mime(
+        $archivo['tmp_name']
+    );
+
+    if (
+        ! in_array(
+            $mime_original,
+            array(
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ),
+            true
+        )
+    ) {
+        wp_send_json_error(
+            'El archivo no contiene una imagen permitida.'
+        );
+    }
+
     /*
     * Optimiza la imagen antes de enviarla a la IA.
     */
 
-    $imagen_optimizada =
-        compuciber_optimizar_imagen_ia(
-            $archivo['tmp_name']
-        );
-
-    $hash_imagen =
-        compuciber_generar_hash_imagen(
-            $imagen_optimizada
-        );
-
-
-    $cache_imagen =
-        compuciber_obtener_cache_imagen(
-            $hash_imagen
-        );    
-
+    $imagen_optimizada = compuciber_optimizar_imagen_ia(
+        $archivo['tmp_name']
+    );
 
     if (
-        ! $imagen_optimizada
+        ! is_string( $imagen_optimizada )
+        || ! is_file( $imagen_optimizada )
     ) {
-
         wp_send_json_error(
             'No se pudo optimizar la imagen.'
         );
-
     }
 
+    // Limpiar la copia temporal al finalizar la petición.
+    register_shutdown_function(
+        static function () use ( $imagen_optimizada ) {
+            if ( is_file( $imagen_optimizada ) ) {
+                @unlink( $imagen_optimizada );
+            }
+        }
+    );
 
-    /*
-    * Lee la imagen optimizada.
-    */
+    // Obtener el formato real de la imagen procesada.
+    $mime_type = wp_get_image_mime(
+        $imagen_optimizada
+    );
+
+    if (
+        ! in_array(
+            $mime_type,
+            array(
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ),
+            true
+        )
+    ) {
+        wp_send_json_error(
+            'Formato de imagen procesada no permitido.'
+        );
+    }
+
+    $hash_imagen = compuciber_generar_hash_imagen(
+        $imagen_optimizada
+    );
+
+    // Identificar proveedor y modelo utilizados.
+
+    $proveedor_cache = sanitize_key(
+        (string) get_option(
+            'compuciber_proveedor_ia',
+            'gemini'
+        )
+    );
+
+    $opcion_modelo_cache = (
+        $proveedor_cache === 'openai'
+    )
+        ? 'compuciber_openai_modelo_multimodal'
+        : 'compuciber_gemini_modelo_multimodal';
+
+    $modelo_cache = trim(
+        (string) get_option(
+            $opcion_modelo_cache,
+            ''
+        )
+    );
+
+    // Separar las interpretaciones por configuración.
+
+    $hash_imagen = hash(
+        'sha256',
+        'visual-general-v2|'
+        . $proveedor_cache
+        . '|'
+        . $modelo_cache
+        . '|'
+        . $hash_imagen
+    );    
+
+    $cache_imagen = compuciber_obtener_cache_imagen(
+        $hash_imagen
+    );
 
     $imagen = file_get_contents(
         $imagen_optimizada
     );
 
-
-    if (
-        $imagen === false
-    ) {
-
+    if ( $imagen === false ) {
         wp_send_json_error(
             'No se pudo leer la imagen optimizada.'
         );
-
     }
-
 
     $imagen_base64 = base64_encode(
         $imagen
     );
-
-
-    $mime_type = 'image/jpeg';
 
 
     /*

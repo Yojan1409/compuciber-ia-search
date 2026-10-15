@@ -9,6 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * AJAX: obtiene sugerencias de productos.
  */
 function compuciber_buscar_sugerencias() {
+    if (
+        get_option( 'compuciber_autocompletado', '1' ) !== '1'
+    ) {
+        wp_send_json_success( array() );
+    }
 
     if ( ! isset( $_GET['term'] ) ) {
         wp_send_json_success( array() );
@@ -66,61 +71,63 @@ function compuciber_buscar_sugerencias() {
         . 'compuciber_product_index';
 
     $condiciones = array();
-
     $valores = array();
 
-    foreach (
-        $palabras_termino as $palabra
-    ) {
+    // Buscar cada palabra en todos los datos indexados.
+    foreach ( $palabras_termino as $palabra ) {
 
-        if ( empty( $palabra ) ) {
+        if ( $palabra === '' ) {
             continue;
         }
 
-        $condiciones[] =
-            'i.nombre LIKE %s';
+        $condiciones[] = 'i.texto_busqueda LIKE %s';
 
-        $valores[] =
-            '%'
-            . $wpdb->esc_like(
-                $palabra
-            )
-            . '%';
+        $valores[] = '%' . $wpdb->esc_like( $palabra ) . '%';
     }
 
     if ( empty( $condiciones ) ) {
         wp_send_json_success( array() );
     }
 
+    $termino_like = '%' . $wpdb->esc_like( $termino_corregido ) . '%';
 
-    $sql =
-        "SELECT
-            i.id,
-            i.nombre,
-            i.url,
-            i.imagen
-        FROM {$tabla} AS i
-        INNER JOIN {$wpdb->posts} AS p
-            ON p.ID = i.id
-        WHERE
-            p.post_type = 'product'
+    // Prioridades para ordenar las sugerencias.
+    $valores_orden = array(
+        $termino_corregido, // SKU exacto.
+        $termino_corregido, // Modelo exacto.
+        $termino_corregido, // Nombre exacto.
+        $termino_like,      // Frase en el nombre.
+        $termino_like,      // SKU parcial.
+        $termino_like,      // Modelo parcial.
+        $termino_like,      // Marca.
+    );
+
+    $sql = "SELECT
+                i.id, i.nombre, i.url, i.imagen
+            FROM {$tabla} AS i
+            INNER JOIN {$wpdb->posts} AS p
+                ON p.ID = i.id
+            WHERE p.post_type = 'product'
             AND p.post_status = 'publish'
-            AND "
-            . implode(
-                ' AND ',
-                $condiciones
-            )
-            . "
-        ORDER BY i.nombre ASC";
+            AND " . implode( ' AND ', $condiciones ) . "
+            ORDER BY CASE
+                WHEN i.sku = %s THEN 0
+                WHEN i.modelo = %s THEN 1
+                WHEN i.nombre = %s THEN 2
+                WHEN i.nombre LIKE %s THEN 3
+                WHEN i.sku LIKE %s THEN 4
+                WHEN i.modelo LIKE %s THEN 5
+                WHEN i.marca LIKE %s THEN 6
+                ELSE 7
+            END, i.nombre ASC
+            LIMIT 100";
 
-
-    $productos =
-        $wpdb->get_results(
-            $wpdb->prepare(
-                $sql,
-                $valores
-            )
-        );
+    $productos = $wpdb->get_results(
+        $wpdb->prepare(
+            $sql,
+            array_merge( $valores, $valores_orden )
+        )
+    );
 
 
     /*
@@ -144,7 +151,7 @@ function compuciber_buscar_sugerencias() {
                 $producto_id
             );
 
-        if ( ! $producto_wc ) {
+        if ( ! $producto_wc || ! $producto_wc->is_visible() ) {
             continue;
         }
 
@@ -157,54 +164,6 @@ function compuciber_buscar_sugerencias() {
 
         $titulo =
             $producto->nombre;
-
-        $titulo_normalizado =
-            compuciber_normalizar_texto(
-                $titulo
-            );
-
-
-        /*
-         * ==================================================
-         * COINCIDENCIA
-         * ==================================================
-         */
-
-        $coincide = true;
-
-        foreach (
-            $palabras_termino as $palabra
-        ) {
-
-            if ( empty( $palabra ) ) {
-                continue;
-            }
-
-            $patron =
-                '/(?<![a-z0-9])'
-                . preg_quote(
-                    $palabra,
-                    '/'
-                )
-                . '/i';
-
-            if (
-                ! preg_match(
-                    $patron,
-                    $titulo_normalizado
-                )
-            ) {
-
-                $coincide =
-                    false;
-
-                break;
-            }
-        }
-
-        if ( ! $coincide ) {
-            continue;
-        }
 
 
         /*

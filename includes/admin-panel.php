@@ -2078,7 +2078,7 @@ function compuciber_ai_search_configuracion() {
                     <td>
 
                         <label>
-
+                            <input type="hidden" name="compuciber_autocompletado" value="0">
                             <input
                                 type="checkbox"
                                 name="compuciber_autocompletado"
@@ -2109,7 +2109,7 @@ function compuciber_ai_search_configuracion() {
                     <td>
 
                         <label>
-
+                            <input type="hidden" name="compuciber_correccion" value="0">
                             <input
                                 type="checkbox"
                                 name="compuciber_correccion"
