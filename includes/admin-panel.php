@@ -38,6 +38,12 @@ $resumen_estadisticas = array(
     'ctr'                         => 0,
 );
 
+$clicks_por_origen = array(
+    'resultados'     => 0,
+    'autocompletado' => 0,
+    'desconocido'    => 0,
+);
+
 $busquedas_por_tipo = array(
     'texto'  => 0,
     'voz'    => 0,
@@ -59,6 +65,9 @@ if (
 
     $resumen_estadisticas =
         compuciber_obtener_resumen_estadisticas();
+
+    $clicks_por_origen =
+        compuciber_obtener_clicks_por_origen();        
 
     $busquedas_por_tipo =
         compuciber_obtener_busquedas_por_tipo();
@@ -709,6 +718,27 @@ if (
                             $resumen_estadisticas['total_clicks']
                         ),
                     ),
+
+                    array(
+                        'titulo' => 'Clics en resultados',
+                        'valor'  => absint(
+                            $clicks_por_origen['resultados']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Clics en autocompletado',
+                        'valor'  => absint(
+                            $clicks_por_origen['autocompletado']
+                        ),
+                    ),
+
+                    array(
+                        'titulo' => 'Clics anteriores (sin origen)',
+                        'valor'  => absint(
+                            $clicks_por_origen['desconocido']
+                        ),
+                    ),                    
 
                     array(
                         'titulo' => 'Tasa de éxito',

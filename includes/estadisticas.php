@@ -4,7 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'COMPUCIBER_ESTADISTICAS_VERSION', '2.0' );
+
+define( 'COMPUCIBER_ESTADISTICAS_VERSION', '2.2' );
 
 /*
  * ==========================================================
@@ -58,6 +59,7 @@ function compuciber_crear_tabla_selecciones() {
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         producto_id BIGINT UNSIGNED NOT NULL,
         busqueda VARCHAR(255) DEFAULT '',
+        origen VARCHAR(20) NOT NULL DEFAULT 'desconocido',
         fecha DATETIME NOT NULL,
         PRIMARY KEY (id),
         KEY producto_id (producto_id),
@@ -81,17 +83,55 @@ function compuciber_verificar_esquema_estadisticas() {
         ''
     );
 
-    if (
-        $version_actual !==
-        COMPUCIBER_ESTADISTICAS_VERSION
-    ) {
+    if ( $version_actual === COMPUCIBER_ESTADISTICAS_VERSION ) {
+        return;
+    }
 
-        compuciber_crear_tabla_estadisticas();
-        compuciber_crear_tabla_selecciones();
+    // Actualizar las tablas sin eliminar registros anteriores.
+    compuciber_crear_tabla_estadisticas();
+    compuciber_crear_tabla_selecciones();
+
+    global $wpdb;
+
+    $tabla_clicks = $wpdb->prefix . 'compuciber_search_clicks';
+
+    // Verificar que la columna se creó realmente.
+    $columna_origen = $wpdb->get_var(
+        $wpdb->prepare(
+            "SHOW COLUMNS FROM `{$tabla_clicks}` LIKE %s",
+            'origen'
+        )
+    );
+
+    // Respaldo si dbDelta no añadió la columna.
+    if ( 'origen' !== $columna_origen ) {
+
+        $wpdb->query(
+            "ALTER TABLE `{$tabla_clicks}` "
+            . "ADD COLUMN `origen` VARCHAR(20) NOT NULL "
+            . "DEFAULT 'desconocido' AFTER `busqueda`"
+        );
+    }
+
+    // Comprobar de nuevo antes de guardar la versión.
+    $columna_origen = $wpdb->get_var(
+        $wpdb->prepare(
+            "SHOW COLUMNS FROM `{$tabla_clicks}` LIKE %s",
+            'origen'
+        )
+    );
+
+    if ( 'origen' === $columna_origen ) {
 
         update_option(
             'compuciber_estadisticas_version',
             COMPUCIBER_ESTADISTICAS_VERSION
+        );
+
+    } elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+
+        error_log(
+            'CIS: no fue posible actualizar la tabla de clics.'
         );
     }
 }
@@ -166,7 +206,8 @@ function compuciber_registrar_busqueda(
  */
 function compuciber_registrar_producto_seleccionado(
     $producto_id,
-    $busqueda = ''
+    $busqueda = '',
+    $origen = 'desconocido'
 ) {
 
     if (
@@ -187,6 +228,15 @@ function compuciber_registrar_producto_seleccionado(
         return false;
     }
 
+    $origenes_permitidos = array(
+        'resultados',
+        'autocompletado',
+    );
+
+    if ( ! in_array( $origen, $origenes_permitidos, true ) ) {
+        $origen = 'desconocido';
+    }
+
     global $wpdb;
 
     $tabla =
@@ -195,15 +245,17 @@ function compuciber_registrar_producto_seleccionado(
     return $wpdb->insert(
         $tabla,
         array(
-            'producto_id' => $producto_id,
-            'busqueda'    => sanitize_text_field( $busqueda ),
-            'fecha'       => current_time( 'mysql' ),
-        ),
-        array(
-            '%d',
-            '%s',
-            '%s',
-        )
+                    'producto_id' => $producto_id,
+                    'busqueda'    => sanitize_text_field( $busqueda ),
+                    'origen'      => $origen,
+                    'fecha'       => current_time( 'mysql' ),
+                ),
+                array(
+                    '%d',
+                    '%s',
+                    '%s',
+                    '%s',
+                )
     );
 }
 
@@ -239,10 +291,15 @@ function compuciber_ajax_registrar_producto_seleccionado() {
         )
         : '';
 
+    $origen = isset( $_POST['origen'] )
+        ? sanitize_key( wp_unslash( $_POST['origen'] ) )
+        : 'desconocido';
+
     $registrado =
         compuciber_registrar_producto_seleccionado(
             $producto_id,
-            $busqueda
+            $busqueda,
+            $origen
         );
 
     if ( false === $registrado ) {
@@ -439,6 +496,42 @@ function compuciber_obtener_resumen_estadisticas() {
     );
 }
 
+/**
+ * Obtiene las selecciones agrupadas por origen.
+ *
+ * Conserva los clics antiguos como desconocidos.
+ */
+function compuciber_obtener_clicks_por_origen() {
+
+    global $wpdb;
+
+    $tabla = $wpdb->prefix . 'compuciber_search_clicks';
+
+    $totales = array(
+        'resultados'     => 0,
+        'autocompletado' => 0,
+        'desconocido'    => 0,
+    );
+
+    $filas = $wpdb->get_results(
+        "SELECT origen, COUNT(*) AS total
+        FROM {$tabla}
+        GROUP BY origen"
+    );
+
+    foreach ( (array) $filas as $fila ) {
+
+        $origen = (string) $fila->origen;
+
+        if ( ! array_key_exists( $origen, $totales ) ) {
+            $origen = 'desconocido';
+        }
+
+        $totales[ $origen ] += (int) $fila->total;
+    }
+
+    return $totales;
+}
 
 /**
  * Obtiene la cantidad de búsquedas
@@ -817,6 +910,19 @@ function compuciber_exportar_estadisticas_csv() {
         $separador
     );
 
+    /*
+     * Proteger textos exportados frente a fórmulas CSV.
+     * La protección solo afecta al archivo descargado.
+     */
+    $proteger_celda_csv = static function ( $valor ) {
+        $valor = (string) $valor;
+
+        if ( preg_match( '/^[\x00-\x20]*[=+\-@]/', $valor ) ) {
+            return "'" . $valor;
+        }
+
+        return $valor;
+    };
 
     /*
      * ======================================================
@@ -843,9 +949,10 @@ function compuciber_exportar_estadisticas_csv() {
         fputcsv(
             $salida,
             array(
-                $busqueda,
-                (string)
-                    $estadistica->busqueda_interpretada,
+                $proteger_celda_csv( $busqueda ),
+                $proteger_celda_csv(
+                    $estadistica->busqueda_interpretada
+                ),
                 (string)
                     $estadistica->tipo,
                 (int)

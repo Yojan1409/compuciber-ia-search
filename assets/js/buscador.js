@@ -806,6 +806,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const busqueda =
                 enlace.dataset.search || '';
 
+            const origen = enlace.classList.contains(
+                'compuciber-suggestion-item'
+            ) ? 'autocompletado' : 'resultados';
+
             if (
                 !productoId ||
                 !CompuciberSearch.selectionNonce
@@ -832,8 +836,8 @@ document.addEventListener('DOMContentLoaded', function () {
             );
 
             datos.append(
-                'busqueda',
-                busqueda
+                'origen',
+                origen
             );
 
             /*
