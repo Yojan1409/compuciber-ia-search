@@ -14,7 +14,7 @@ function compuciber_buscar_productos_inteligente(
     $interpretacion
 ) {
 
-    error_log( 'RESULTADOS.PHP NUEVO EJECUTADO' );
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log( 'RESULTADOS.PHP NUEVO EJECUTADO' );
 
     /*
     * PRIORIDAD ABSOLUTA:
@@ -59,21 +59,75 @@ function compuciber_buscar_productos_inteligente(
 
             return compuciber_consulta_vacia();
         }
+
+        /*
+         * BÚSQUEDA RÁPIDA POR SKU EXACTO
+         *
+         * Para productos que no son variaciones.
+         * Evita recorrer el índice completo.
+         */
+
+        if (
+            $producto_sku
+            && ! $producto_sku->is_type( 'variation' )
+            && $producto_sku->get_status() === 'publish'
+            && $producto_sku->is_visible()
+        ) {
+
+            return compuciber_consulta_productos(
+                array( $producto_sku->get_id() )
+            );
+        }        
+        
     }
 
     global $wpdb;
 
     $tabla = $wpdb->prefix . 'compuciber_product_index';
+ 
+    /*
+    * OPTIMIZACIÓN DEL ÍNDICE
+    *
+    * Cargar solamente los datos que utiliza
+    * el motor de puntuación.
+    */
+
+    $columnas_indice = "
+        id, nombre, sku, marca, modelo,
+        categorias, atributos, precio, precio_oferta,
+        variaciones, texto_busqueda
+    ";
+
+    /*
+    * Los embeddings solamente se cargan cuando
+    * la búsqueda semántica está activada.
+    */
+
+    if (
+        get_option(
+            'compuciber_busqueda_semantica',
+            '0'
+        ) === '1'
+    ) {
+
+        $columnas_indice .= ",
+            texto_embedding,
+            hash_embedding,
+            embedding,
+            embedding_proveedor,
+            embedding_modelo
+        ";
+    }
 
     $productos_candidatos = $wpdb->get_results(
-        "SELECT * FROM {$tabla}"
+        "SELECT {$columnas_indice} FROM {$tabla}"
     );
 
     if ( empty( $productos_candidatos ) ) {
         return compuciber_consulta_vacia();
     }
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'INTERPRETACION RECIBIDA: '
         . print_r( $interpretacion, true )
     );    
@@ -83,7 +137,7 @@ function compuciber_buscar_productos_inteligente(
         $busqueda
     );
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'DATOS IA EN RESULTADOS: '
         . print_r( $datos_ia, true )
     );    
@@ -268,7 +322,7 @@ function compuciber_buscar_productos_inteligente(
                             $embedding_consulta,
                             $embedding_producto
                         );
-                    error_log(
+                    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                         'EMBEDDING DEBUG: '
                         . $producto->nombre
                         . ' | SIMILITUD: '
@@ -311,7 +365,7 @@ function compuciber_buscar_productos_inteligente(
 
                         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 
-                            error_log(
+                            if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                                 'CIS RESCATE SEMANTICO: PRODUCTO_ID='
                                 . absint( $producto->id )
                                 . ' | SIMILITUD='

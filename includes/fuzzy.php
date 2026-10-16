@@ -164,7 +164,7 @@ function compuciber_fuzzy_puntuacion(
 
                 $mejor_similitud = $similitud;
 
-                error_log(
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                     'FUZZY COMPARACION: '
                     . $palabra_busqueda
                     . ' VS '

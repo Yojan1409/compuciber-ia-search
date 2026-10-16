@@ -254,7 +254,7 @@ function compuciber_preparar_datos_ia(
     }
 
 
-    error_log( 'DATOS PRECIO FINAL: ' . print_r( $datos['precio_maximo'], true ) );
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log( 'DATOS PRECIO FINAL: ' . print_r( $datos['precio_maximo'], true ) );
     return $datos;
 }
 
@@ -395,7 +395,7 @@ function compuciber_calcular_puntuacion_producto(
         ) !== false
     ) {
 
-        error_log(
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
             'TECNICO DEBUG: '
             . $producto->nombre
             . ' | TITULO: '
@@ -644,7 +644,7 @@ function compuciber_calcular_puntuacion_producto(
         }
     }
     
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'PRODUCTO PRECIO DEBUG: '
         . $producto->nombre
         . ' | PRECIO: '
@@ -653,7 +653,7 @@ function compuciber_calcular_puntuacion_producto(
         . print_r( $precios_variaciones, true )
     );
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'PRECIO MAXIMO EN PUNTUACION: '
         . print_r( $datos_ia['precio_maximo'], true )
         . ' | PRODUCTO: '
@@ -710,7 +710,7 @@ function compuciber_calcular_puntuacion_producto(
             }
 
             if ( ! $cumple_precio ) {
-                error_log(
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                     'PRECIO MAXIMO RECHAZADO: '
                     . $producto->nombre
                     . ' | MAXIMO: '
@@ -773,7 +773,7 @@ function compuciber_calcular_puntuacion_producto(
             }
 
             if ( ! $cumple_precio ) {
-                error_log(
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                     'PRECIO MÍNIMO RECHAZADO: '
                     . $producto->nombre
                     . ' | MÍNIMO: '
@@ -812,7 +812,7 @@ function compuciber_calcular_puntuacion_producto(
         $caracteristica_tecnica =
             $coincidencia_tecnica[0];
 
-        error_log(
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
             'TECNICO COINCIDENCIA: '
             . $producto->nombre
             . ' | BUSQUEDA: '
@@ -1331,7 +1331,7 @@ function compuciber_calcular_puntuacion_producto(
                 $palabra
             )
         ) {
-            error_log(
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
                 'COINCIDENCIA TEXTO DEBUG: '
                 . $producto->nombre
                 . ' | PALABRA: '
@@ -1729,7 +1729,7 @@ function compuciber_calcular_puntuacion_producto(
         }
     }
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'ANCLAS DEBUG: '
         . $producto->nombre
         . ' | '
@@ -1941,7 +1941,7 @@ function compuciber_calcular_puntuacion_producto(
     }
 
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'FUZZY DEBUG: '
         . $producto->nombre
         . ' | BUSQUEDA: '
@@ -1998,7 +1998,7 @@ function compuciber_calcular_puntuacion_producto(
         }
     }
 
-    error_log(
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'SCORE FINAL DEBUG: '
         . $producto->nombre
         . ' | SCORE: '

@@ -52,7 +52,7 @@ function compuciber_coincide_caracteristica_tecnica(
         )
     ) {
 
-        error_log(
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
             'TECNICO FUNCION: '
             . 'TEXTO=' . $texto
             . ' | CARACTERISTICA=' . $caracteristica

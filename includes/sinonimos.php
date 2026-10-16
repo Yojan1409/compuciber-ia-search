@@ -682,7 +682,7 @@ function compuciber_pagina_sinonimos() {
 
                                 $url = wp_nonce_url(
                                     admin_url(
-                                        'options-general.php?page=compuciber-ai-search-sinonimos'
+                                        'admin.php?page=compuciber-ai-search-sinonimos'
                                     )
                                     . '&compuciber_eliminar_sinonimo='
                                     . rawurlencode(

@@ -202,6 +202,111 @@ function compuciber_buscar_sugerencias() {
         wp_send_json_success( array() );
     }
 
+    /*
+     * SINÓNIMOS EN AUTOCOMPLETADO
+     *
+     * Conserva la búsqueda original y añade
+     * los sinónimos como alternativas.
+     */
+
+    $alternativas = array();
+
+    foreach ( compuciber_obtener_sinonimos() as $principal => $variantes ) {
+
+        $grupo = array_merge(
+            array( $principal ),
+            is_array( $variantes ) ? $variantes : array()
+        );
+
+        $grupo_normalizado = array();
+
+        foreach ( $grupo as $valor_grupo ) {
+
+            $valor = compuciber_normalizar_texto( $valor_grupo );
+
+            if ( $valor !== '' ) {
+                $grupo_normalizado[] = $valor;
+            }
+        }
+
+        $grupo_normalizado = array_unique( $grupo_normalizado );
+
+        foreach ( $grupo_normalizado as $origen ) {
+
+            if (
+                ! compuciber_contiene_sinonimo(
+                    $termino_corregido,
+                    $origen
+                )
+            ) {
+                continue;
+            }
+
+            foreach ( $grupo_normalizado as $destino ) {
+
+                if ( $origen === $destino ) {
+                    continue;
+                }
+
+                $alternativa = preg_replace(
+                    '/(?<![a-z0-9])'
+                    . preg_quote( $origen, '/' )
+                    . '(?![a-z0-9])/u',
+                    $destino,
+                    $termino_corregido
+                );
+
+                if (
+                    is_string( $alternativa )
+                    && $alternativa !== $termino_corregido
+                ) {
+                    $alternativas[] = $alternativa;
+                }
+            }
+        }
+    }
+
+    // Conservar la búsqueda original.
+    $condiciones = array(
+        '(' . implode( ' AND ', $condiciones ) . ')'
+    );
+
+    // Limitar alternativas para proteger el rendimiento.
+    $alternativas = array_slice(
+        array_unique( $alternativas ),
+        0,
+        15
+    );
+
+    foreach ( $alternativas as $consulta_alternativa ) {
+
+        $palabras_alternativa = preg_split(
+            '/\s+/u',
+            $consulta_alternativa,
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        );
+
+        if ( empty( $palabras_alternativa ) ) {
+            continue;
+        }
+
+        $grupo_sql = array();
+
+        foreach ( $palabras_alternativa as $palabra ) {
+
+            $grupo_sql[] = 'i.texto_busqueda LIKE %s';
+
+            $valores[] = '%'
+                . $wpdb->esc_like( $palabra )
+                . '%';
+        }
+
+        $condiciones[] = '('
+            . implode( ' AND ', $grupo_sql )
+            . ')';
+    }    
+
     $termino_like = '%' . $wpdb->esc_like( $termino_corregido ) . '%';
 
     // Prioridades para ordenar las sugerencias.
@@ -222,7 +327,7 @@ function compuciber_buscar_sugerencias() {
                 ON p.ID = i.id
             WHERE p.post_type = 'product'
             AND p.post_status = 'publish'
-            AND " . implode( ' AND ', $condiciones ) . "
+            AND (" . implode( ' OR ', $condiciones ) . ")
             ORDER BY CASE
                 WHEN i.sku = %s THEN 0
                 WHEN i.modelo = %s THEN 1
