@@ -567,7 +567,7 @@ function compuciber_calcular_puntuacion_producto(
             }
 
             if ( ! $tipo_valido ) {
-                return 0;
+                return -1;
             }
         }
     }
@@ -681,7 +681,7 @@ function compuciber_calcular_puntuacion_producto(
             && $precio_producto > $precio_maximo
         ) {
 
-            return 0;
+            return -1;
         }
 
         /*
@@ -718,7 +718,7 @@ function compuciber_calcular_puntuacion_producto(
                     . ' | VARIACIONES: '
                     . print_r( $precios_variaciones, true )
                 );                
-                return 0;
+                return -1;
             }
         }
     }
@@ -744,7 +744,7 @@ function compuciber_calcular_puntuacion_producto(
             && $precio_producto < $precio_minimo
         ) {
 
-            return 0;
+            return -1;
         }
 
         /*
@@ -781,7 +781,7 @@ function compuciber_calcular_puntuacion_producto(
                     . ' | VARIACIONES: '
                     . print_r( $precios_variaciones, true )
                 );
-                return 0;
+                return -1;
             }
         }
     }
@@ -842,7 +842,7 @@ function compuciber_calcular_puntuacion_producto(
             );
 
         if ( ! $coincide_tecnica ) {
-            return 0;
+            return -1;
         }
     }
 
@@ -1057,7 +1057,7 @@ function compuciber_calcular_puntuacion_producto(
         }
 
         if ( ! $producto_equivalente ) {
-            return 0;
+            return -1;
         }
 
         $puntuacion += 20;
@@ -1108,7 +1108,7 @@ function compuciber_calcular_puntuacion_producto(
     }
 
     if ( $marca_solicitada && $coincidencias_marca === 0 ) {
-        return 0;
+        return -1;
     }
 
     // Penalizar una interpretación de marca no confirmada.
@@ -1168,7 +1168,7 @@ function compuciber_calcular_puntuacion_producto(
         $modelo_solicitado
         && $coincidencias_modelo === 0
     ) {
-        return 0;
+        return -1;
     }
 
     /*
@@ -1216,7 +1216,7 @@ function compuciber_calcular_puntuacion_producto(
                 );
 
             if ( ! $coincide_tecnica ) {
-                return 0;
+                return -1;
             }
 
             $puntuacion += 15;
@@ -1801,7 +1801,7 @@ function compuciber_calcular_puntuacion_producto(
                     )
                 ) {
 
-                    return 0;
+                    return -1;
                 }
 
                 continue;
@@ -1827,7 +1827,7 @@ function compuciber_calcular_puntuacion_producto(
                 )
             ) {
 
-                return 0;
+                return -1;
             }
         }
     }

@@ -24,6 +24,17 @@ function compuciber_indexar_producto(
     }
 
     if ( $producto->get_status() !== 'publish' ) {
+
+        global $wpdb;
+
+        $wpdb->delete(
+            $wpdb->prefix . 'compuciber_product_index',
+            array(
+                'id' => absint( $product_id ),
+            ),
+            array( '%d' )
+        );
+
         return;
     }
 
@@ -417,6 +428,10 @@ function compuciber_indexar_producto(
     */
     if (
         $generar_embedding
+        && get_option(
+            'compuciber_busqueda_semantica',
+            '0'
+        ) === '1'
         && $necesita_embedding
         && $texto_embedding !== ''
         && function_exists(

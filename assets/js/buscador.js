@@ -687,45 +687,34 @@ document.addEventListener('DOMContentLoaded', function () {
                                  * sin volver a consultar la IA.
                                  */
 
-                                let campoIA = input.form.querySelector('input[name="cis_ai"]');
+                                const tokenImagen = data.data.token;
 
-
-                                if (!campoIA) {
-
-                                    campoIA =
-                                        document.createElement(
-                                            'input'
-                                        );
-
-                                    campoIA.type = 'hidden';
-
-                                    campoIA.name =
-                                        'cis_ai';
-
-                                    const formularioBusqueda =
-                                        input.closest('form');
-
-                                    if (
-                                        formularioBusqueda
-                                    ) {
-
-                                        formularioBusqueda.appendChild(
-                                            campoIA
-                                        );
-
-                                    }
-
+                                if (!tokenImagen) {
+                                    alert(
+                                        'No se pudo validar la búsqueda por imagen.'
+                                    );
+                                    return;
                                 }
 
+                                let campoToken = input.form.querySelector(
+                                    'input[name="cis_img_token"]'
+                                );
 
-                                if (campoIA) {
+                                if (!campoToken) {
 
-                                    campoIA.value =
-                                        JSON.stringify(
-                                            interpretacion || {}
-                                        );
+                                    campoToken = document.createElement(
+                                        'input'
+                                    );
 
+                                    campoToken.type = 'hidden';
+                                    campoToken.name = 'cis_img_token';
+
+                                    input.form.appendChild(
+                                        campoToken
+                                    );
                                 }
+
+                                campoToken.value = tokenImagen;
 
 
                                 /*

@@ -424,6 +424,71 @@ function compuciber_ajax_busqueda_imagen() {
 
     } else {
 
+    /*
+    * LIMITADOR DE CONSUMO DE IA POR IMAGEN
+    *
+    * Aplica solo cuando no existe una
+    * interpretación guardada en caché.
+    */
+
+    $ip_visitante = isset( $_SERVER['REMOTE_ADDR'] )
+        && is_string( $_SERVER['REMOTE_ADDR'] )
+        ? $_SERVER['REMOTE_ADDR']
+        : '';
+
+    if ( $ip_visitante !== '' ) {
+
+        $ventana = 10 * MINUTE_IN_SECONDS;
+
+        $bloque = (int) floor(
+            time() / $ventana
+        );
+
+        // No guardar la dirección IP original.
+        $identificador = hash_hmac(
+            'sha256',
+            $ip_visitante . '|' . $bloque,
+            wp_salt( 'auth' )
+        );
+
+        $clave_limite = 'cis_img_lmt_'
+            . substr( $identificador, 0, 32 );
+
+        $intentos = (int) get_transient(
+            $clave_limite
+        );
+
+        // Límite predeterminado: 5 solicitudes.
+        $max_intentos = max(
+            1,
+            (int) apply_filters(
+                'compuciber_limite_imagen_por_ventana',
+                5
+            )
+        );
+
+        if ( $intentos >= $max_intentos ) {
+
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log(
+                    'CIS LIMITE IMAGEN: solicitud bloqueada antes de IA'
+                );
+            }
+
+            wp_send_json_error(
+                'Has realizado varias búsquedas por imagen. Inténtalo nuevamente en unos minutos.',
+                429
+            );
+        }
+
+        // Registrar el intento antes de llamar a la API.
+        set_transient(
+            $clave_limite,
+            $intentos + 1,
+            $ventana
+        );
+    }
+
         $resultado = compuciber_consultar_ia_imagen(
             $imagen_base64,
             $mime_type
@@ -522,10 +587,35 @@ function compuciber_ajax_busqueda_imagen() {
     }
 
 
+    $token_imagen = wp_generate_password(
+        40,
+        false,
+        false
+    );
+
+    $guardado = set_transient(
+        'cis_imagen_' . $token_imagen,
+        array(
+            'busqueda' => sanitize_text_field(
+                $busqueda
+            ),
+            'interpretacion' => $resultado,
+        ),
+        10 * MINUTE_IN_SECONDS
+    );
+
+    if ( ! $guardado ) {
+        wp_send_json_error(
+            'No se pudo preparar la búsqueda por imagen.',
+            500
+        );
+    }
+
     wp_send_json_success(
         array(
             'busqueda' => $busqueda,
             'interpretacion' => $resultado,
+            'token' => $token_imagen,
         )
     );
 }
@@ -541,6 +631,184 @@ add_action(
     'wp_ajax_nopriv_compuciber_busqueda_imagen',
     'compuciber_ajax_busqueda_imagen'
 );
+
+/**
+ * Encuentra una variación real a partir de los
+ * atributos indicados en la búsqueda.
+ *
+ * Si faltan datos o hay varias coincidencias,
+ * no selecciona ninguna variación.
+ */
+function compuciber_encontrar_variacion_por_atributos(
+    $producto_padre,
+    $consulta
+) {
+
+    if (
+        ! is_object( $producto_padre )
+        || ! $producto_padre->is_type( 'variable' )
+    ) {
+        return false;
+    }
+
+    // Igualar expresiones como "16 GB" y "16GB".
+    $normalizar = static function( $texto ) {
+
+        $texto = compuciber_normalizar_texto(
+            $texto
+        );
+
+        return preg_replace(
+            '/(?<=\d)\s+(?=(?:gb|tb|mb)\b)/',
+            '',
+            $texto
+        );
+    };
+
+    $consulta = $normalizar( $consulta );
+    $filtros = array();
+
+    if ( $consulta === '' ) {
+        return false;
+    }
+
+    // Revisar los atributos del producto variable.
+    foreach (
+        $producto_padre->get_variation_attributes()
+        as $atributo => $opciones
+    ) {
+
+        if (
+            ! is_array( $opciones )
+            || empty( $opciones )
+        ) {
+            continue;
+        }
+
+        $detectadas = array();
+
+        foreach ( $opciones as $opcion ) {
+
+            $opcion = (string) $opcion;
+
+            if ( $opcion === '' ) {
+                continue;
+            }
+
+            $etiquetas = array( $opcion );
+
+            // Reconocer también el nombre del término.
+            if ( taxonomy_exists( $atributo ) ) {
+
+                $termino = get_term_by(
+                    'slug',
+                    $opcion,
+                    $atributo
+                );
+
+                if (
+                    $termino
+                    && ! is_wp_error( $termino )
+                ) {
+                    $etiquetas[] = $termino->name;
+                }
+            }
+
+            foreach ( $etiquetas as $etiqueta ) {
+
+                $valor = $normalizar( $etiqueta );
+
+                if (
+                    $valor !== ''
+                    && preg_match(
+                        '/(?<![a-z0-9])'
+                        . preg_quote( $valor, '/' )
+                        . '(?![a-z0-9])/',
+                        $consulta
+                    )
+                ) {
+
+                    $detectadas[ $opcion ] = true;
+                    break;
+                }
+            }
+        }
+
+        // No seleccionar si hay valores contradictorios.
+        if ( count( $detectadas ) > 1 ) {
+            return false;
+        }
+
+        if ( count( $detectadas ) === 1 ) {
+
+            $filtros[ $atributo ] = (string)
+                array_key_first( $detectadas );
+
+        } elseif ( count( $opciones ) > 1 ) {
+
+            // No adivinar un atributo que el cliente omitió.
+            return false;
+        }
+    }
+
+    if ( empty( $filtros ) ) {
+        return false;
+    }
+
+    $encontrada = false;
+
+    // Comparar los valores dentro de cada variación real.
+    foreach (
+        $producto_padre->get_children()
+        as $id_variacion
+    ) {
+
+        $variacion = wc_get_product(
+            $id_variacion
+        );
+
+        if (
+            ! $variacion
+            || ! $variacion->is_type( 'variation' )
+            || ! $variacion->is_visible()
+            || ! $variacion->variation_is_visible()
+        ) {
+            continue;
+        }
+
+// Normalizar nombres de atributos del producto y la variación.
+        $atributos_reales = array();
+
+        foreach ( $variacion->get_attributes() as $nombre_real => $valor_real ) {
+            $nombre_real = preg_replace( '/^attribute_/', '', (string) $nombre_real );
+            $atributos_reales[ sanitize_title( $nombre_real ) ] = $valor_real;
+        }
+
+        foreach ( $filtros as $atributo => $valor_esperado ) {
+            $clave_atributo = sanitize_title(
+                preg_replace( '/^attribute_/', '', (string) $atributo )
+            );
+
+            if (
+                ! isset( $atributos_reales[ $clave_atributo ] )
+                || $atributos_reales[ $clave_atributo ] === ''
+                || $normalizar( $atributos_reales[ $clave_atributo ] )
+                    !== $normalizar( $valor_esperado )
+            ) {
+                continue 2;
+            }
+        }
+
+        // Si coinciden dos variantes, no elegir al azar.
+        if ( $encontrada ) {
+            return false;
+        }
+
+        $encontrada = $variacion;
+    }
+
+    return $encontrada;
+}
 
 /**
  * Shortcode:
@@ -604,30 +872,55 @@ function compuciber_ai_search_shortcode( $atts = array() )
      * De esta forma NO volvemos a llamar a Gemini como texto.
      */
 
-    if ( ! empty( $_GET['cis_ai'] ) ) {
+    $es_busqueda_imagen = false;
 
-        $interpretacion_json =
+    if (
+        $mostrar_resultados
+        && isset( $_GET['cis_img_token'] )
+        && is_string( $_GET['cis_img_token'] )
+    ) {
+
+        $token_imagen = sanitize_text_field(
             wp_unslash(
-                $_GET['cis_ai']
-            );
-
-        $interpretacion_decodificada =
-            json_decode(
-                $interpretacion_json,
-                true
-            );
+                $_GET['cis_img_token']
+            )
+        );
 
         if (
-            is_array(
-                $interpretacion_decodificada
+            preg_match(
+                '/\A[A-Za-z0-9]{40}\z/D',
+                $token_imagen
             )
         ) {
 
-            $interpretacion =
-                $interpretacion_decodificada;
+            $datos_imagen = get_transient(
+                'cis_imagen_' . $token_imagen
+            );
 
+            if (
+                is_array( $datos_imagen )
+                && isset(
+                    $datos_imagen['busqueda'],
+                    $datos_imagen['interpretacion']
+                )
+                && is_string(
+                    $datos_imagen['busqueda']
+                )
+                && is_array(
+                    $datos_imagen['interpretacion']
+                )
+                && hash_equals(
+                    $datos_imagen['busqueda'],
+                    $busqueda_original
+                )
+            ) {
+
+                $interpretacion =
+                    $datos_imagen['interpretacion'];
+
+                $es_busqueda_imagen = true;
+            }
         }
-
     }
 
 
@@ -771,22 +1064,6 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 class="compuciber-suggestions"
             ></div>           
 
-            <?php
-
-            if ( ! empty( $_GET['cis_ai'] ) ) {
-
-                echo '<input type="hidden" name="cis_ai" value="'
-                    . esc_attr(
-                        wp_unslash(
-                            $_GET['cis_ai']
-                        )
-                    )
-                    . '">';
-
-            }
-
-            ?>
-
         </form>
 
         <?php
@@ -888,6 +1165,173 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 }
             }
 
+            /*
+            * BÚSQUEDA VISUAL DE PRODUCTOS SIMILARES
+            *
+            * Solo se ejecuta cuando una búsqueda por imagen
+            * validada no ha encontrado resultados.
+            *
+            * No modifica las búsquedas escritas ni por SKU.
+            */
+
+            $mostrando_similares_imagen = false;
+
+            if (
+                ! empty( $es_busqueda_imagen )
+                && $productos instanceof WP_Query
+                && ! $productos->have_posts()
+                && ! empty( $interpretacion['producto'] )
+                && is_string( $interpretacion['producto'] )
+            ) {
+
+                $palabras_tipo = compuciber_obtener_palabras(
+                    $interpretacion['producto']
+                );
+
+                $tipo_principal = ! empty( $palabras_tipo )
+                    ? reset( $palabras_tipo )
+                    : '';
+
+                if (
+                    $tipo_principal !== ''
+                    && ! in_array(
+                        $tipo_principal,
+                        array(
+                            'producto',
+                            'objeto',
+                            'articulo',
+                            'aparato',
+                            'dispositivo'
+                        ),
+                        true
+                    )
+                ) {
+
+                    /*
+                    * Buscar equivalencias utilizando los sinónimos
+                    * que ya tiene configurados el plugin.
+                    */
+
+                    $variantes_tipo = array( $tipo_principal );
+
+                    foreach (
+                        compuciber_obtener_sinonimos()
+                        as $principal => $variantes
+                    ) {
+
+                        $grupo = array_merge(
+                            array( $principal ),
+                            is_array( $variantes )
+                                ? $variantes
+                                : array()
+                        );
+
+                        $grupo_normalizado = array_map(
+                            'compuciber_normalizar_texto',
+                            $grupo
+                        );
+
+                        if (
+                            in_array(
+                                $tipo_principal,
+                                $grupo_normalizado,
+                                true
+                            )
+                        ) {
+                            $variantes_tipo = array_merge(
+                                $variantes_tipo,
+                                $grupo_normalizado
+                            );
+                        }
+                    }
+
+                    /*
+                    * Buscar por el tipo principal,
+                    * sin exigir detalles visuales que pueden
+                    * no estar registrados en el catálogo.
+                    */
+
+                    $candidatos_similares =
+                        compuciber_buscar_productos_inteligente(
+                            $tipo_principal,
+                            array()
+                        );
+
+                    $ids_similares = array();
+
+                    if ( $candidatos_similares instanceof WP_Query ) {
+
+                        foreach (
+                            $candidatos_similares->posts
+                            as $post_similar
+                        ) {
+
+                            $wc_similar = wc_get_product(
+                                $post_similar->ID
+                            );
+
+                            if (
+                                ! $wc_similar
+                                || ! $wc_similar->is_visible()
+                            ) {
+                                continue;
+                            }
+
+                            /*
+                            * Confirmar el tipo usando nombre
+                            * y categorías reales de WooCommerce.
+                            */
+
+                            $identidad = $wc_similar->get_name();
+
+                            $categorias_similar = get_the_terms(
+                                $post_similar->ID,
+                                'product_cat'
+                            );
+
+                            if ( is_array( $categorias_similar ) ) {
+
+                                foreach (
+                                    $categorias_similar
+                                    as $categoria_similar
+                                ) {
+                                    $identidad .=
+                                        ' ' . $categoria_similar->name;
+                                }
+                            }
+
+                            foreach (
+                                array_unique( $variantes_tipo )
+                                as $variante_tipo
+                            ) {
+
+                                if (
+                                    compuciber_contiene_sinonimo(
+                                        $identidad,
+                                        $variante_tipo
+                                    )
+                                ) {
+
+                                    $ids_similares[] =
+                                        $post_similar->ID;
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if ( ! empty( $ids_similares ) ) {
+
+                        $productos =
+                            compuciber_consulta_productos(
+                                $ids_similares
+                            );
+
+                        $mostrando_similares_imagen = true;
+                    }
+                }
+            }            
 
             /*
             * ======================================================
@@ -909,7 +1353,7 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     $tipo_busqueda = 'voz';
                 }
 
-                if ( ! empty( $_GET['cis_ai'] ) ) {
+                if ( $es_busqueda_imagen ) {
                     $tipo_busqueda = 'imagen';
                 }
 
@@ -928,6 +1372,20 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 );                
 
             echo '<div class="compuciber-ai-results">';
+
+            if ( ! empty( $es_busqueda_imagen ) ) {
+
+                echo '<p>La identificación por imagen es orientativa. '
+                    . 'Verifica marca, modelo y características '
+                    . 'en la ficha del producto.</p>';
+            }
+
+            if ( $mostrando_similares_imagen ) {
+
+                echo '<p>No encontramos coincidencia con todos '
+                    . 'los detalles de la fotografía. '
+                    . 'Estas son opciones del mismo tipo.</p>';
+            }            
 
             if ( $productos->have_posts() ) {
 
@@ -949,6 +1407,28 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 echo '<div class="cis-results-grid">';
 
+                $variacion_sku = false;
+
+                $id_sku = wc_get_product_id_by_sku(
+                    trim( (string) $busqueda_original )
+                );
+
+                if ( $id_sku ) {
+
+                    $coincidencia_sku = wc_get_product(
+                        $id_sku
+                    );
+
+                    if (
+                        $coincidencia_sku
+                        && $coincidencia_sku->is_type( 'variation' )
+                        && $coincidencia_sku->is_visible()
+                    ) {
+
+                        $variacion_sku = $coincidencia_sku;
+                    }
+                }                
+
                 while ( $productos->have_posts() ) {
                     $productos->the_post();
 
@@ -959,25 +1439,138 @@ function compuciber_ai_search_shortcode( $atts = array() )
                         continue;
                     }
 
-                    echo '<a href="' . esc_url( get_permalink( $producto_id ) ) . '"'
+                    $producto_mostrado = $producto_wc;
+
+                    $enlace_producto = get_permalink(
+                        $producto_id
+                    );
+
+                    if (
+                        $variacion_sku
+                        && (int) $variacion_sku->get_parent_id()
+                            === (int) $producto_id
+                    ) {
+
+                        $producto_mostrado = $variacion_sku;
+
+                        $enlace_producto =
+                            $variacion_sku->get_permalink();
+                    }
+                    
+                    /*
+                    * SELECCIÓN POR COMBINACIÓN DE ATRIBUTOS
+                    *
+                    * Solo para búsquedas escritas o por voz.
+                    * No sustituye la prioridad del SKU exacto.
+                    */
+
+                    if (
+                        ! $variacion_sku
+                        && empty( $es_busqueda_imagen )
+                        && $producto_wc->is_type( 'variable' )
+                    ) {
+
+                        $depurar_lenovo = defined( 'WP_DEBUG' )
+                            && WP_DEBUG
+                            && stripos(
+                                $producto_wc->get_name(),
+                                'Lenovo IdeaPad Variación'
+                            ) !== false;
+
+                        if ( $depurar_lenovo ) {
+
+                            error_log(
+                                'CIS VAR OPCIONES: '
+                                . wp_json_encode(
+                                    $producto_wc->get_variation_attributes()
+                                )
+                            );
+
+                            foreach (
+                                $producto_wc->get_children()
+                                as $id_hijo
+                            ) {
+
+                                $hija = wc_get_product( $id_hijo );
+
+                                if (
+                                    ! $hija
+                                    || ! $hija->is_type( 'variation' )
+                                ) {
+                                    continue;
+                                }
+
+                                error_log(
+                                    'CIS VAR HIJA ID=' . $id_hijo
+                                    . ' | ATRIBUTOS='
+                                    . wp_json_encode( $hija->get_attributes() )
+                                    . ' | VISIBLE='
+                                    . ( $hija->is_visible() ? 'SI' : 'NO' )
+                                    . ' | VAR_VISIBLE='
+                                    . ( $hija->variation_is_visible() ? 'SI' : 'NO' )
+                                );
+                            }
+                        }
+
+                        $variacion_detectada =
+                            compuciber_encontrar_variacion_por_atributos(
+                                $producto_wc,
+                                $busqueda_original
+                            );
+
+                        if ( $depurar_lenovo ) {
+
+                            error_log(
+                                'CIS VAR RESULTADO: '
+                                . (
+                                    $variacion_detectada
+                                        ? $variacion_detectada->get_id()
+                                        : 'NO ENCONTRADA'
+                                )
+                            );
+                        }                            
+
+                        if ( $variacion_detectada ) {
+
+                            $producto_mostrado =
+                                $variacion_detectada;
+
+                            $enlace_producto =
+                                $variacion_detectada->get_permalink();
+
+                            if (
+                                defined( 'WP_DEBUG' )
+                                && WP_DEBUG
+                            ) {
+                                error_log(
+                                    'CIS VARIACION POR ATRIBUTOS: '
+                                    . $variacion_detectada->get_id()
+                                    . ' | CONSULTA: '
+                                    . $busqueda_original
+                                );
+                            }
+                        }
+                    }                    
+
+                    echo '<a href="' . esc_url( $enlace_producto ) . '"'
                         . ' class="compuciber-product-result cis-result-card"'
                         . ' data-product-id="' . esc_attr( $producto_id ) . '"'
                         . ' data-search="' . esc_attr( $busqueda_original ) . '">';
 
                     echo '<span class="cis-result-image">'
-                        . wp_kses_post( $producto_wc->get_image( 'woocommerce_thumbnail' ) )
+                        . wp_kses_post( $producto_mostrado->get_image( 'woocommerce_thumbnail' ) )
                         . '</span>';
 
                     echo '<span class="cis-result-title">'
-                        . esc_html( $producto_wc->get_name() )
+                        . esc_html( $producto_mostrado->get_name() )
                         . '</span>';
 
                     echo '<span class="cis-result-price">'
-                        . wp_kses_post( $producto_wc->get_price_html() )
+                        . wp_kses_post( $producto_mostrado->get_price_html() )
                         . '</span>';
 
                     echo '<span class="cis-result-stock">'
-                        . esc_html( $producto_wc->is_in_stock() ? 'Disponible' : 'Agotado' )
+                        . esc_html( $producto_mostrado->is_in_stock() ? 'Disponible' : 'Agotado' )
                         . '</span>';
 
                     echo '<span class="cis-result-more">Ver producto →</span>';

@@ -16,6 +16,51 @@ function compuciber_buscar_productos_inteligente(
 
     error_log( 'RESULTADOS.PHP NUEVO EJECUTADO' );
 
+    /*
+    * PRIORIDAD ABSOLUTA:
+    * SKU exacto de una variación WooCommerce.
+    */
+
+    $sku_buscado = trim( (string) $busqueda );
+
+    if (
+        $sku_buscado !== ''
+        && function_exists( 'wc_get_product_id_by_sku' )
+    ) {
+
+        $id_sku = wc_get_product_id_by_sku(
+            $sku_buscado
+        );
+
+        $producto_sku = $id_sku
+            ? wc_get_product( $id_sku )
+            : false;
+
+        if (
+            $producto_sku
+            && $producto_sku->is_type( 'variation' )
+        ) {
+
+            $padre = wc_get_product(
+                $producto_sku->get_parent_id()
+            );
+
+            if (
+                $padre
+                && $padre->get_status() === 'publish'
+                && $padre->is_visible()
+                && $producto_sku->is_visible()
+            ) {
+
+                return compuciber_consulta_productos(
+                    array( $padre->get_id() )
+                );
+            }
+
+            return compuciber_consulta_vacia();
+        }
+    }
+
     global $wpdb;
 
     $tabla = $wpdb->prefix . 'compuciber_product_index';
@@ -141,7 +186,7 @@ function compuciber_buscar_productos_inteligente(
         * producto, categoría, precio, características
         * técnicas, marca/modelo y anclas.
         */
-        if ( $score <= 0 ) {
+        if ( $score < 0 ) {
             continue;
         }
 
@@ -240,10 +285,39 @@ function compuciber_buscar_productos_inteligente(
                     * comparta exactamente las mismas
                     * palabras de la consulta.
                     */
-                    if ( $similitud_semantica >= 0.45 ) {
+                    if (
+                        $score > 0
+                        && $similitud_semantica >= 0.45
+                    ) {
 
-                        $score +=
-                            $similitud_semantica * 30;
+                        // Mejorar el ranking de productos ya relevantes.
+                        $score += $similitud_semantica * 30;
+
+                    } elseif (
+                        $score === 0
+                        && $similitud_semantica >= 0.80
+                    ) {
+
+                        /*
+                        * Recuperación semántica conservadora.
+                        *
+                        * Solo se aplica a productos que no fueron
+                        * rechazados por los filtros obligatorios.
+                        */
+
+                        $score = 1 + (
+                            $similitud_semantica - 0.80
+                        ) * 15;
+
+                        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+
+                            error_log(
+                                'CIS RESCATE SEMANTICO: PRODUCTO_ID='
+                                . absint( $producto->id )
+                                . ' | SIMILITUD='
+                                . round( $similitud_semantica, 3 )
+                            );
+                        }
                     }
                 }
             }

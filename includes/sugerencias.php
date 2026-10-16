@@ -32,6 +32,119 @@ function compuciber_buscar_sugerencias() {
     }
 
     /*
+    * SKU EXACTO DE VARIACIONES
+    * Prioridad en el autocompletado.
+    */
+
+    $sku_exacto = trim(
+        sanitize_text_field(
+            wp_unslash( $_GET['term'] )
+        )
+    );
+
+    $id_sku = function_exists( 'wc_get_product_id_by_sku' )
+        ? wc_get_product_id_by_sku( $sku_exacto )
+        : 0;
+
+    if ( $id_sku ) {
+
+        $variacion = wc_get_product( $id_sku );
+
+        if (
+            $variacion
+            && $variacion->is_type( 'variation' )
+        ) {
+
+            $padre = wc_get_product(
+                $variacion->get_parent_id()
+            );
+
+            if (
+                ! $padre
+                || $padre->get_status() !== 'publish'
+                || ! $padre->is_visible()
+                || ! $variacion->is_visible()
+                || ! $variacion->variation_is_visible()
+            ) {
+                wp_send_json_success( array() );
+            }
+
+            // Imagen propia de la variación o del padre.
+
+            $id_imagen = $variacion->get_image_id();
+
+            if ( ! $id_imagen ) {
+                $id_imagen = $padre->get_image_id();
+            }
+
+            $imagen = $id_imagen
+                ? wp_get_attachment_image_url(
+                    $id_imagen,
+                    'thumbnail'
+                )
+                : '';
+
+            if ( ! $imagen ) {
+                $imagen = wc_placeholder_img_src(
+                    'thumbnail'
+                );
+            }
+
+            // Atributos específicos de esta variación.
+
+            $atributos = array();
+
+            foreach (
+                $variacion->get_attributes()
+                as $clave => $valor
+            ) {
+
+                if ( $valor === '' ) {
+                    continue;
+                }
+
+                $nombre = wc_attribute_label( $clave );
+
+                if ( taxonomy_exists( $clave ) ) {
+
+                    $termino_atributo = get_term_by(
+                        'slug',
+                        $valor,
+                        $clave
+                    );
+
+                    if (
+                        $termino_atributo
+                        && ! is_wp_error( $termino_atributo )
+                    ) {
+                        $valor = $termino_atributo->name;
+                    }
+                }
+
+                $atributos[] = $nombre . ': ' . $valor;
+            }
+
+            // Respuesta compatible con el JavaScript actual.
+
+            wp_send_json_success(
+                array(
+                    array(
+                        'id' => $padre->get_id(),
+                        'title' => $variacion->get_name(),
+                        'url' => $variacion->get_permalink(),
+                        'image' => $imagen,
+                        'attributes' => $atributos,
+                        'price' => $variacion->get_price_html(),
+                        'availability' => $variacion->is_in_stock()
+                            ? 'Disponible'
+                            : 'Agotado',
+                    ),
+                )
+            );
+        }
+    }    
+
+    /*
      * ==================================================
      * CORRECCIÓN Y NORMALIZACIÓN
      * ==================================================
