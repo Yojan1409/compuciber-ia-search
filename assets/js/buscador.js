@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         input.addEventListener('input', function () {
 
+            const origenVoz = input.form
+                ? input.form.querySelector(
+                    'input[name="cis_source"]'
+                )
+                : null;
+
+            if (origenVoz) {
+                origenVoz.value = 'texto';
+            }
+
             clearTimeout(timeout);
 
             const term = input.value.trim();
@@ -491,6 +501,36 @@ document.addEventListener('DOMContentLoaded', function () {
                             'Error de reconocimiento de voz:',
                             event.error
                         );
+
+                        const mensajesVoz = {
+                            'not-allowed':
+                                'Activa el permiso del micrófono en el navegador e inténtalo de nuevo.',
+
+                            'service-not-allowed':
+                                'Este navegador no permite el reconocimiento de voz. Puedes escribir tu búsqueda.',
+
+                            'audio-capture':
+                                'No se pudo acceder al micrófono. Revisa su conexión y permisos.',
+
+                            'network':
+                                'No se pudo conectar al servicio de voz. Revisa tu conexión o busca escribiendo.',
+
+                            'no-speech':
+                                'No se detectó voz. Intenta hablar nuevamente.',
+
+                            'language-not-supported':
+                                'Este navegador no admite el idioma configurado para la búsqueda por voz.'
+                        };
+
+                        const estadoVoz = root.querySelector(
+                            '.compuciber-ai-status'
+                        );
+
+                        if (estadoVoz) {
+                            estadoVoz.textContent =
+                                mensajesVoz[event.error] ||
+                                'La búsqueda por voz no está disponible. Puedes escribir tu búsqueda.';
+                        }
 
                         escuchando = false;
                         reconocimientoActivo = false;
