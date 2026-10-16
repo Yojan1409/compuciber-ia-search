@@ -72,6 +72,19 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
             )
         );
 
+        $this->add_control(
+                    'solo_barra',
+                    array(
+                        'label'        => 'Mostrar solo la barra',
+                        'type'         => \Elementor\Controls_Manager::SWITCHER,
+                        'label_on'     => 'Sí',
+                        'label_off'    => 'No',
+                        'return_value' => 'yes',
+                        'default'      => '',
+                        'description'  => 'Actívalo para cabeceras. Los resultados se mostrarán en la página seleccionada en Configuración.',
+                    )
+                );        
+
         $this->end_controls_section();
 
 
@@ -665,8 +678,13 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
          * Reutilizamos el buscador original.
          * Elementor no duplica su lógica.
          */
-        echo do_shortcode(
-            '[compuciber_ai_search]'
-        );
+        $solo_barra = isset( $settings['solo_barra'] )
+                    && 'yes' === $settings['solo_barra'];
+
+                echo do_shortcode(
+                    $solo_barra
+                        ? '[compuciber_ai_search solo_barra="si"]'
+                        : '[compuciber_ai_search]'
+                );
     }
 }

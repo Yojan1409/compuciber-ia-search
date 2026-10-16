@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 2.0.0
+ * Version: 2.1.0
  * Author: Compuciber
  */
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2.0.0'
+        '2.1.0'
     );
 }
 
@@ -1405,7 +1405,23 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 echo '<h3>Resultados</h3>';
 
-                echo '<div class="cis-results-grid">';
+                $modo_woocommerce =
+                    get_option(
+                        'compuciber_modo_resultados',
+                        'propio'
+                    ) === 'woocommerce';
+
+                if ( $modo_woocommerce ) {
+
+                    echo '<div class="woocommerce cis-woo-results" data-search="'
+                        . esc_attr( $busqueda_original ) . '">';
+
+                    woocommerce_product_loop_start();
+
+                } else {
+
+                    echo '<div class="cis-results-grid">';
+                }
 
                 $variacion_sku = false;
 
@@ -1470,65 +1486,11 @@ function compuciber_ai_search_shortcode( $atts = array() )
                         && $producto_wc->is_type( 'variable' )
                     ) {
 
-                        $depurar_lenovo = defined( 'WP_DEBUG' )
-                            && WP_DEBUG
-                            && stripos(
-                                $producto_wc->get_name(),
-                                'Lenovo IdeaPad Variación'
-                            ) !== false;
-
-                        if ( $depurar_lenovo ) {
-
-                            error_log(
-                                'CIS VAR OPCIONES: '
-                                . wp_json_encode(
-                                    $producto_wc->get_variation_attributes()
-                                )
-                            );
-
-                            foreach (
-                                $producto_wc->get_children()
-                                as $id_hijo
-                            ) {
-
-                                $hija = wc_get_product( $id_hijo );
-
-                                if (
-                                    ! $hija
-                                    || ! $hija->is_type( 'variation' )
-                                ) {
-                                    continue;
-                                }
-
-                                error_log(
-                                    'CIS VAR HIJA ID=' . $id_hijo
-                                    . ' | ATRIBUTOS='
-                                    . wp_json_encode( $hija->get_attributes() )
-                                    . ' | VISIBLE='
-                                    . ( $hija->is_visible() ? 'SI' : 'NO' )
-                                    . ' | VAR_VISIBLE='
-                                    . ( $hija->variation_is_visible() ? 'SI' : 'NO' )
-                                );
-                            }
-                        }
-
                         $variacion_detectada =
                             compuciber_encontrar_variacion_por_atributos(
                                 $producto_wc,
                                 $busqueda_original
                             );
-
-                        if ( $depurar_lenovo ) {
-
-                            error_log(
-                                'CIS VAR RESULTADO: '
-                                . (
-                                    $variacion_detectada
-                                        ? $variacion_detectada->get_id()
-                                        : 'NO ENCONTRADA'
-                                )
-                            );
-                        }                            
 
                         if ( $variacion_detectada ) {
 
@@ -1537,21 +1499,62 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                             $enlace_producto =
                                 $variacion_detectada->get_permalink();
-
-                            if (
-                                defined( 'WP_DEBUG' )
-                                && WP_DEBUG
-                            ) {
-                                error_log(
-                                    'CIS VARIACION POR ATRIBUTOS: '
-                                    . $variacion_detectada->get_id()
-                                    . ' | CONSULTA: '
-                                    . $busqueda_original
-                                );
-                            }
                         }
-                    }                    
+                    }
+                    if ( $modo_woocommerce ) {
 
+                        /*
+                        * Mostrar el producto mediante la plantilla
+                        * WooCommerce del tema.
+                        *
+                        * Si se detectó una variación concreta,
+                        * conservar su precio, imagen y enlace.
+                        */
+
+                        $producto_global_anterior = isset(
+                            $GLOBALS['product']
+                        )
+                            ? $GLOBALS['product']
+                            : null;
+
+                        $GLOBALS['product'] = $producto_mostrado;
+
+                        /*
+                        * Respetar el enlace de la variación
+                        * cuando la plantilla utiliza el enlace
+                        * estándar de WooCommerce.
+                        */
+
+                        $filtro_enlace = static function (
+                            $url
+                        ) use ( $enlace_producto ) {
+
+                            return $enlace_producto;
+                        };
+
+                        add_filter(
+                            'woocommerce_loop_product_link',
+                            $filtro_enlace,
+                            999
+                        );
+
+                        wc_get_template_part(
+                            'content',
+                            'product'
+                        );
+
+                        remove_filter(
+                            'woocommerce_loop_product_link',
+                            $filtro_enlace,
+                            999
+                        );
+
+                        $GLOBALS['product'] =
+                            $producto_global_anterior;
+
+                        continue;
+                    }
+                    
                     echo '<a href="' . esc_url( $enlace_producto ) . '"'
                         . ' class="compuciber-product-result cis-result-card"'
                         . ' data-product-id="' . esc_attr( $producto_id ) . '"'
@@ -1576,6 +1579,11 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     echo '<span class="cis-result-more">Ver producto →</span>';
 
                     echo '</a>';
+                }
+
+                if ( $modo_woocommerce ) {
+
+                    woocommerce_product_loop_end();
                 }
 
                 echo '</div>';

@@ -2374,6 +2374,73 @@ function compuciber_ai_search_configuracion() {
                 </tr>
             </table>
 
+            <h2>Presentación de resultados</h2>
+
+            <p>
+                Selecciona cómo se mostrarán los productos
+                encontrados por el buscador inteligente.
+            </p>
+
+            <table class="form-table">
+
+                <tr>
+
+                    <th scope="row">
+
+                        <label for="compuciber_modo_resultados">
+                            Diseño de los resultados
+                        </label>
+
+                    </th>
+
+                    <td>
+
+                        <select
+                            name="compuciber_modo_resultados"
+                            id="compuciber_modo_resultados"
+                        >
+
+                            <option
+                                value="propio"
+                                <?php selected(
+                                    get_option(
+                                        'compuciber_modo_resultados',
+                                        'propio'
+                                    ),
+                                    'propio'
+                                ); ?>
+                            >
+                                Tarjetas propias del plugin
+                            </option>
+
+                            <option
+                                value="woocommerce"
+                                <?php selected(
+                                    get_option(
+                                        'compuciber_modo_resultados',
+                                        'propio'
+                                    ),
+                                    'woocommerce'
+                                ); ?>
+                            >
+                                Plantilla WooCommerce de la tienda
+                            </option>
+
+                        </select>
+
+                        <p class="description">
+                            La opción WooCommerce utilizará
+                            las plantillas compatibles de la tienda.
+                            Su conexión se completará en el
+                            siguiente paso.
+                        </p>
+
+                    </td>
+
+                </tr>
+
+            </table>            
+
             <?php submit_button( 'Guardar configuración' ); ?>
 
         </form>

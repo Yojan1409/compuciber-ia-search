@@ -221,6 +221,16 @@ function compuciber_registrar_producto_seleccionado(
 
     $producto_id = absint( $producto_id );
 
+        // Asociar los clics de variaciones al producto padre.
+        if (
+            $producto_id
+            && get_post_type( $producto_id ) === 'product_variation'
+        ) {
+            $producto_id = (int) wp_get_post_parent_id(
+                $producto_id
+            );
+        }
+
     if (
         $producto_id < 1
         || get_post_type( $producto_id ) !== 'product'

@@ -790,21 +790,43 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener(
         'click',
         function (event) {
-
-            const enlace =
-                event.target.closest(
-                    '.compuciber-product-result'
-                );
+            const enlace = event.target.closest(
+                '.compuciber-product-result, .cis-woo-results a.woocommerce-LoopProduct-link'
+            );
 
             if (!enlace) {
                 return;
             }
 
-            const productoId =
-                enlace.dataset.productId;
+            const contenedorWoo =
+                enlace.closest('.cis-woo-results');
+
+            let productoId =
+                enlace.dataset.productId || '';
+
+            if (!productoId && contenedorWoo) {
+
+                const tarjeta =
+                    enlace.closest('li.product');
+
+                const clase =
+                    tarjeta ? tarjeta.className : '';
+
+                const idWoo = clase.match(
+                    /(?:^|\s)post-(\d+)(?=\s|$)/
+                );
+
+                productoId = idWoo
+                    ? idWoo[1]
+                    : '';
+            }
 
             const busqueda =
-                enlace.dataset.search || '';
+                enlace.dataset.search || (
+                    contenedorWoo
+                        ? contenedorWoo.dataset.search || ''
+                        : ''
+                );
 
             const origen = enlace.classList.contains(
                 'compuciber-suggestion-item'
@@ -833,6 +855,11 @@ document.addEventListener('DOMContentLoaded', function () {
             datos.append(
                 'producto_id',
                 productoId
+            );
+
+            datos.append(
+                'busqueda',
+                busqueda
             );
 
             datos.append(

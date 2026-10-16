@@ -136,6 +136,34 @@ function compuciber_ai_search_registrar_opciones() {
             'default'           => 0,
         )
     );
+
+    /*
+     * MODO DE PRESENTACIÓN DE RESULTADOS
+     *
+     * propio: tarjetas actuales del plugin.
+     * woocommerce: presentación de la tienda.
+     */
+
+    register_setting(
+        'compuciber_ai_search_settings_group',
+        'compuciber_modo_resultados',
+        array(
+            'type'    => 'string',
+            'default' => 'propio',
+
+            'sanitize_callback' => static function ( $valor ) {
+
+                return in_array(
+                    $valor,
+                    array(
+                        'propio',
+                        'woocommerce',
+                    ),
+                    true
+                ) ? $valor : 'propio';
+            },
+        )
+    );    
     
     foreach ( $opciones as $opcion ) {
 
