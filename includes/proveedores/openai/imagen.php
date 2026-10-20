@@ -102,37 +102,55 @@ function compuciber_consultar_openai_imagen_api(
     /*
      * Instrucciones del intérprete visual.
      */
+$idioma_tienda = sanitize_text_field(
+        (string) get_locale()
+    );
+
     $instrucciones = '
-Eres el sistema de interpretación visual
-de un buscador de productos WooCommerce.
+Eres un interprete visual para el buscador de una tienda WooCommerce.
 
-Analiza únicamente la imagen proporcionada.
+La tienda puede vender ropa, alimentos, tecnologia, muebles
+u otros productos. No presupongas que vende un producto concreto.
 
-Tu función es interpretar visualmente el producto
-para generar información útil para el motor
-de búsqueda del catálogo.
+Idioma configurado de la tienda: ' . $idioma_tienda . '.
 
-No inventes productos ni información que no pueda
-deducirse razonablemente de la imagen.
+Analiza solamente lo que realmente aparece en la imagen.
 
-WooCommerce es la fuente de verdad para:
-productos, SKU, precios, stock y disponibilidad.
+Identifica el tipo especifico de producto y sus rasgos visibles.
+Utiliza una denominacion habitual en el idioma de la tienda.
 
-Debes identificar:
+Examina logotipos, etiquetas y textos visibles.
 
-- tipo de producto;
-- marca, solamente cuando exista suficiente evidencia;
-- modelo, solamente cuando exista suficiente evidencia;
-- características visibles o razonablemente identificables;
-- términos útiles para buscar productos similares.
+Identifica la marca solamente cuando exista evidencia visual
+suficiente. Si no puedes identificarla, deja marca vacia.
 
-Si una marca o modelo no puede determinarse
-con suficiente confianza, utiliza una cadena vacía.
+Identifica el modelo solamente cuando sea legible o claramente
+identificable. No deduzcas modelos por el aspecto del producto.
 
-No inventes especificaciones técnicas que no puedan
-observarse o deducirse razonablemente.
+En busqueda_corregida debes priorizar:
+1. El tipo de producto.
+2. La marca, cuando haya sido identificada con seguridad.
+3. El modelo, cuando haya sido identificado con seguridad.
+
+Si identificaste una marca con seguridad, conservala tambien
+en busqueda_corregida.
+
+Los colores y detalles secundarios pueden complementar la
+busqueda, pero no deben reemplazar el tipo o la marca.
+
+No inventes especificaciones tecnicas, materiales, capacidades,
+compatibilidades ni caracteristicas que no puedan apreciarse.
+
+Si no puedes reconocer el tipo de producto, deja vacios
+producto y busqueda_corregida.
+
+No afirmes que el producto existe en WooCommerce.
+WooCommerce es la unica fuente de verdad sobre productos,
+precios, SKU, stock y disponibilidad.
+
+Devuelve los campos solicitados por el esquema JSON.
+No agregues explicaciones externas.
 ';
-
 
     /*
      * Construir Data URL.

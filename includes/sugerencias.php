@@ -4,6 +4,113 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+/**
+ * Propone una corrección local usando palabras de productos
+ * publicados. No consulta proveedores de IA.
+ */
+function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
+    global $wpdb;
+
+    $consulta = compuciber_normalizar_texto( $consulta );
+
+    $palabras = array_slice(
+        compuciber_obtener_palabras( $consulta ),
+        0,
+        3
+    );
+
+    $tabla = $wpdb->prefix . 'compuciber_product_index';
+
+    foreach ( $palabras as $incorrecta ) {
+
+        // No alterar SKU, números ni términos demasiado cortos.
+        if ( ! preg_match( '/^[a-z]{4,30}$/', $incorrecta ) ) {
+            continue;
+        }
+
+        $patron = '%' . $wpdb->esc_like(
+            substr( $incorrecta, 0, 2 )
+        ) . '%';
+
+        // Límite de candidatos para proteger el rendimiento.
+        $filas = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT i.nombre, i.marca, i.categorias
+                 FROM {$tabla} AS i
+                 INNER JOIN {$wpdb->posts} AS p ON p.ID = i.id
+                 WHERE p.post_type = 'product'
+                   AND p.post_status = 'publish'
+                   AND (i.nombre LIKE %s OR i.marca LIKE %s
+                        OR i.categorias LIKE %s)
+                 LIMIT 150",
+                $patron,
+                $patron,
+                $patron
+            )
+        );
+
+        $mejor = '';
+        $hay_empate = false;
+
+        $menor_distancia = strlen( $incorrecta ) <= 5
+            ? 2
+            : 3;
+
+        foreach ( (array) $filas as $fila ) {
+
+            $texto = $fila->nombre . ' '
+                . $fila->marca . ' '
+                . $fila->categorias;
+
+            foreach (
+                compuciber_obtener_palabras( $texto )
+                as $candidata
+            ) {
+
+                if ( ! preg_match( '/^[a-z]{4,30}$/', $candidata ) ) {
+                    continue;
+                }
+
+                $distancia = compuciber_fuzzy_distancia(
+                    $incorrecta,
+                    $candidata
+                );
+
+                if (
+                    $distancia > 0
+                    && $distancia < $menor_distancia
+                ) {
+
+                    $menor_distancia = $distancia;
+                    $mejor = $candidata;
+                    $hay_empate = false;
+
+                } elseif (
+                    $distancia === $menor_distancia
+                    && $mejor !== $candidata
+                ) {
+
+                    $hay_empate = true;
+                }
+            }
+        }
+
+        // No proponer una corrección ambigua.
+        if ( $mejor !== '' && ! $hay_empate ) {
+
+            return preg_replace(
+                '/(?<![a-z0-9])'
+                    . preg_quote( $incorrecta, '/' )
+                    . '(?![a-z0-9])/',
+                $mejor,
+                $consulta,
+                1
+            );
+        }
+    }
+
+    return '';
+}
 
 /**
  * AJAX: obtiene sugerencias de productos.
@@ -347,6 +454,71 @@ function compuciber_buscar_sugerencias() {
         )
     );
 
+$consulta_sugerida = '';
+
+    if ( get_option( 'compuciber_correccion', '1' ) === '1' ) {
+
+        // Conservar también las correcciones ya configuradas.
+        if (
+            compuciber_normalizar_texto( $termino )
+            !== $termino_corregido
+        ) {
+            $consulta_sugerida = $termino_corregido;
+        }
+
+        // Intentar fuzzy solo si no hay sugerencias normales.
+        if ( empty( $productos ) ) {
+
+            $propuesta = compuciber_sugerencia_fuzzy_catalogo(
+                $termino_corregido
+            );
+
+            if (
+                $propuesta !== ''
+                && $propuesta !== $termino_corregido
+            ) {
+
+                $filtros = array();
+                $parametros = array();
+
+                foreach (
+                    compuciber_obtener_palabras( $propuesta )
+                    as $palabra
+                ) {
+
+                    $filtros[] = 'i.texto_busqueda LIKE %s';
+
+                    $parametros[] = '%'
+                        . $wpdb->esc_like( $palabra )
+                        . '%';
+                }
+
+                if ( ! empty( $filtros ) ) {
+
+                    $productos_fuzzy = $wpdb->get_results(
+                        $wpdb->prepare(
+                            "SELECT i.id, i.nombre, i.url, i.imagen
+                             FROM {$tabla} AS i
+                             INNER JOIN {$wpdb->posts} AS p ON p.ID = i.id
+                             WHERE p.post_type = 'product'
+                               AND p.post_status = 'publish'
+                               AND (" . implode( ' AND ', $filtros ) . ")
+                             ORDER BY i.nombre ASC
+                             LIMIT 100",
+                            $parametros
+                        )
+                    );
+
+                    if ( ! empty( $productos_fuzzy ) ) {
+
+                        $productos = $productos_fuzzy;
+
+                        $consulta_sugerida = $propuesta;
+                    }
+                }
+            }
+        }
+    }    
 
     /*
      * ==================================================
@@ -567,6 +739,13 @@ function compuciber_buscar_sugerencias() {
         }
     }
 
+    if (
+        $consulta_sugerida !== ''
+        && ! empty( $resultados )
+    ) {
+        $resultados[0]['suggested_term'] =
+            $consulta_sugerida;
+    }
 
     wp_send_json_success(
         $resultados

@@ -13,6 +13,145 @@ document.addEventListener('DOMContentLoaded', function () {
         let timeout;
         let requestNumber = 0;
 
+        let aiTimer = null;
+        let ultimaTecla = 0;
+
+        /*
+         * Consultar IA solamente cuando
+         * no hay sugerencias locales.
+         */
+        function consultarSugerenciaIA(
+            term,
+            currentRequest
+        ) {
+
+            if (
+                !CompuciberSearch.suggestionAiNonce
+            ) {
+                return;
+            }
+
+            const parametros =
+                new URLSearchParams({
+                    action: 'compuciber_sugerencia_ia',
+                    nonce:
+                        CompuciberSearch.suggestionAiNonce,
+                    term: term
+                });
+
+            fetch(
+                CompuciberSearch.ajaxUrl,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+
+                    headers: {
+                        'Content-Type':
+                            'application/x-www-form-urlencoded; charset=UTF-8'
+                    },
+
+                    body: parametros.toString()
+                }
+            )
+                .then(
+                    response => response.json()
+                )
+                .then(function (data) {
+
+                    if (
+                        currentRequest !== requestNumber
+                        || input.value.trim() !== term
+                        || !data.success
+                        || !data.data
+                        || typeof data.data.suggested_term
+                        !== 'string'
+                    ) {
+                        return;
+                    }
+
+                    const propuesta =
+                        data.data.suggested_term.trim();
+
+                    if (
+                        !propuesta
+                        || propuesta.toLowerCase()
+                        === term.toLowerCase()
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        suggestions.children.length > 0
+                    ) {
+                        return;
+                    }
+
+                    /*
+                     * MOSTRAR CORRECCIÓN PROPUESTA
+                     */
+                    const boton =
+                        document.createElement(
+                            'button'
+                        );
+
+                    boton.type = 'button';
+
+                    boton.className =
+                        'cis-did-you-mean';
+
+                    boton.appendChild(
+                        document.createTextNode(
+                            'Quizás quisiste decir: '
+                        )
+                    );
+
+                    const palabra =
+                        document.createElement(
+                            'strong'
+                        );
+
+                    palabra.textContent =
+                        propuesta;
+
+                    boton.appendChild(
+                        palabra
+                    );
+
+                    /*
+                     * PERMITIR SELECCIONAR
+                     * LA CORRECCIÓN.
+                     */
+                    boton.addEventListener(
+                        'click',
+                        function () {
+
+                            input.value =
+                                propuesta;
+
+                            input.dispatchEvent(
+                                new Event(
+                                    'input',
+                                    {
+                                        bubbles: true
+                                    }
+                                )
+                            );
+
+                            input.focus();
+                        }
+                    );
+
+                    suggestions.appendChild(
+                        boton
+                    );
+                })
+                .catch(function () {
+
+                    // Si falla la IA, el buscador
+                    // local continúa funcionando.
+
+                });
+        }
 
         /*
          * ======================================================
@@ -33,6 +172,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             clearTimeout(timeout);
+            clearTimeout(aiTimer);
+
+            ultimaTecla = Date.now();
 
             const term = input.value.trim();
 
@@ -77,7 +219,115 @@ document.addEventListener('DOMContentLoaded', function () {
                             !Array.isArray(data.data) ||
                             data.data.length === 0
                         ) {
+
+                            /*
+                             * Si el autocompletado local
+                             * no encontró resultados,
+                             * intentar IA de respaldo.
+                             */
+                            if (
+                                data.success
+                                && Array.isArray(data.data)
+                                && data.data.length === 0
+                                && CompuciberSearch.suggestionAiEnabled
+                            ) {
+
+                                /*
+                                 * Esperar hasta que el
+                                 * usuario deje de escribir.
+                                 */
+                                const espera = Math.max(
+                                    0,
+                                    1200 - (
+                                        Date.now()
+                                        - ultimaTecla
+                                    )
+                                );
+
+                                aiTimer = setTimeout(
+                                    function () {
+
+                                        if (
+                                            currentRequest === requestNumber
+                                            && input.value.trim() === term
+                                        ) {
+
+                                            consultarSugerenciaIA(
+                                                term,
+                                                currentRequest
+                                            );
+                                        }
+
+                                    },
+                                    espera
+                                );
+                            }
+
                             return;
+                        }
+
+                        /*
+                         * CORRECCIÓN SUGERIDA
+                         * Sin llamadas adicionales a la IA.
+                         */
+                        const terminoSugerido =
+                            typeof data.data[0].suggested_term === 'string'
+                                ? data.data[0].suggested_term.trim()
+                                : '';
+
+                        if (
+                            terminoSugerido &&
+                            terminoSugerido.toLocaleLowerCase() !== term.toLocaleLowerCase()
+                        ) {
+
+                            const botonCorreccion =
+                                document.createElement('button');
+
+                            botonCorreccion.type = 'button';
+
+                            botonCorreccion.className =
+                                'cis-did-you-mean';
+
+                            const textoCorreccion =
+                                document.createElement('span');
+
+                            textoCorreccion.textContent =
+                                'Quizás quisiste decir: ';
+
+                            const palabraCorreccion =
+                                document.createElement('strong');
+
+                            palabraCorreccion.textContent =
+                                terminoSugerido;
+
+                            botonCorreccion.appendChild(
+                                textoCorreccion
+                            );
+
+                            botonCorreccion.appendChild(
+                                palabraCorreccion
+                            );
+
+                            botonCorreccion.addEventListener(
+                                'click',
+                                function () {
+
+                                    input.value =
+                                        terminoSugerido;
+
+                                    input.dispatchEvent(
+                                        new Event('input', {
+                                            bubbles: true
+                                        })
+                                    );
+
+                                    input.focus();
+                                }
+                            );
+
+                            suggestions.appendChild(
+                                botonCorreccion
+                            );
                         }
 
                         data.data.forEach(function (product) {
@@ -301,17 +551,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 const recognition =
                     new SpeechRecognition();
 
-                recognition.lang = 'es-PE';
+                recognition.lang =
+                    document.documentElement.lang ||
+                    navigator.language;
 
                 recognition.continuous = false;
 
-                recognition.interimResults = false;
+                recognition.interimResults = true;
 
                 recognition.maxAlternatives = 1;
 
 
                 let escuchando = false;
                 let reconocimientoActivo = false;
+
+                let inicioVoz = 0;
+                let finHabla = 0;
 
 
                 /*
@@ -358,6 +613,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 'Iniciando reconocimiento de voz...'
                             );
 
+                            inicioVoz = performance.now();
+                            finHabla = 0;
+
                             recognition.start();
 
                         } catch (error) {
@@ -395,16 +653,74 @@ document.addEventListener('DOMContentLoaded', function () {
                  */
 
                 recognition.addEventListener(
+                    'speechend',
+                    function () {
+                        finHabla = performance.now();
+                    }
+                );
+
+                recognition.addEventListener(
                     'result',
                     function (event) {
+                        let texto = '';
+                        let resultadoFinal = true;
 
-                        const texto =
-                            event.results[0][0].transcript;
+                        for (
+                            let i = 0;
+                            i < event.results.length;
+                            i++
+                        ) {
 
-                        console.log(
-                            'Texto reconocido:',
-                            texto
+                            const segmento =
+                                event.results[i];
+
+                            if (
+                                !segmento ||
+                                !segmento[0]
+                            ) {
+                                continue;
+                            }
+
+                            texto +=
+                                (texto ? ' ' : '') +
+                                segmento[0].transcript;
+
+                            if (!segmento.isFinal) {
+                                resultadoFinal = false;
+                            }
+                        }
+
+                        texto = texto.trim();
+
+                        if (!texto) {
+                            return;
+                        }
+
+                        // Mostrar el texto provisional
+                        // sin lanzar todavía la búsqueda.
+                        if (!resultadoFinal) {
+                            input.value = texto;
+                            return;
+                        }
+
+                        const tiempoTotal = Math.round(
+                            performance.now() - inicioVoz
                         );
+
+                        console.info(
+                            '[Compuciber voz] Botón a texto final:',
+                            tiempoTotal + ' ms'
+                        );
+
+                        if (finHabla > 0) {
+                            console.info(
+                                '[Compuciber voz] Fin del habla a texto final:',
+                                Math.round(
+                                    performance.now() - finHabla
+                                ) + ' ms'
+                            );
+                        }
+
                         voiceButton.innerHTML =
                             compuciber_icono_microfono() +
                             '<span class="compuciber-voice-text">Procesando...</span>';

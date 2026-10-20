@@ -55,24 +55,33 @@ function compuciber_consultar_gemini_imagen(
 
     }
 
-
+    $idioma_tienda = sanitize_text_field(
+            (string) get_locale()
+        );
     $prompt = '
     Eres un interprete visual para el buscador de una tienda WooCommerce.
+
+    Idioma configurado de la tienda: ' . $idioma_tienda . '.
 
     La tienda puede vender ropa, alimentos, tecnologia, muebles u otros productos.
     No presupongas que el catalogo contiene un producto concreto.
 
     Analiza solo lo que realmente se aprecia en la imagen.
 
-    Identifica el tipo de producto, sus rasgos visibles y posibles terminos de busqueda.
+    Identifica el tipo principal y especifico de producto, usando una denominacion
+    habitual en el idioma de la tienda. No mezcles color o acabados en producto:
+    esos detalles van en caracteristicas.
 
-    Incluye marca o modelo solamente si son legibles o claramente identificables.
+    Examina logotipos, etiquetas y texto visibles. Solo escribe una marca o modelo
+    cuando exista evidencia visual suficiente; de lo contrario, deja el campo vacio.
+    Nunca deduzcas una marca por el aspecto general del producto.
+
+    Genera busqueda_corregida priorizando el tipo de producto y, si estan
+    identificados con seguridad, la marca y el modelo. Conserva la marca visible
+    en la consulta; las alternativas sin esa marca las buscara el motor aparte.
+    Los colores y otros rasgos secundarios no deben sustituir al tipo o la marca.
 
     No deduzcas tallas, capacidades, compatibilidades ni materiales que no se aprecien.
-
-    Si la marca aparece en la imagen, conservala en el campo marca,
-    pero no la incluyas obligatoriamente en busqueda_corregida:
-    esta ultima debe poder encontrar articulos equivalentes del catalogo.
 
     Si no es posible identificar el tipo de producto,
     deja producto y busqueda_corregida vacios.

@@ -502,3 +502,34 @@
     right: 0;
     width: 100%;
 }
+
+/* ==========================================
+   AUTOCOMPLETADO: CORRECCIÓN SUGERIDA
+   ========================================== */
+
+.compuciber-ai-search .compuciber-suggestions .cis-did-you-mean {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 12px;
+    background: #f8fafc;
+    border: 0;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 0;
+    box-shadow: none;
+    color: #1f2937;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.compuciber-ai-search .compuciber-suggestions .cis-did-you-mean:hover,
+.compuciber-ai-search .compuciber-suggestions .cis-did-you-mean:focus-visible {
+    background: #eef2ff;
+}
+
+.compuciber-ai-search .compuciber-suggestions .cis-did-you-mean strong {
+    color: #1d4ed8;
+    font-weight: 700;
+}

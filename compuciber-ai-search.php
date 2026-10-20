@@ -52,6 +52,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/configuracion.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/admin-panel.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/ia.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/sugerencias-ia.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/imagenes.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/openai.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/proveedores/gemini.php';
@@ -156,6 +157,25 @@ function compuciber_cargar_buscador_js() {
         'CompuciberSearch',
         array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+
+            'suggestionAiNonce' => wp_create_nonce(
+                'compuciber_sugerencia_ia'
+            ),
+
+            'suggestionAiEnabled' => (
+                get_option(
+                    'compuciber_autocompletado',
+                    '1'
+                ) === '1'
+                && get_option(
+                    'compuciber_correccion',
+                    '1'
+                ) === '1'
+                && get_option(
+                    'compuciber_busqueda_semantica',
+                    '0'
+                ) === '1'
+            ),            
 
             'imageNonce' => wp_create_nonce(
                 'compuciber_busqueda_imagen'
@@ -380,7 +400,7 @@ function compuciber_ajax_busqueda_imagen() {
 
     $hash_imagen = hash(
         'sha256',
-        'visual-general-v2|'
+        'visual-general-v3|'
         . $proveedor_cache
         . '|'
         . $modelo_cache
@@ -1184,13 +1204,62 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 && is_string( $interpretacion['producto'] )
             ) {
 
-                $palabras_tipo = compuciber_obtener_palabras(
+                $tipo_visual = compuciber_normalizar_texto(
                     $interpretacion['producto']
                 );
 
-                $tipo_principal = ! empty( $palabras_tipo )
-                    ? reset( $palabras_tipo )
-                    : '';
+                $palabras_tipo = compuciber_obtener_palabras(
+                    $tipo_visual
+                );
+
+                /*
+                 * Primero evaluar el tipo completo.
+                 * Después, sus términos de derecha a izquierda.
+                 * Utilizar solo los sinónimos existentes.
+                 */
+                $tipo_principal = $tipo_visual;
+
+                $tipos_a_evaluar = array_merge(
+                    array( $tipo_visual ),
+                    array_reverse( $palabras_tipo )
+                );
+
+                foreach ( $tipos_a_evaluar as $termino_tipo ) {
+
+                    foreach (
+                        compuciber_obtener_sinonimos()
+                        as $principal => $variantes
+                    ) {
+
+                        $grupo_tipo = array_merge(
+                            array( $principal ),
+                            is_array( $variantes )
+                                ? $variantes
+                                : array()
+                        );
+
+                        $grupo_tipo = array_map(
+                            'compuciber_normalizar_texto',
+                            $grupo_tipo
+                        );
+
+                        if (
+                            in_array(
+                                $termino_tipo,
+                                $grupo_tipo,
+                                true
+                            )
+                        ) {
+
+                            $tipo_principal =
+                                compuciber_normalizar_texto(
+                                    $principal
+                                );
+
+                            break 2;
+                        }
+                    }
+                }
 
                 if (
                     $tipo_principal !== ''
@@ -1259,6 +1328,17 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                     $ids_similares = array();
 
+                    $ids_misma_marca = array();
+                    $ids_otras_marcas = array();
+
+                    $marca_visual =
+                        ! empty( $interpretacion['marca'] )
+                        && is_string( $interpretacion['marca'] )
+                            ? compuciber_normalizar_texto(
+                                $interpretacion['marca']
+                            )
+                            : '';
+
                     if ( $candidatos_similares instanceof WP_Query ) {
 
                         foreach (
@@ -1312,14 +1392,40 @@ function compuciber_ai_search_shortcode( $atts = array() )
                                     )
                                 ) {
 
-                                    $ids_similares[] =
-                                        $post_similar->ID;
+                                    if (
+                                        $marca_visual !== ''
+                                        && compuciber_contiene_sinonimo(
+                                            $identidad,
+                                            $marca_visual
+                                        )
+                                    ) {
+
+                                        $ids_misma_marca[] =
+                                            $post_similar->ID;
+
+                                    } else {
+
+                                        $ids_otras_marcas[] =
+                                            $post_similar->ID;
+                                    }
 
                                     break;
                                 }
                             }
                         }
                     }
+
+                    /*
+                     * Mostrar primero productos de la marca
+                     * reconocida, si están disponibles.
+                     *
+                     * Los demás siguen siendo alternativas
+                     * del mismo tipo comprobado.
+                     */
+                    $ids_similares = array_merge(
+                        $ids_misma_marca,
+                        $ids_otras_marcas
+                    );
 
                     if ( ! empty( $ids_similares ) ) {
 
