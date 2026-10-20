@@ -144,6 +144,187 @@ document.addEventListener('DOMContentLoaded', function () {
                     suggestions.appendChild(
                         boton
                     );
+
+                    /*
+                     * MOSTRAR PRODUCTOS DE LA CORRECCIÓN IA
+                     *
+                     * Consulta el autocompletado local con
+                     * la palabra corregida.
+                     * No vuelve a llamar a Gemini ni OpenAI.
+                     */
+
+                    const urlProductos = new URL(
+                        CompuciberSearch.ajaxUrl,
+                        window.location.href
+                    );
+
+                    urlProductos.searchParams.set(
+                        'action',
+                        'compuciber_sugerencias'
+                    );
+
+                    urlProductos.searchParams.set(
+                        'term',
+                        propuesta
+                    );
+
+                    fetch(
+                        urlProductos.toString(),
+                        {
+                            credentials: 'same-origin'
+                        }
+                    )
+                        .then(function (respuesta) {
+
+                            if (!respuesta.ok) {
+                                throw new Error(
+                                    'No se pudieron cargar sugerencias'
+                                );
+                            }
+
+                            return respuesta.json();
+                        })
+                        .then(function (resultado) {
+
+                            // Evitar resultados antiguos si
+                            // el cliente cambió su búsqueda.
+                            if (
+                                currentRequest !== requestNumber ||
+                                input.value.trim() !== term ||
+                                !resultado.success ||
+                                !Array.isArray(resultado.data)
+                            ) {
+                                return;
+                            }
+
+                            resultado.data.slice(0, 5).forEach(
+                                function (producto) {
+
+                                    if (
+                                        !producto ||
+                                        !producto.url
+                                    ) {
+                                        return;
+                                    }
+
+                                    const tarjeta =
+                                        document.createElement('a');
+
+                                    tarjeta.href = producto.url;
+
+                                    tarjeta.className =
+                                        'compuciber-suggestion-item compuciber-product-result';
+
+                                    tarjeta.dataset.productId =
+                                        producto.id || '';
+
+                                    tarjeta.dataset.search = term;
+
+                                    /*
+                                     * IMAGEN
+                                     */
+                                    const imagen =
+                                        document.createElement('img');
+
+                                    imagen.className =
+                                        'compuciber-suggestion-image';
+
+                                    imagen.src =
+                                        producto.image || '';
+
+                                    imagen.alt =
+                                        producto.title || '';
+
+                                    /*
+                                     * CONTENIDO
+                                     */
+                                    const contenido =
+                                        document.createElement('div');
+
+                                    contenido.className =
+                                        'compuciber-suggestion-content';
+
+                                    /*
+                                     * NOMBRE
+                                     */
+                                    const titulo =
+                                        document.createElement('div');
+
+                                    titulo.className =
+                                        'compuciber-suggestion-title';
+
+                                    titulo.textContent =
+                                        producto.title || '';
+
+                                    contenido.appendChild(titulo);
+
+                                    /*
+                                     * ATRIBUTOS
+                                     */
+                                    if (
+                                        Array.isArray(producto.attributes) &&
+                                        producto.attributes.length > 0
+                                    ) {
+
+                                        const atributos =
+                                            document.createElement('div');
+
+                                        atributos.className =
+                                            'compuciber-suggestion-attributes';
+
+                                        atributos.textContent =
+                                            producto.attributes.join(' | ');
+
+                                        contenido.appendChild(atributos);
+                                    }
+
+                                    /*
+                                     * PRECIO
+                                     */
+                                    const precio =
+                                        document.createElement('div');
+
+                                    precio.className =
+                                        'compuciber-suggestion-price';
+
+                                    precio.innerHTML =
+                                        producto.price || '';
+
+                                    contenido.appendChild(precio);
+
+                                    /*
+                                     * DISPONIBILIDAD
+                                     */
+                                    const disponibilidad =
+                                        document.createElement('div');
+
+                                    disponibilidad.className =
+                                        'compuciber-suggestion-stock';
+
+                                    disponibilidad.textContent =
+                                        producto.availability || '';
+
+                                    contenido.appendChild(disponibilidad);
+
+                                    /*
+                                     * AGREGAR TARJETA
+                                     */
+                                    tarjeta.appendChild(imagen);
+
+                                    tarjeta.appendChild(contenido);
+
+                                    suggestions.appendChild(tarjeta);
+                                }
+                            );
+                        })
+                        .catch(function (error) {
+
+                            console.warn(
+                                'No se cargaron las tarjetas de la corrección:',
+                                error
+                            );
+                        });
+
                 })
                 .catch(function () {
 

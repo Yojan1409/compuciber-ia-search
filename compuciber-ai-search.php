@@ -1481,21 +1481,36 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
             if ( ! empty( $es_busqueda_imagen ) ) {
 
-                echo '<p>La identificación por imagen es orientativa. '
-                    . 'Verifica marca, modelo y características '
-                    . 'en la ficha del producto.</p>';
-            }
+                echo '<div class="cis-search-notice" role="note">';
 
-            if ( $mostrando_similares_imagen ) {
+                if ( $mostrando_similares_imagen ) {
 
-                echo '<p>No encontramos coincidencia con todos '
-                    . 'los detalles de la fotografía. '
-                    . 'Estas son opciones del mismo tipo.</p>';
-            }            
+                    echo '<strong class="cis-search-notice-title">'
+                        . 'Productos relacionados con tu imagen'
+                        . '</strong>';
+
+                    echo '<p>No encontramos una coincidencia precisa. '
+                        . 'Mostramos alternativas del tipo identificado. '
+                        . 'Verifica sus características en la ficha del producto.</p>';
+
+                } else {
+
+                    echo '<strong class="cis-search-notice-title">'
+                        . 'Búsqueda por imagen'
+                        . '</strong>';
+
+                    echo '<p>La identificación visual es orientativa. '
+                        . 'Verifica marca, modelo y características '
+                        . 'antes de elegir.</p>';
+                }
+
+                echo '</div>';
+            }    
 
             if ( $productos->have_posts() ) {
 
-                echo '<p>Buscando: <strong>'
+                echo '<p class="cis-search-summary">'
+                    . 'Resultados para <strong>'
                     . esc_html( $busqueda_original )
                     . '</strong></p>';
 
@@ -1503,10 +1518,15 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     $busqueda_original !== $busqueda
                 ) {
 
-                    echo '<p>Interpretamos tu búsqueda como: <strong>'
-                        . esc_html( $busqueda )
-                        . '</strong></p>';
+                    echo '<div class="cis-search-notice" role="note">';
 
+                    echo '<p>Interpretamos tu búsqueda <strong>'
+                        . esc_html( $busqueda_original )
+                        . '</strong> como <strong>'
+                        . esc_html( $busqueda )
+                        . '</strong>. Estos son los resultados de esa interpretación.</p>';
+
+                    echo '</div>';
                 }
 
                 echo '<h3>Resultados</h3>';
@@ -1696,11 +1716,18 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
             } else {
 
-                echo '<p>No encontramos productos para "'
-                    . esc_html(
-                        $busqueda_original
-                    )
-                    . '".</p>';
+                echo '<div class="cis-search-notice" role="status">';
+
+                echo '<strong class="cis-search-notice-title">'
+                    . 'No encontramos productos'
+                    . '</strong>';
+
+                echo '<p>No hay coincidencias para <strong>'
+                    . esc_html( $busqueda_original )
+                    . '</strong>. Prueba con otra palabra, '
+                    . 'marca o categoría.</p>';
+
+                echo '</div>';
 
             }
 
