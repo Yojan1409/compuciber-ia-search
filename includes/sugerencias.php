@@ -19,86 +19,166 @@ function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
         3
     );
 
-    $tabla = $wpdb->prefix . 'compuciber_product_index';
+    if ( empty( $palabras ) ) {
+        return '';
+    }
 
-    foreach ( $palabras as $incorrecta ) {
+    /*
+     * CACHÉ DE LA CONSULTA
+     *
+     * Evita repetir cálculos de corrección
+     * para la misma palabra.
+     */
+    $clave_consulta =
+        'cis_fuzzy_consulta_v2_' . md5( $consulta );
 
-        // No alterar SKU, números ni términos demasiado cortos.
-        if ( ! preg_match( '/^[a-z]{4,30}$/', $incorrecta ) ) {
-            continue;
-        }
+    $respuesta_cache = get_transient(
+        $clave_consulta
+    );
 
-        $patron = '%' . $wpdb->esc_like(
-            substr( $incorrecta, 0, 2 )
-        ) . '%';
+    if (
+        is_array( $respuesta_cache )
+        && isset( $respuesta_cache['propuesta'] )
+    ) {
+        return (string) $respuesta_cache['propuesta'];
+    }
 
-        // Límite de candidatos para proteger el rendimiento.
+    /*
+     * VOCABULARIO REAL DE LA TIENDA
+     *
+     * Se genera a partir del índice WooCommerce.
+     * No utiliza un diccionario fijo de marcas.
+     */
+    $clave_vocabulario = 'cis_fuzzy_vocabulario_v2';
+
+    $vocabulario = get_transient(
+        $clave_vocabulario
+    );
+
+    if ( ! is_array( $vocabulario ) ) {
+
+        $tabla =
+            $wpdb->prefix . 'compuciber_product_index';
+
         $filas = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT i.nombre, i.marca, i.categorias
-                 FROM {$tabla} AS i
-                 INNER JOIN {$wpdb->posts} AS p ON p.ID = i.id
-                 WHERE p.post_type = 'product'
-                   AND p.post_status = 'publish'
-                   AND (i.nombre LIKE %s OR i.marca LIKE %s
-                        OR i.categorias LIKE %s)
-                 LIMIT 150",
-                $patron,
-                $patron,
-                $patron
-            )
+            "SELECT i.nombre, i.marca, i.categorias
+             FROM {$tabla} AS i
+             INNER JOIN {$wpdb->posts} AS p
+                 ON p.ID = i.id
+             WHERE p.post_type = 'product'
+               AND p.post_status = 'publish'"
         );
 
-        $mejor = '';
-        $hay_empate = false;
-
-        $menor_distancia = strlen( $incorrecta ) <= 5
-            ? 2
-            : 3;
+        $palabras_catalogo = array();
 
         foreach ( (array) $filas as $fila ) {
 
-            $texto = $fila->nombre . ' '
-                . $fila->marca . ' '
-                . $fila->categorias;
+            $texto =
+                (string) $fila->nombre . ' '
+                . (string) $fila->marca . ' '
+                . (string) $fila->categorias;
 
             foreach (
                 compuciber_obtener_palabras( $texto )
-                as $candidata
+                as $palabra
             ) {
 
-                if ( ! preg_match( '/^[a-z]{4,30}$/', $candidata ) ) {
-                    continue;
-                }
-
-                $distancia = compuciber_fuzzy_distancia(
-                    $incorrecta,
-                    $candidata
-                );
-
                 if (
-                    $distancia > 0
-                    && $distancia < $menor_distancia
+                    preg_match(
+                        '/^[a-z]{4,30}$/',
+                        $palabra
+                    )
                 ) {
-
-                    $menor_distancia = $distancia;
-                    $mejor = $candidata;
-                    $hay_empate = false;
-
-                } elseif (
-                    $distancia === $menor_distancia
-                    && $mejor !== $candidata
-                ) {
-
-                    $hay_empate = true;
+                    $palabras_catalogo[ $palabra ] = true;
                 }
             }
         }
 
-        // No proponer una corrección ambigua.
-        if ( $mejor !== '' && ! $hay_empate ) {
+        $vocabulario = array_keys(
+            $palabras_catalogo
+        );
 
-            return preg_replace(
+        set_transient(
+            $clave_vocabulario,
+            $vocabulario,
+            15 * MINUTE_IN_SECONDS
+        );
+    }
+
+    $vocabulario_exacto = array_fill_keys(
+        $vocabulario,
+        true
+    );
+
+    $propuesta = '';
+
+    /*
+     * CORRECCIÓN APROXIMADA
+     */
+    foreach ( $palabras as $incorrecta ) {
+
+        // No modificar códigos, números ni
+        // palabras ya presentes en el catálogo.
+        if (
+            ! preg_match(
+                '/^[a-z]{4,30}$/',
+                $incorrecta
+            )
+            || isset(
+                $vocabulario_exacto[ $incorrecta ]
+            )
+        ) {
+            continue;
+        }
+
+        $max_distancia =
+            strlen( $incorrecta ) <= 5 ? 1 : 2;
+
+        $menor_distancia = $max_distancia + 1;
+
+        $mejor = '';
+        $empate = false;
+
+        foreach ( $vocabulario as $candidata ) {
+
+            // Descartar palabras con longitudes
+            // demasiado diferentes.
+            if (
+                abs(
+                    strlen( $incorrecta )
+                    - strlen( $candidata )
+                ) > $max_distancia
+            ) {
+                continue;
+            }
+
+            $distancia = levenshtein(
+                $incorrecta,
+                $candidata
+            );
+
+            if (
+                $distancia > 0
+                && $distancia < $menor_distancia
+            ) {
+
+                $menor_distancia = $distancia;
+                $mejor = $candidata;
+                $empate = false;
+
+            } elseif (
+                $distancia === $menor_distancia
+                && $mejor !== $candidata
+            ) {
+
+                $empate = true;
+            }
+        }
+
+        // Evitar correcciones ambiguas.
+        if ( $mejor !== '' && ! $empate ) {
+
+            $propuesta = preg_replace(
                 '/(?<![a-z0-9])'
                     . preg_quote( $incorrecta, '/' )
                     . '(?![a-z0-9])/',
@@ -106,10 +186,23 @@ function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
                 $consulta,
                 1
             );
+
+            break;
         }
     }
 
-    return '';
+    /*
+     * GUARDAR RESULTADO POR 10 MINUTOS
+     */
+    set_transient(
+        $clave_consulta,
+        array(
+            'propuesta' => $propuesta
+        ),
+        10 * MINUTE_IN_SECONDS
+    );
+
+    return $propuesta;
 }
 
 /**

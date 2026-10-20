@@ -98,9 +98,15 @@ if (
             : 0;
     }
 
-    $productos_indexados = (int) $wpdb->get_var(
-        "SELECT COUNT(*) FROM {$tabla}"
-    );
+    /*
+     * Contar solo productos publicados
+     * que realmente tienen índice.
+     */
+    $resumen_indice =
+        compuciber_resumen_indice_113();
+
+    $productos_indexados =
+        $resumen_indice['indexados'];
 
     /*
     * Estado real de embeddings.
@@ -225,6 +231,158 @@ if (
         <hr>
 
         <h2>Estado del sistema</h2>
+
+        <?php
+        $progreso_indice = $resumen_indice['total'] > 0
+            ? round(
+                100 * $resumen_indice['indexados']
+                / $resumen_indice['total']
+            )
+            : 100;
+
+        $estado_indice = get_option(
+            'compuciber_indice_lotes_estado',
+            array()
+        );
+
+        $estado_indice = is_array( $estado_indice )
+            ? $estado_indice
+            : array();
+
+        $proximo_lote = wp_next_scheduled(
+            'compuciber_indice_lote_113'
+        );
+
+        $error_indice = (
+            $estado_indice['estado'] ?? ''
+        ) === 'errores';
+
+        $cron_atrasado = (
+            $proximo_lote
+            && $proximo_lote < time() - 300
+        );
+
+        if ( $resumen_indice['total'] === 0 ) {
+
+            $mensaje_indice =
+                'Sin productos publicados';
+
+        } elseif (
+            $resumen_indice['pendientes'] === 0
+        ) {
+
+            $mensaje_indice = 'Completado';
+
+        } elseif ( $error_indice ) {
+
+            $mensaje_indice =
+                'Con errores: requiere revisión';
+
+        } elseif ( $cron_atrasado ) {
+
+            $mensaje_indice =
+                'Detenido o retrasado: revisar WP-Cron';
+
+        } else {
+
+            $mensaje_indice =
+                'En proceso o pendiente de ejecución';
+        }
+        ?>
+
+        <div class="postbox"
+             style="padding:12px 16px;max-width:700px;">
+
+            <h3>Estado de indexación automática</h3>
+
+            <p>
+                <strong>
+                    <?php echo esc_html(
+                        $mensaje_indice
+                    ); ?>
+                </strong>
+            </p>
+
+            <p>
+                <?php echo esc_html(
+                    $resumen_indice['indexados']
+                ); ?>
+
+                de
+
+                <?php echo esc_html(
+                    $resumen_indice['total']
+                ); ?>
+
+                productos publicados indexados.
+            </p>
+
+            <progress
+                value="<?php echo esc_attr(
+                    $progreso_indice
+                ); ?>"
+                max="100"
+                style="width:100%;height:18px;"
+            ></progress>
+
+            <p>
+                Progreso:
+                <strong>
+                    <?php echo esc_html(
+                        $progreso_indice
+                    ); ?> %
+                </strong>
+            </p>
+
+            <p>
+                Pendientes:
+                <strong>
+                    <?php echo esc_html(
+                        $resumen_indice['pendientes']
+                    ); ?>
+                </strong>
+            </p>
+
+            <?php if (
+                $resumen_indice['pendientes'] > 0
+            ) : ?>
+
+                <form
+                    action="<?php echo esc_url(
+                        admin_url( 'admin-post.php' )
+                    ); ?>"
+                    method="post"
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="compuciber_reintentar_indice_113"
+                    >
+
+                    <?php wp_nonce_field(
+                        'compuciber_reintentar_indice_113'
+                    ); ?>
+
+                    <?php submit_button(
+                        'Reintentar indexación',
+                        'secondary',
+                        'submit',
+                        false
+                    ); ?>
+
+                </form>
+
+                <p class="description">
+                    El índice se procesa automáticamente
+                    en lotes de hasta 40 productos.
+                    WP-Cron debe estar funcionando
+                    para completar el proceso.
+                </p>
+
+            <?php endif; ?>
+
+        </div>        
 
         <table class="widefat striped">
 
