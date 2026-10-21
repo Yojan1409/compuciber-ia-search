@@ -4,6 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+
 /**
  * Propone una corrección local usando palabras de productos
  * publicados. No consulta proveedores de IA.
@@ -682,6 +683,34 @@ $consulta_sugerida = '';
                 );
         }
 
+
+        /*
+         * Evitar imágenes HTTP en tiendas HTTPS.
+         *
+         * Solo corregir imágenes del mismo dominio.
+         * No modificar URLs de servicios externos.
+         */
+        if (
+            is_string( $imagen )
+            && strpos( $imagen, 'http://' ) === 0
+            && wp_parse_url(
+                home_url(),
+                PHP_URL_SCHEME
+            ) === 'https'
+            && wp_parse_url(
+                $imagen,
+                PHP_URL_HOST
+            ) === wp_parse_url(
+                home_url(),
+                PHP_URL_HOST
+            )
+        ) {
+
+            $imagen = set_url_scheme(
+                $imagen,
+                'https'
+            );
+        }
 
         /*
          * ==================================================
