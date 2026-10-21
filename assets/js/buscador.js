@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function () {
+function compuciberInicializarBuscadorPublico() {
 
     document.querySelectorAll('.compuciber-ai-search').forEach(function (root) {
 
@@ -9,6 +9,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!input || !suggestions) {
             return;
         }
+
+        /*
+         * Evitar registrar los mismos eventos
+         * más de una vez en este buscador.
+         */
+        if (root.dataset.cisJsReady === '1') {
+            return;
+        }
+
+        root.dataset.cisJsReady = '1';
 
         let timeout;
         let requestNumber = 0;
@@ -1429,5 +1439,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     );
 
-});
+}
+
+if (document.readyState === 'loading') {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        compuciberInicializarBuscadorPublico,
+        { once: true }
+    );
+
+} else {
+
+    compuciberInicializarBuscadorPublico();
+}
 

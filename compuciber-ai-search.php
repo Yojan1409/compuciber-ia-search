@@ -137,18 +137,26 @@ add_action(
  */
 function compuciber_cargar_buscador_js() {
 
+    /*
+     * Versionar automáticamente los archivos
+     * cuando se modifica su contenido.
+     */
     wp_enqueue_style(
         'compuciber-buscador',
         plugin_dir_url( __FILE__ ) . 'assets/css/buscador.css',
         array(),
-        COMPUCIBER_AI_SEARCH_VERSION
+        filemtime(
+            plugin_dir_path( __FILE__ ) . 'assets/css/buscador.css'
+        )
     );
 
     wp_enqueue_script(
         'compuciber-buscador',
         plugin_dir_url( __FILE__ ) . 'assets/js/buscador.js',
         array(),
-        COMPUCIBER_AI_SEARCH_VERSION,
+        filemtime(
+            plugin_dir_path( __FILE__ ) . 'assets/js/buscador.js'
+        ),
         true
     );
 

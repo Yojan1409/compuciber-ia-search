@@ -559,8 +559,15 @@ $consulta_sugerida = '';
             $consulta_sugerida = $termino_corregido;
         }
 
-        // Intentar fuzzy solo si no hay sugerencias normales.
-        if ( empty( $productos ) ) {
+        /*
+         * Intentar una corrección fuzzy si todavía
+         * no existe una corrección conocida,
+         * aunque aparezcan coincidencias genéricas.
+         */
+        if (
+            empty( $productos )
+            || $consulta_sugerida === ''
+        ) {
 
             $propuesta = compuciber_sugerencia_fuzzy_catalogo(
                 $termino_corregido
