@@ -27,6 +27,49 @@ function compuciberInicializarBuscadorPublico() {
         let ultimaTecla = 0;
 
         /*
+         * VER MÁS RESULTADOS
+         *
+         * Enviar la consulta a la página de destino
+         * configurada para el buscador.
+         */
+        function agregarVerMasResultados(consulta) {
+
+            const formulario = input.closest('form');
+
+            if (!formulario || !consulta) {
+                return;
+            }
+
+            const destino =
+                formulario.getAttribute('action') ||
+                window.location.pathname;
+
+            const url = new URL(
+                destino,
+                window.location.href
+            );
+
+            url.searchParams.set(
+                'cis_q',
+                consulta
+            );
+
+            const enlace =
+                document.createElement('a');
+
+            enlace.className =
+                'cis-suggestions-more';
+
+            enlace.href =
+                url.toString();
+
+            enlace.textContent =
+                'Ver más resultados';
+
+            suggestions.appendChild(enlace);
+        }
+
+        /*
          * Consultar IA solamente cuando
          * no hay sugerencias locales.
          */
@@ -326,6 +369,7 @@ function compuciberInicializarBuscadorPublico() {
                                     suggestions.appendChild(tarjeta);
                                 }
                             );
+                            agregarVerMasResultados(term);
                         })
                         .catch(function (error) {
 
@@ -681,6 +725,8 @@ function compuciberInicializarBuscadorPublico() {
                             );
 
                         });
+
+                        agregarVerMasResultados(term);
 
                     })
                     .catch(error => {

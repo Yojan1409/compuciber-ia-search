@@ -4,6 +4,54 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+/**
+ * Utiliza HTTPS para imágenes del propio sitio
+ * cuando la tienda está funcionando con HTTPS.
+ *
+ * No modifica imágenes de dominios externos.
+ */
+function compuciber_https_imagen_sugerencia( $imagen ) {
+
+    if (
+        ! is_string( $imagen )
+        || strpos( $imagen, 'http://' ) !== 0
+    ) {
+        return $imagen;
+    }
+
+    $host_imagen = strtolower(
+        (string) wp_parse_url(
+            $imagen,
+            PHP_URL_HOST
+        )
+    );
+
+    $host_tienda = strtolower(
+        (string) wp_parse_url(
+            home_url( '/' ),
+            PHP_URL_HOST
+        )
+    );
+
+    if (
+        $host_imagen !== ''
+        && $host_imagen === $host_tienda
+        && (
+            is_ssl()
+            || wp_parse_url(
+                home_url( '/' ),
+                PHP_URL_SCHEME
+            ) === 'https'
+        )
+    ) {
+        return set_url_scheme(
+            $imagen,
+            'https'
+        );
+    }
+
+    return $imagen;
+}
 
 /**
  * Propone una corrección local usando palabras de productos
@@ -291,6 +339,10 @@ function compuciber_buscar_sugerencias() {
                 );
             }
 
+            $imagen = compuciber_https_imagen_sugerencia(
+                $imagen
+            );            
+
             // Atributos específicos de esta variación.
 
             $atributos = array();
@@ -508,37 +560,98 @@ function compuciber_buscar_sugerencias() {
             . ')';
     }    
 
-    $termino_like = '%' . $wpdb->esc_like( $termino_corregido ) . '%';
+    $termino_like = '%'
+        . $wpdb->esc_like( $termino_corregido )
+        . '%';
 
-    // Prioridades para ordenar las sugerencias.
-    $valores_orden = array(
-        $termino_corregido, // SKU exacto.
-        $termino_corregido, // Modelo exacto.
-        $termino_corregido, // Nombre exacto.
-        $termino_like,      // Frase en el nombre.
-        $termino_like,      // SKU parcial.
-        $termino_like,      // Modelo parcial.
-        $termino_like,      // Marca.
+    /*
+     * PRIORIDAD DEL AUTOCOMPLETADO
+     *
+     * Primero SKU exacto y modelo exacto.
+     * Después, coincidencias en el nombre.
+     * Luego categorías, marca y otros datos.
+     *
+     * No depende de productos o marcas fijos.
+     */
+
+    $partes_nombre = array();
+    $valores_nombre = array();
+
+    foreach ( $palabras_termino as $palabra ) {
+
+        if ( $palabra === '' ) {
+            continue;
+        }
+
+        $partes_nombre[] =
+            'i.nombre LIKE %s';
+
+        $valores_nombre[] = '%'
+            . $wpdb->esc_like( $palabra )
+            . '%';
+    }
+
+    $valores_orden = array_merge(
+        array(
+            $termino_corregido,
+            $termino_corregido,
+            $termino_corregido,
+        ),
+        $valores_nombre,
+        array(
+            $termino_like,
+            $termino_like,
+            $termino_like,
+            $termino_like,
+            $termino_like,
+        )
     );
 
     $sql = "SELECT
-                i.id, i.nombre, i.url, i.imagen
+                i.id,
+                i.nombre,
+                i.url,
+                i.imagen
+
             FROM {$tabla} AS i
+
             INNER JOIN {$wpdb->posts} AS p
                 ON p.ID = i.id
+
             WHERE p.post_type = 'product'
-            AND p.post_status = 'publish'
-            AND (" . implode( ' OR ', $condiciones ) . ")
+              AND p.post_status = 'publish'
+
+              AND ("
+                . implode( ' OR ', $condiciones )
+              . ")
+
             ORDER BY CASE
+
                 WHEN i.sku = %s THEN 0
+
                 WHEN i.modelo = %s THEN 1
+
                 WHEN i.nombre = %s THEN 2
-                WHEN i.nombre LIKE %s THEN 3
-                WHEN i.sku LIKE %s THEN 4
-                WHEN i.modelo LIKE %s THEN 5
+
+                WHEN ("
+                    . implode( ' AND ', $partes_nombre )
+                . ") THEN 3
+
+                WHEN i.nombre LIKE %s THEN 4
+
+                WHEN i.categorias LIKE %s THEN 5
+
                 WHEN i.marca LIKE %s THEN 6
-                ELSE 7
-            END, i.nombre ASC
+
+                WHEN i.modelo LIKE %s THEN 7
+
+                WHEN i.sku LIKE %s THEN 8
+
+                ELSE 9
+
+            END,
+            i.nombre ASC
+
             LIMIT 100";
 
     $productos = $wpdb->get_results(
@@ -596,6 +709,31 @@ $consulta_sugerida = '';
 
                 if ( ! empty( $filtros ) ) {
 
+                    /*
+                     * ORDENAR SUGERENCIAS POR RELEVANCIA
+                     *
+                     * Dar prioridad a los productos cuyos
+                     * nombres contienen las palabras corregidas.
+                     *
+                     * No depende de marcas ni productos fijos.
+                     */
+
+                    $puntos_titulo = array();
+                    $valores_orden = array();
+
+                    foreach (
+                        compuciber_obtener_palabras( $propuesta )
+                        as $palabra
+                    ) {
+
+                        $puntos_titulo[] =
+                            'CASE WHEN i.nombre LIKE %s THEN 1 ELSE 0 END';
+
+                        $valores_orden[] = '%'
+                            . $wpdb->esc_like( $palabra )
+                            . '%';
+                    }
+
                     $productos_fuzzy = $wpdb->get_results(
                         $wpdb->prepare(
                             "SELECT i.id, i.nombre, i.url, i.imagen
@@ -604,9 +742,15 @@ $consulta_sugerida = '';
                              WHERE p.post_type = 'product'
                                AND p.post_status = 'publish'
                                AND (" . implode( ' AND ', $filtros ) . ")
-                             ORDER BY i.nombre ASC
+                             ORDER BY ("
+                                . implode( ' + ', $puntos_titulo )
+                                . ") DESC,
+                                      i.nombre ASC
                              LIMIT 100",
-                            $parametros
+                            array_merge(
+                                $parametros,
+                                $valores_orden
+                            )
                         )
                     );
 
@@ -684,33 +828,10 @@ $consulta_sugerida = '';
         }
 
 
-        /*
-         * Evitar imágenes HTTP en tiendas HTTPS.
-         *
-         * Solo corregir imágenes del mismo dominio.
-         * No modificar URLs de servicios externos.
-         */
-        if (
-            is_string( $imagen )
-            && strpos( $imagen, 'http://' ) === 0
-            && wp_parse_url(
-                home_url(),
-                PHP_URL_SCHEME
-            ) === 'https'
-            && wp_parse_url(
-                $imagen,
-                PHP_URL_HOST
-            ) === wp_parse_url(
-                home_url(),
-                PHP_URL_HOST
-            )
-        ) {
-
-            $imagen = set_url_scheme(
-                $imagen,
-                'https'
-            );
-        }
+        // Evitar imágenes HTTP en tiendas HTTPS.
+        $imagen = compuciber_https_imagen_sugerencia(
+            $imagen
+        );
 
         /*
          * ==================================================

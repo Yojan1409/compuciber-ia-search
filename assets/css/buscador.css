@@ -371,9 +371,11 @@
         min-width: 0;
     }
 
-    #compuciber-voice-button,
-    #compuciber-image-button {
+    .compuciber-search-box .compuciber-voice-button,
+    .compuciber-search-box .compuciber-image-button {
         flex: 0 0 auto;
+        min-width: 44px;
+        min-height: 44px;
     }
 
     .compuciber-search-box button[type="submit"] {
@@ -649,5 +651,46 @@
 
     .compuciber-ai-search .compuciber-suggestions .cis-did-you-mean {
         padding: 10px 12px;
+    }
+}
+
+/* =========================================
+   BUSCADOR - ADAPTACIÓN MÓVIL
+   ========================================= */
+
+@media (max-width: 600px) {
+
+    .compuciber-ai-search .compuciber-search-box {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .compuciber-ai-search .compuciber-search-box input[type="search"] {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .compuciber-ai-search .compuciber-search-box .compuciber-voice-button,
+
+    .compuciber-ai-search .compuciber-search-box .compuciber-image-button {
+        flex: 0 0 auto;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .compuciber-ai-search .compuciber-search-box button[type="submit"] {
+        flex: 1 1 auto;
+        width: auto;
+        min-height: 44px;
+    }
+
+    .compuciber-ai-search .compuciber-suggestions {
+        max-height: min(60vh, 380px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 }
