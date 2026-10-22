@@ -20,8 +20,56 @@ function compuciberInicializarBuscadorPublico() {
 
         root.dataset.cisJsReady = '1';
 
+        /*
+         * Renovar tokens en páginas públicas cacheadas.
+         * El buscador sigue funcionando si esta petición falla.
+         */
+        const tokensActualizados = fetch(
+            CompuciberSearch.ajaxUrl +
+            '?action=compuciber_tokens_publicos&_=' +
+            Date.now(),
+            {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            }
+        )
+            .then(function (respuesta) {
+
+                if (!respuesta.ok) {
+                    throw new Error(
+                        'No se pudieron renovar los tokens'
+                    );
+                }
+
+                return respuesta.json();
+            })
+            .then(function (datos) {
+
+                if (!datos.success || !datos.data) {
+                    return;
+                }
+
+                [
+                    'imageNonce',
+                    'suggestionAiNonce',
+                    'selectionNonce'
+                ].forEach(function (clave) {
+
+                    if (
+                        typeof datos.data[clave] === 'string'
+                    ) {
+                        CompuciberSearch[clave] =
+                            datos.data[clave];
+                    }
+                });
+            })
+            .catch(function () {
+                // Conservar los tokens originales.
+            });
+
         let timeout;
         let requestNumber = 0;
+        let controladorSugerencias = null;
 
         let aiTimer = null;
         let ultimaTecla = 0;
@@ -136,13 +184,23 @@ function compuciberInicializarBuscadorPublico() {
          * Consultar IA solamente cuando
          * no hay sugerencias locales.
          */
-        function consultarSugerenciaIA(
+        async function consultarSugerenciaIA(
             term,
             currentRequest
         ) {
 
             if (
                 !CompuciberSearch.suggestionAiNonce
+            ) {
+                return;
+            }
+
+            await tokensActualizados;
+
+            // No consultar IA si el cliente ya cambió el texto.
+            if (
+                currentRequest !== requestNumber
+                || input.value.trim() !== term
             ) {
                 return;
             }
@@ -473,7 +531,12 @@ function compuciberInicializarBuscadorPublico() {
             }
 
             clearTimeout(timeout);
+
             clearTimeout(aiTimer);
+
+            if (controladorSugerencias) {
+                controladorSugerencias.abort();
+            }
 
             ultimaTecla = Date.now();
 
@@ -497,7 +560,13 @@ function compuciberInicializarBuscadorPublico() {
                     '&term=' +
                     encodeURIComponent(term);
 
-                fetch(url)
+                controladorSugerencias = new AbortController();
+
+                fetch(url, {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    signal: controladorSugerencias.signal
+                })
                     .then(response => response.json())
                     .then(data => {
 
@@ -799,6 +868,10 @@ function compuciberInicializarBuscadorPublico() {
 
                     })
                     .catch(error => {
+
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
 
                         console.error(
                             'Error en búsqueda:',
@@ -1219,7 +1292,9 @@ function compuciberInicializarBuscadorPublico() {
 
             imageInput.addEventListener(
                 'change',
-                function () {
+                async function () {
+
+
 
                     if (
                         !imageInput.files ||
@@ -1250,7 +1325,7 @@ function compuciberInicializarBuscadorPublico() {
                         'compuciber-image-loading'
                     );
 
-
+                    await tokensActualizados;
                     const formulario =
                         new FormData();
 

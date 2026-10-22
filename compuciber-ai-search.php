@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 2.1.0
+ * Version: 2.1.1
  * Author: Compuciber
  */
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2.1.0'
+        '2.1.1'
     );
 }
 
@@ -199,6 +199,42 @@ function compuciber_cargar_buscador_js() {
 add_action(
     'wp_enqueue_scripts',
     'compuciber_cargar_buscador_js'
+);
+
+/**
+ * Renovar nonces públicos fuera de la caché HTML.
+ *
+ * No devuelve claves API ni datos privados.
+ */
+function compuciber_tokens_publicos() {
+
+    nocache_headers();
+
+    wp_send_json_success(
+        array(
+            'imageNonce' => wp_create_nonce(
+                'compuciber_busqueda_imagen'
+            ),
+
+            'suggestionAiNonce' => wp_create_nonce(
+                'compuciber_sugerencia_ia'
+            ),
+
+            'selectionNonce' => wp_create_nonce(
+                'compuciber_registrar_seleccion'
+            ),
+        )
+    );
+}
+
+add_action(
+    'wp_ajax_compuciber_tokens_publicos',
+    'compuciber_tokens_publicos'
+);
+
+add_action(
+    'wp_ajax_nopriv_compuciber_tokens_publicos',
+    'compuciber_tokens_publicos'
 );
 
 /*
@@ -446,10 +482,6 @@ function compuciber_ajax_busqueda_imagen() {
 
         $resultado = $cache_imagen;
 
-        error_log(
-            'COMPuciber Imagen: resultado obtenido desde caché.'
-        );
-
     } else {
 
     /*
@@ -531,10 +563,6 @@ function compuciber_ajax_busqueda_imagen() {
             compuciber_guardar_cache_imagen(
                 $hash_imagen,
                 $resultado
-            );
-
-            error_log(
-                'COMPuciber Imagen: resultado guardado en caché.'
             );
 
         }
