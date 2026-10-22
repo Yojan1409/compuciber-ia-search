@@ -825,8 +825,36 @@ $consulta_sugerida = '';
                 wc_placeholder_img_src(
                     'thumbnail'
                 );
+
         }
 
+        /*
+         * Usar HTTPS para las imágenes del propio sitio
+         * cuando WordPress está configurado con HTTPS.
+         *
+         * No modificar URLs de otros dominios.
+         */
+        if (
+            is_string( $imagen )
+            && $imagen !== ''
+            && 'https' === wp_parse_url(
+                home_url(),
+                PHP_URL_SCHEME
+            )
+            && wp_parse_url(
+                $imagen,
+                PHP_URL_HOST
+            ) === wp_parse_url(
+                home_url(),
+                PHP_URL_HOST
+            )
+        ) {
+
+            $imagen = set_url_scheme(
+                $imagen,
+                'https'
+            );
+        }
 
         // Evitar imágenes HTTP en tiendas HTTPS.
         $imagen = compuciber_https_imagen_sugerencia(

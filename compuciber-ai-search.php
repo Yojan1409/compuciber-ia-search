@@ -1142,6 +1142,56 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     $interpretacion
                 );
 
+            /*
+             * Corrección fuzzy en los resultados.
+             *
+             * Cuando la consulta original devuelve
+             * coincidencias aproximadas, comprobar
+             * si existe una interpretación mejor.
+             *
+             * No modificar imágenes ni SKU exactos.
+             */
+            if (
+                $productos instanceof WP_Query
+                && $productos->have_posts()
+                && $busqueda_original === $busqueda
+                && ! $es_busqueda_imagen
+                && get_option( 'compuciber_correccion', '1' ) === '1'
+                && function_exists( 'compuciber_sugerencia_fuzzy_catalogo' )
+                && function_exists( 'wc_get_product_id_by_sku' )
+                && ! wc_get_product_id_by_sku(
+                    trim( $busqueda_original )
+                )
+            ) {
+
+                $propuesta_fuzzy =
+                    compuciber_sugerencia_fuzzy_catalogo(
+                        $busqueda_original
+                    );
+
+                if (
+                    is_string( $propuesta_fuzzy )
+                    && $propuesta_fuzzy !== ''
+                    && compuciber_normalizar_texto( $propuesta_fuzzy )
+                        !== compuciber_normalizar_texto( $busqueda_original )
+                ) {
+
+                    $productos_corregidos =
+                        compuciber_buscar_productos_inteligente(
+                            $propuesta_fuzzy,
+                            $interpretacion
+                        );
+
+                    if (
+                        $productos_corregidos instanceof WP_Query
+                        && $productos_corregidos->have_posts()
+                    ) {
+
+                        $productos = $productos_corregidos;
+                        $busqueda = $propuesta_fuzzy;
+                    }
+                }
+            }
 
             /*
             * ======================================================
