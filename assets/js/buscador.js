@@ -66,7 +66,70 @@ function compuciberInicializarBuscadorPublico() {
             enlace.textContent =
                 'Ver más resultados';
 
-            suggestions.appendChild(enlace);
+            /*
+             * Mostrar el enlace antes de las tarjetas.
+             * Si hay corrección, colocarlo justo después.
+             */
+            const enlaceAnterior = suggestions.querySelector(
+                '.cis-suggestions-more'
+            );
+
+            if (enlaceAnterior) {
+                enlaceAnterior.remove();
+            }
+
+            const avisoCorreccion = suggestions.querySelector(
+                '.cis-did-you-mean'
+            );
+
+            if (avisoCorreccion) {
+
+                avisoCorreccion.insertAdjacentElement(
+                    'afterend',
+                    enlace
+                );
+
+            } else {
+
+                suggestions.prepend(enlace);
+            }
+        }
+
+        /*
+         * Priorizar productos cuyo nombre coincide
+         * con la consulta, sin utilizar marcas fijas.
+         */
+        function productosRelevantesParaSugerencias(
+            productos,
+            consulta
+        ) {
+
+            const palabras = String(consulta || '')
+                .toLocaleLowerCase()
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+
+            if (!palabras.length) {
+                return productos;
+            }
+
+            const coincidencias = productos.filter(
+                function (producto) {
+
+                    const titulo = String(
+                        producto.title || ''
+                    ).toLocaleLowerCase();
+
+                    return palabras.every(
+                        palabra => titulo.includes(palabra)
+                    );
+                }
+            );
+
+            return coincidencias.length > 0
+                ? coincidencias
+                : productos;
         }
 
         /*
@@ -250,7 +313,10 @@ function compuciberInicializarBuscadorPublico() {
                                 return;
                             }
 
-                            resultado.data.slice(0, 5).forEach(
+                            productosRelevantesParaSugerencias(
+                                resultado.data,
+                                propuesta
+                            ).slice(0, 5).forEach(
                                 function (producto) {
 
                                     if (
@@ -565,7 +631,10 @@ function compuciberInicializarBuscadorPublico() {
                             );
                         }
 
-                        data.data.forEach(function (product) {
+                        productosRelevantesParaSugerencias(
+                            data.data,
+                            terminoSugerido || term
+                        ).forEach(function (product) {
 
                             const item =
                                 document.createElement('a');

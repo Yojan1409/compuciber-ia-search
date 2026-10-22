@@ -655,36 +655,85 @@
 }
 
 /* =========================================
-   BUSCADOR - ADAPTACIÓN MÓVIL
+   ACCESO A TODOS LOS RESULTADOS
+   ========================================= */
+
+.compuciber-ai-search .compuciber-suggestions a.cis-suggestions-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--cis-more-bg,
+            rgba(127, 127, 127, 0.08));
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.94em;
+    font-weight: 700;
+    line-height: 1.45;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+}
+
+.compuciber-ai-search .compuciber-suggestions a.cis-suggestions-more::after {
+    content: '→';
+    margin-left: 8px;
+}
+
+/* =========================================
+   BUSCADOR - DISEÑO MÓVIL
    ========================================= */
 
 @media (max-width: 600px) {
 
     .compuciber-ai-search .compuciber-search-box {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 44px 44px;
         gap: 8px;
+        align-items: stretch;
+        width: 100%;
     }
 
     .compuciber-ai-search .compuciber-search-box input[type="search"] {
-        flex: 1 1 100%;
+        grid-column: 1 / -1;
+        grid-row: 1;
         width: 100%;
         min-width: 0;
+        min-height: 44px;
+        margin: 0;
+    }
+
+    .compuciber-ai-search .compuciber-search-box button[type="submit"] {
+        grid-column: 1;
+        grid-row: 2;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding-inline: 10px;
+        margin: 0;
+    }
+
+    .compuciber-ai-search .compuciber-search-box .compuciber-voice-button {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .compuciber-ai-search .compuciber-search-box .compuciber-image-button {
+        grid-column: 3;
+        grid-row: 2;
     }
 
     .compuciber-ai-search .compuciber-search-box .compuciber-voice-button,
 
     .compuciber-ai-search .compuciber-search-box .compuciber-image-button {
-        flex: 0 0 auto;
+        width: 44px;
         min-width: 44px;
+        height: 44px;
         min-height: 44px;
-    }
-
-    .compuciber-ai-search .compuciber-search-box button[type="submit"] {
-        flex: 1 1 auto;
-        width: auto;
-        min-height: 44px;
+        padding: 0;
+        margin: 0;
+        justify-content: center;
+        align-items: center;
     }
 
     .compuciber-ai-search .compuciber-suggestions {
