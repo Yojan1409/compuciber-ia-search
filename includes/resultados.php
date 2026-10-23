@@ -229,7 +229,8 @@ function compuciber_buscar_productos_inteligente(
                 $producto,
                 $busqueda,
                 $palabras_busqueda,
-                $datos_ia
+                $datos_ia,
+                $productos_candidatos
             );
 
         /*

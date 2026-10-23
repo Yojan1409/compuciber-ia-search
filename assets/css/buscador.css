@@ -6,6 +6,10 @@
     position: relative;
 }
 
+.compuciber-ai-search:focus-within {
+    z-index: 100000;
+}
+
 .compuciber-ai-search .compuciber-suggestions {
     display: none;
     position: absolute;

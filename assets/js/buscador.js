@@ -20,6 +20,54 @@ function compuciberInicializarBuscadorPublico() {
 
         root.dataset.cisJsReady = '1';
 
+        /* Mostrar sugerencias fuera de cabeceras que recortan contenido. */
+        const portalSugerencias = document.createElement('div');
+        portalSugerencias.className = 'compuciber-ai-search cis-suggestions-portal';
+        portalSugerencias.style.cssText =
+            'position:fixed!important;z-index:2147483000!important;' +
+            'height:0!important;padding:0!important;margin:0!important;' +
+            'pointer-events:none!important;';
+
+        suggestions.style.position = 'absolute';
+        suggestions.style.top = '0';
+        suggestions.style.left = '0';
+        suggestions.style.right = 'auto';
+        suggestions.style.width = '100%';
+        suggestions.style.pointerEvents = 'auto';
+
+        portalSugerencias.appendChild(suggestions);
+        document.body.appendChild(portalSugerencias);
+
+        function posicionarPortalSugerencias() {
+            const formulario = input.closest('form') || input;
+            const rect = formulario.getBoundingClientRect();
+            const ancho = Math.min(rect.width, window.innerWidth - 16);
+            const izquierda = Math.max(8, Math.min(rect.left,
+                window.innerWidth - ancho - 8));
+            const espacioAbajo = window.innerHeight - rect.bottom - 12;
+            const espacioArriba = rect.top - 12;
+            const mostrarArriba = espacioAbajo < 180 &&
+                espacioArriba > espacioAbajo;
+
+            portalSugerencias.style.left = izquierda + 'px';
+            portalSugerencias.style.width = Math.max(0, ancho) + 'px';
+            portalSugerencias.style.top =
+                (mostrarArriba ? rect.top - 4 : rect.bottom + 4) + 'px';
+
+            suggestions.style.transform = mostrarArriba
+                ? 'translateY(-100%)' : 'none';
+
+            suggestions.style.maxHeight = Math.max(0, Math.min(
+                380, mostrarArriba ? espacioArriba : espacioAbajo
+            )) + 'px';
+        }
+
+        posicionarPortalSugerencias();
+
+        window.addEventListener('scroll', posicionarPortalSugerencias, true);
+        window.addEventListener('resize', posicionarPortalSugerencias);
+        input.addEventListener('focus', posicionarPortalSugerencias);
+
         /*
          * Renovar tokens en páginas públicas cacheadas.
          * El buscador sigue funcionando si esta petición falla.

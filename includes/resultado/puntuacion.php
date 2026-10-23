@@ -361,7 +361,8 @@ function compuciber_calcular_puntuacion_producto(
     $producto,
     $busqueda,
     $palabras_busqueda,
-    $datos_ia
+    $datos_ia,
+    $filas_indice = null
 ) {
 
     $titulo = compuciber_normalizar_texto(
@@ -1396,10 +1397,12 @@ function compuciber_calcular_puntuacion_producto(
         $tabla =
             $wpdb->prefix . 'compuciber_product_index';
 
-        $filas_catalogo = $wpdb->get_results(
-            "SELECT nombre, marca, modelo, categorias, atributos, texto_busqueda, sku
-            FROM {$tabla}"
-        );
+        $filas_catalogo = is_array( $filas_indice )
+            ? $filas_indice
+            : $wpdb->get_results(
+                "SELECT nombre, marca, modelo, categorias, atributos, texto_busqueda, sku
+                FROM {$tabla}"
+            );
 
         $datos_anclas_catalogo = array(
             'marcas'  => array(),
@@ -1626,49 +1629,46 @@ function compuciber_calcular_puntuacion_producto(
         }
 
         /*
-        * MODELO EXACTO
+        * MODELO EXACTO - OPTIMIZADO
+        * Crear el diccionario de modelos una sola vez
+        * por petición.
         */
-        $modelo_encontrado = false;
+        if ( ! isset( $datos_anclas_catalogo['partes_modelos'] ) ) {
 
-        foreach (
-            array_keys(
-                $datos_anclas_catalogo['modelos']
-            ) as $modelo_catalogo
-        ) {
-
-            $modelo_normalizado =
-                compuciber_normalizar_texto(
-                    $modelo_catalogo
-                );
-
-            $partes_modelo =
-                preg_split(
-                    '/\s+/',
-                    $modelo_normalizado
-                );
+            $datos_anclas_catalogo['partes_modelos'] = array();
 
             foreach (
-                $partes_modelo as $parte_modelo
+                array_keys( $datos_anclas_catalogo['modelos'] )
+                as $modelo_catalogo
             ) {
 
-                if (
-                    $parte_modelo ===
-                    $palabra_busqueda
-                ) {
+                $modelo_normalizado =
+                    compuciber_normalizar_texto( $modelo_catalogo );
 
-                    $anclas_busqueda[] =
-                        $palabra_busqueda;
+                $partes_modelo =
+                    preg_split( '/\s+/', $modelo_normalizado );
 
-                    $modelo_encontrado = true;
+                foreach ( $partes_modelo as $parte_modelo ) {
 
-                    break 2;
+                    if ( $parte_modelo !== '' ) {
+                        $datos_anclas_catalogo['partes_modelos'][
+                            $parte_modelo
+                        ] = true;
+                    }
                 }
             }
         }
 
-        if ( $modelo_encontrado ) {
+        if (
+            isset(
+                $datos_anclas_catalogo['partes_modelos'][
+                    $palabra_busqueda
+                ]
+            )
+        ) {
+            $anclas_busqueda[] = $palabra_busqueda;
             continue;
-        }
+        }        
 
         /*
         * TÉRMINO ESPECÍFICO DEL CATÁLOGO
