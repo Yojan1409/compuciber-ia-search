@@ -867,6 +867,112 @@ function compuciber_encontrar_variacion_por_atributos(
 }
 
 /**
+ * Comprobar si la búsqueda tiene coincidencias
+ * textuales directas dentro del catálogo.
+ */
+function compuciber_coincidencia_directa_catalogo( $consulta ) {
+
+    global $wpdb;
+
+    $palabras = array_slice(
+        compuciber_obtener_palabras( $consulta ),
+        0,
+        8
+    );
+
+    if ( empty( $palabras ) ) {
+        return true;
+    }
+
+    $tabla = $wpdb->prefix . 'compuciber_product_index';
+
+    $condiciones = array_fill(
+        0,
+        count( $palabras ),
+        'i.texto_busqueda LIKE %s'
+    );
+
+    $valores = array();
+
+    foreach ( $palabras as $palabra ) {
+
+        $valores[] = '%' . $wpdb->esc_like( $palabra ) . '%';
+
+    }
+
+    $sql = "SELECT 1
+        FROM {$tabla} i
+        INNER JOIN {$wpdb->posts} p ON p.ID = i.id
+        WHERE p.post_type = 'product'
+          AND p.post_status = 'publish'
+          AND " . implode( ' AND ', $condiciones ) . "
+        LIMIT 1";
+
+    return (bool) $wpdb->get_var(
+        $wpdb->prepare( $sql, $valores )
+    );
+}
+
+/**
+ * Validar correcciones ortográficas propuestas.
+ * Evita cambiar códigos, modelos y números.
+ */
+function compuciber_validar_correccion_ortografica( $original, $propuesta ) {
+
+    $original = compuciber_normalizar_texto( $original );
+    $propuesta = compuciber_normalizar_texto( $propuesta );
+
+    if (
+        $original === ''
+        || $propuesta === ''
+        || $original === $propuesta
+    ) {
+        return false;
+    }
+
+    $antes = explode( ' ', $original );
+    $despues = explode( ' ', $propuesta );
+
+    if (
+        count( $antes ) !== count( $despues )
+        || count( $antes ) > 8
+    ) {
+        return false;
+    }
+
+    $cambios = 0;
+
+    foreach ( $antes as $i => $palabra ) {
+
+        $nueva = $despues[ $i ];
+
+        if ( $palabra === $nueva ) {
+            continue;
+        }
+
+        // Proteger SKU, modelos y números.
+        if (
+            preg_match( '/[0-9]/', $palabra )
+            || preg_match( '/[0-9]/', $nueva )
+            || strlen( $palabra ) < 4
+            || strlen( $nueva ) < 4
+        ) {
+            return false;
+        }
+
+        $max_distancia = strlen( $palabra ) <= 5 ? 1 : 2;
+
+        if ( levenshtein( $palabra, $nueva ) > $max_distancia ) {
+            return false;
+        }
+
+        $cambios++;
+    }
+
+    return $cambios > 0;
+}
+
+/**
  * Shortcode:
  * [compuciber_ai_search]
  */
@@ -1168,6 +1274,100 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     compuciber_sugerencia_fuzzy_catalogo(
                         $busqueda_original
                     );
+
+            /*
+            * Verificar con IA posibles errores que el fuzzy
+            * detectó, aunque ya existan resultados aproximados.
+            */
+            if (
+                get_option( 'compuciber_busqueda_semantica', '0' ) === '1'
+                && strlen( trim( $busqueda_original ) ) >= 4
+                && strlen( $busqueda_original ) <= 100
+                && (
+                    $propuesta_fuzzy !== ''
+                    || ! compuciber_coincidencia_directa_catalogo(
+                        $busqueda_original
+                    )
+                )
+            ) {
+                $proveedor = get_option(
+                    'compuciber_proveedor_ia', 'gemini'
+                );
+
+                $clave = 'cis_fuzzy_ia_v3_' . md5(
+                    $proveedor . '|' . $busqueda_original
+                );
+
+                $evaluacion = get_transient( $clave );
+
+                if ( ! is_array( $evaluacion ) ) {
+
+                    $ip = isset( $_SERVER['REMOTE_ADDR'] )
+                        ? (string) $_SERVER['REMOTE_ADDR'] : '';
+
+                    $limite = 'cis_fuzzy_lim_' . md5(
+                        wp_salt( 'auth' ) . $ip
+                    );
+
+                    $usos = (int) get_transient( $limite );
+
+                    if ( $usos < 12 ) {
+
+                        set_transient(
+                            $limite,
+                            $usos + 1,
+                            15 * MINUTE_IN_SECONDS
+                        );
+
+                        $respuesta = compuciber_consultar_ia(
+                            $busqueda_original
+                        );
+
+                        $evaluacion = array(
+                            'respondio' => is_array( $respuesta ),
+                            'propuesta' => is_array( $respuesta )
+                                ? sanitize_text_field(
+                                    $respuesta['busqueda_corregida'] ?? ''
+                                )
+                                : '',
+                        );
+
+                        set_transient(
+                            $clave,
+                            $evaluacion,
+                            HOUR_IN_SECONDS
+                        );
+                    }
+                }
+
+                if (
+                    is_array( $evaluacion )
+                    && ! empty( $evaluacion['respondio'] )
+                ) {
+
+                    $candidata = (string) (
+                        $evaluacion['propuesta'] ?? ''
+                    );
+
+                    // Si la IA no valida el cambio, no
+                    // mostramos una corrección especulativa.
+                    if (
+                        compuciber_validar_correccion_ortografica(
+                            $busqueda_original,
+                            $candidata
+                        )
+                    ) {
+                        $propuesta_fuzzy = $candidata;
+
+                    } elseif (
+                        $candidata !== ''
+                        && compuciber_normalizar_texto( $candidata )
+                            === compuciber_normalizar_texto( $busqueda_original )
+                    ) {
+                        $propuesta_fuzzy = '';
+                    }
+                }
+            }                    
 
                 if (
                     is_string( $propuesta_fuzzy )
