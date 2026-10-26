@@ -1,3 +1,9 @@
+/*
+ * Compartir la renovación de tokens entre
+ * todos los buscadores de una misma página.
+ */
+let compuciberTokensPublicosCompartidos = null;
+
 function compuciberInicializarBuscadorPublico() {
 
     document.querySelectorAll('.compuciber-ai-search').forEach(function (root) {
@@ -72,48 +78,50 @@ function compuciberInicializarBuscadorPublico() {
          * Renovar tokens en páginas públicas cacheadas.
          * El buscador sigue funcionando si esta petición falla.
          */
-        const tokensActualizados = fetch(
-            CompuciberSearch.ajaxUrl +
-            '?action=compuciber_tokens_publicos&_=' +
-            Date.now(),
-            {
-                credentials: 'same-origin',
-                cache: 'no-store'
-            }
-        )
-            .then(function (respuesta) {
 
-                if (!respuesta.ok) {
-                    throw new Error(
-                        'No se pudieron renovar los tokens'
-                    );
+        const tokensActualizados = compuciberTokensPublicosCompartidos ||
+            (compuciberTokensPublicosCompartidos = fetch(
+                CompuciberSearch.ajaxUrl +
+                '?action=compuciber_tokens_publicos&_=' +
+                Date.now(),
+                {
+                    credentials: 'same-origin',
+                    cache: 'no-store'
                 }
+            )
+                .then(function (respuesta) {
 
-                return respuesta.json();
-            })
-            .then(function (datos) {
-
-                if (!datos.success || !datos.data) {
-                    return;
-                }
-
-                [
-                    'imageNonce',
-                    'suggestionAiNonce',
-                    'selectionNonce'
-                ].forEach(function (clave) {
-
-                    if (
-                        typeof datos.data[clave] === 'string'
-                    ) {
-                        CompuciberSearch[clave] =
-                            datos.data[clave];
+                    if (!respuesta.ok) {
+                        throw new Error(
+                            'No se pudieron renovar los tokens'
+                        );
                     }
-                });
-            })
-            .catch(function () {
-                // Conservar los tokens originales.
-            });
+
+                    return respuesta.json();
+                })
+                .then(function (datos) {
+
+                    if (!datos.success || !datos.data) {
+                        return;
+                    }
+
+                    [
+                        'imageNonce',
+                        'suggestionAiNonce',
+                        'selectionNonce'
+                    ].forEach(function (clave) {
+
+                        if (
+                            typeof datos.data[clave] === 'string'
+                        ) {
+                            CompuciberSearch[clave] =
+                                datos.data[clave];
+                        }
+                    });
+                })
+                .catch(function () {
+                    // Conservar los tokens originales.
+                }));
 
         let timeout;
         let requestNumber = 0;
