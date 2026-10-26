@@ -57,8 +57,42 @@ function compuciber_https_imagen_sugerencia( $imagen ) {
  * Propone una corrección local usando palabras de productos
  * publicados. No consulta proveedores de IA.
  */
-function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
+function compuciber_sugerencia_fuzzy_catalogo( $consulta, $perfil_id = '' ) {
     global $wpdb;
+
+    $perfil_id = sanitize_key( (string) $perfil_id );
+
+    $cis_filtro_fuzzy_sql = '';
+    $cis_firma_perfil = '';
+
+    if ( $perfil_id !== '' ) {
+
+        if (
+            ! function_exists(
+                'compuciber_perfil_condicion_sql'
+            )
+        ) {
+            return '';
+        }
+
+        $cis_perfiles = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        $cis_datos_perfil = is_array( $cis_perfiles )
+            ? ( $cis_perfiles[ $perfil_id ] ?? null )
+            : null;
+
+        $cis_firma_perfil = md5(
+            wp_json_encode( $cis_datos_perfil )
+        );
+
+        $cis_filtro_fuzzy_sql =
+            compuciber_perfil_condicion_sql(
+                $perfil_id
+            );
+    }
 
     $consulta = compuciber_normalizar_texto( $consulta );
 
@@ -78,8 +112,11 @@ function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
      * Evita repetir cálculos de corrección
      * para la misma palabra.
      */
-    $clave_consulta =
-        'cis_fuzzy_consulta_v2_' . md5( $consulta );
+    $clave_consulta = $perfil_id === ''
+        ? 'cis_fuzzy_consulta_v2_' . md5( $consulta )
+        : 'cis_fuzzy_consulta_perfil_v1_' . md5(
+            $perfil_id . '|' . $cis_firma_perfil . '|' . $consulta
+        );
 
     $respuesta_cache = get_transient(
         $clave_consulta
@@ -98,7 +135,11 @@ function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
      * Se genera a partir del índice WooCommerce.
      * No utiliza un diccionario fijo de marcas.
      */
-    $clave_vocabulario = 'cis_fuzzy_vocabulario_v2';
+    $clave_vocabulario = $perfil_id === ''
+        ? 'cis_fuzzy_vocabulario_v2'
+        : 'cis_fuzzy_vocabulario_perfil_v1_' . md5(
+            $perfil_id . '|' . $cis_firma_perfil
+        );
 
     $vocabulario = get_transient(
         $clave_vocabulario
@@ -109,13 +150,32 @@ function compuciber_sugerencia_fuzzy_catalogo( $consulta ) {
         $tabla =
             $wpdb->prefix . 'compuciber_product_index';
 
+        /*
+        * Filtro SQL del perfil seleccionado.
+        * Sin perfil, conserva la búsqueda original.
+        */
+        $cis_filtro_sql = '';
+
+        if (
+            $cis_perfil_sugerencias !== ''
+            && function_exists(
+                'compuciber_perfil_condicion_sql'
+            )
+        ) {
+            $cis_filtro_sql =
+                compuciber_perfil_condicion_sql(
+                    $cis_perfil_sugerencias
+                );
+        }            
+
         $filas = $wpdb->get_results(
             "SELECT i.nombre, i.marca, i.categorias
              FROM {$tabla} AS i
              INNER JOIN {$wpdb->posts} AS p
                  ON p.ID = i.id
              WHERE p.post_type = 'product'
-               AND p.post_status = 'publish'"
+               AND p.post_status = 'publish'
+               {$cis_filtro_fuzzy_sql}"
         );
 
         $palabras_catalogo = array();
@@ -280,6 +340,27 @@ function compuciber_buscar_sugerencias() {
         wp_send_json_success( array() );
     }
 
+    // Identificar el perfil del buscador.
+    $cis_perfil_sugerencias = '';
+
+    if (
+        isset( $_GET['cis_perfil'] )
+        && is_string( $_GET['cis_perfil'] )
+    ) {
+        $cis_perfil_sugerencias = sanitize_key(
+            wp_unslash( $_GET['cis_perfil'] )
+        );
+    }
+
+    if (
+        $cis_perfil_sugerencias !== ''
+        && ! function_exists(
+            'compuciber_perfil_permite_producto'
+        )
+    ) {
+        wp_send_json_success( array() );
+    }    
+
     /*
     * SKU EXACTO DE VARIACIONES
     * Prioridad en el autocompletado.
@@ -314,6 +395,17 @@ function compuciber_buscar_sugerencias() {
                 || ! $padre->is_visible()
                 || ! $variacion->is_visible()
                 || ! $variacion->variation_is_visible()
+            ) {
+                wp_send_json_success( array() );
+            }
+
+            // El SKU exacto también respeta el perfil.
+            if (
+                $cis_perfil_sugerencias !== ''
+                && ! compuciber_perfil_permite_producto(
+                    $padre->get_id(),
+                    $cis_perfil_sugerencias
+                )
             ) {
                 wp_send_json_success( array() );
             }
@@ -619,9 +711,10 @@ function compuciber_buscar_sugerencias() {
                 ON p.ID = i.id
 
             WHERE p.post_type = 'product'
-              AND p.post_status = 'publish'
+            AND p.post_status = 'publish'
+            {$cis_filtro_sql}
 
-              AND ("
+            AND ("
                 . implode( ' OR ', $condiciones )
               . ")
 
@@ -684,7 +777,8 @@ $consulta_sugerida = '';
         ) {
 
             $propuesta = compuciber_sugerencia_fuzzy_catalogo(
-                $termino_corregido
+                $termino_corregido,
+                $cis_perfil_sugerencias
             );
 
             if (
@@ -741,6 +835,7 @@ $consulta_sugerida = '';
                              INNER JOIN {$wpdb->posts} AS p ON p.ID = i.id
                              WHERE p.post_type = 'product'
                                AND p.post_status = 'publish'
+                               {$cis_filtro_sql}
                                AND (" . implode( ' AND ', $filtros ) . ")
                              ORDER BY ("
                                 . implode( ' + ', $puntos_titulo )
@@ -789,6 +884,17 @@ $consulta_sugerida = '';
         if ( ! $producto_wc || ! $producto_wc->is_visible() ) {
             continue;
         }
+
+        // Excluir sugerencias fuera del perfil.
+        if (
+            $cis_perfil_sugerencias !== ''
+            && ! compuciber_perfil_permite_producto(
+                $producto_id,
+                $cis_perfil_sugerencias
+            )
+        ) {
+            continue;
+        }        
 
 
         /*

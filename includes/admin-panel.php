@@ -169,6 +169,135 @@ if (
                 de productos WooCommerce.
             </p>        
 
+    <div class="postbox" style="padding:16px;max-width:900px;">
+
+        <details>
+            <summary style="
+                cursor:pointer;
+                font-size:18px;
+                font-weight:600;
+                padding:4px 0;
+            ">
+                Cómo instalar y utilizar el buscador
+            </summary>
+
+        <p>
+            <strong>Shortcode principal:</strong>
+            <code>[compuciber_ai_search]</code>
+        </p>
+
+        <p>
+            También puedes utilizar:
+            <code>[ai_product_search]</code>
+        </p>
+
+        <p>
+            Inserta cualquiera de estos shortcodes
+            mediante el bloque Shortcode de WordPress.
+        </p>
+
+        <hr>
+
+        <h3>Buscador en cabeceras</h3>
+
+        <p>
+            Para mostrar únicamente la barra y
+            las sugerencias utiliza:
+        </p>
+
+        <p>
+            <code>[compuciber_ai_search solo_barra="si"]</code>
+        </p>
+
+        <p>
+            Antes de utilizarlo, entra en
+            <strong>Configuración → Destino de las búsquedas</strong>
+            y selecciona una página de resultados.
+        </p>
+
+        <p>
+            En esa página coloca el shortcode principal
+            para mostrar los productos encontrados.
+        </p>
+
+        <p>
+            <strong>Importante:</strong>
+            si utilizas "Usar página actual",
+            los resultados se mostrarán donde
+            esté insertado el buscador.
+            En cabeceras se recomienda una página separada.
+        </p>
+
+        <hr>
+
+        <h3>Otras formas de insertar el buscador</h3>
+
+        <p>
+            <strong>Gutenberg:</strong>
+            inserta el bloque "Compuciber AI Search"
+            desde el editor de WordPress.
+            Puedes seleccionar un perfil de búsqueda
+            directamente desde el bloque.
+            La opción predeterminada utiliza todo
+            el catálogo, sin filtros de perfil.
+        </p>
+
+        <p>
+            <strong>Elementor:</strong>
+            utiliza el widget "Compuciber AI Search".
+            Puedes seleccionar uno de los perfiles
+            activos o utilizar el buscador predeterminado.
+
+            También puedes personalizar su apariencia
+            desde los controles visuales de Elementor.
+            Para cabeceras, activa la opción
+            "Mostrar solo la barra".
+        </p>
+
+        <p>
+            <strong>PHP:</strong>
+            para desarrolladores, utiliza:
+            <code>&lt;?php compuciber_ai_search(); ?&gt;</code>
+        </p>
+
+        <p>
+            <strong>HTML personalizado (buscador predeterminado):</strong>
+            utiliza este código en un bloque HTML personalizado
+            o en el constructor de cabecera de tu tema.
+            No necesitas crear ningún perfil.
+        </p>
+
+        <pre><code>&lt;div class="compuciber-ai-search-embed"
+            data-modo="solo_barra"&gt;
+        &lt;/div&gt;</code></pre>
+
+        <p>
+            <strong>HTML con perfil personalizado (opcional):</strong>
+            si has creado un perfil en la configuración del plugin,
+            puedes utilizar su identificador para aplicar sus filtros
+            y estilos.
+        </p>
+
+        <pre><code>&lt;div class="compuciber-ai-search-embed"
+            data-perfil="nombre-del-perfil"
+            data-modo="solo_barra"&gt;
+        &lt;/div&gt;</code></pre>
+
+        <p>
+            Sustituye <code>nombre-del-perfil</code>
+            por el identificador real de un perfil activo.
+            Si no utilizas perfiles, usa el primer código.
+        </p>
+
+        <p>
+            <strong>Importante:</strong>
+            para insertar el buscador en una cabecera,
+            configura una página de resultados en
+            AI Product Search → Configuración.
+        </p>
+        </details>
+
+    </div>
             <h2>Exportar estadísticas</h2>
 
             <p>
@@ -1556,6 +1685,521 @@ function compuciber_ai_search_configuracion() {
 
         <h1>Configuración - AI Product Search</h1>
 
+        <?php
+        $cis_perfiles_panel = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        if ( ! is_array( $cis_perfiles_panel ) ) {
+            $cis_perfiles_panel = array();
+        }
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:900px;margin-top:20px;">
+
+            <h2 style="margin-top:0;">
+                Buscadores y perfiles
+            </h2>
+
+            <p>
+                Crea perfiles con nombres personalizados.
+                Cada perfil podrá tener sus propios filtros
+                y configuraciones de búsqueda.
+            </p>
+
+            <?php if (
+                isset( $_GET['cis_perfil'] )
+                && is_string( $_GET['cis_perfil'] )
+                && sanitize_key(
+                    wp_unslash( $_GET['cis_perfil'] )
+                ) === 'creado'
+            ) : ?>
+
+                <div class="notice notice-success inline">
+                    <p>Perfil creado correctamente.</p>
+                </div>
+
+            <?php endif; ?>
+
+            <form method="post"
+                action="<?php echo esc_url(
+                    admin_url( 'admin-post.php' )
+                ); ?>">
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compuciber_crear_perfil_busqueda"
+                >
+
+                <?php
+                wp_nonce_field(
+                    'compuciber_crear_perfil_busqueda'
+                );
+                ?>
+
+                <p>
+                    <label for="cis_nombre_perfil">
+                        <strong>Nombre del nuevo perfil</strong>
+                    </label>
+                </p>
+
+                <p>
+                    <input
+                        type="text"
+                        id="cis_nombre_perfil"
+                        name="cis_nombre_perfil"
+                        class="regular-text"
+                        maxlength="80"
+                        placeholder="Ejemplo: Reacondicionados"
+                        required
+                    >
+                </p>
+
+                <?php
+                submit_button(
+                    'Crear perfil',
+                    'secondary',
+                    'submit',
+                    false
+                );
+                ?>
+
+            </form>
+
+            <?php if ( ! empty( $cis_perfiles_panel ) ) : ?>
+
+                <h3>Perfiles creados</h3>
+
+                <?php
+                $cis_categorias = taxonomy_exists( 'product_cat' )
+                    ? get_terms( array(
+                        'taxonomy'   => 'product_cat',
+                        'hide_empty' => false,
+                        'orderby'    => 'name',
+                        'order'      => 'ASC',
+                    ) )
+                    : array();
+
+                if ( is_wp_error( $cis_categorias ) ) {
+                    $cis_categorias = array();
+                }
+                ?>
+
+                <?php foreach ( $cis_perfiles_panel as $cis_id => $cis_datos ) : ?>
+
+                    <?php
+                    if ( ! is_array( $cis_datos ) ) {
+                        continue;
+                    }
+
+                    $cis_incluir = array_map(
+                        'intval',
+                        (array) ( $cis_datos['incluir'] ?? array() )
+                    );
+
+                    $cis_excluir = array_map(
+                        'intval',
+                        (array) ( $cis_datos['excluir'] ?? array() )
+                    );
+                    ?>
+
+                    <details style="
+                        margin:12px 0;
+                        border:1px solid #c3c4c7;
+                        border-radius:8px;
+                        background:#fff;
+                        overflow:hidden;
+                    ">
+
+                        <summary style="
+                            padding:14px 16px;
+                            cursor:pointer;
+                            font-size:14px;
+                            font-weight:600;
+                        ">
+
+                            <?php
+                            echo esc_html(
+                                $cis_datos['nombre'] ?? $cis_id
+                            );
+                            ?>
+
+                            <span style="
+                                float:right;
+                                font-weight:400;
+                                color:#50575e;
+                            ">
+                                <?php
+                                echo ! empty( $cis_datos['activo'] )
+                                    ? 'Activo'
+                                    : 'Inactivo';
+                                ?>
+                            </span>
+
+                        </summary>
+
+                    <form method="post"
+                        action="<?php echo esc_url(
+                            admin_url( 'admin-post.php' )
+                        ); ?>"
+                        style="padding:15px;border:1px solid #ddd;margin:15px 0;">
+
+                        <input type="hidden"
+                            name="action"
+                            value="compuciber_guardar_perfil_busqueda">
+
+                        <input type="hidden"
+                            name="cis_perfil_id"
+                            value="<?php echo esc_attr( $cis_id ); ?>">
+
+                        <?php
+                        wp_nonce_field(
+                            'compuciber_guardar_perfil_busqueda_' . $cis_id
+                        );
+                        ?>
+
+                        <p>
+                            <strong>Nombre del perfil</strong>
+                        </p>
+
+                        <p>
+                            <input type="text"
+                                name="cis_nombre_perfil_editar"
+                                value="<?php echo esc_attr(
+                                    $cis_datos['nombre'] ?? ''
+                                ); ?>"
+                                class="regular-text"
+                                required>
+                        </p>
+
+                        <p>
+                            <strong>Shortcode de este perfil:</strong>
+                        </p>
+
+                        <p>
+                            <code>[compuciber_ai_search perfil="<?php
+                                echo esc_attr( $cis_id );
+                            ?>"]</code>
+                        </p>
+
+                        <p>
+                            <strong>Para insertar en una cabecera:</strong>
+                        </p>
+
+                        <p>
+                            <code>[compuciber_ai_search perfil="<?php
+                                echo esc_attr( $cis_id );
+                            ?>" solo_barra="si"]</code>
+                        </p>
+
+                        <p class="description">
+                            Ambos shortcodes utilizan los filtros de este perfil.
+                            Para el modo de cabecera, configura una página
+                            independiente de resultados.
+                        </p>                        
+
+                        <p>
+                            <label>
+                                <input type="checkbox"
+                                    name="cis_perfil_activo"
+                                    value="1"
+                                    <?php checked(
+                                        ! empty( $cis_datos['activo'] )
+                                    ); ?>>
+                                Perfil activo
+                            </label>
+                        </p>
+
+                        <h4>Filtros por categorías</h4>
+
+                        <p class="description">
+                            Selecciona las categorías que este buscador
+                            podrá incluir o excluir.
+                            Las subcategorías se muestran también.
+                        </p>
+
+                        <?php if ( ! empty( $cis_categorias ) ) : ?>
+
+                            <table class="widefat striped">
+                                <thead>
+                                    <tr>
+                                        <th>Categoría</th>
+                                        <th>Incluir</th>
+                                        <th>Excluir</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <?php foreach ( $cis_categorias as $categoria ) : ?>
+
+                                        <tr>
+                                            <td>
+                                                <?php
+                                                echo esc_html( $categoria->name );
+
+                                                if ( $categoria->parent ) {
+                                                    echo ' <small>(Subcategoría)</small>';
+                                                }
+                                                ?>
+                                            </td>
+
+                                            <td>
+                                                <input type="checkbox"
+                                                    name="cis_categorias_incluir[]"
+                                                    value="<?php echo esc_attr(
+                                                        $categoria->term_id
+                                                    ); ?>"
+                                                    <?php checked(
+                                                        in_array(
+                                                            (int) $categoria->term_id,
+                                                            $cis_incluir,
+                                                            true
+                                                        )
+                                                    ); ?>>
+                                            </td>
+
+                                            <td>
+                                                <input type="checkbox"
+                                                    name="cis_categorias_excluir[]"
+                                                    value="<?php echo esc_attr(
+                                                        $categoria->term_id
+                                                    ); ?>"
+                                                    <?php checked(
+                                                        in_array(
+                                                            (int) $categoria->term_id,
+                                                            $cis_excluir,
+                                                            true
+                                                        )
+                                                    ); ?>>
+                                            </td>
+                                        </tr>
+
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+
+                        <?php else : ?>
+
+                            <p>No se encontraron categorías WooCommerce.</p>
+
+                        <?php endif; ?>
+
+                        <p>
+                            <?php
+                            submit_button(
+                                'Guardar perfil',
+                                'secondary',
+                                'submit',
+                                false
+                            );
+                            ?>
+                        </p>
+
+                    </form>
+
+                    <?php
+                    $cis_estilos_guardados = get_option(
+                        'compuciber_estilos_perfiles',
+                        array()
+                    );
+
+                    if ( ! is_array( $cis_estilos_guardados ) ) {
+                        $cis_estilos_guardados = array();
+                    }
+
+                    $cis_colores_base = array(
+                        'fondo'       => '#ffffff',
+                        'texto'       => '#222222',
+                        'borde'       => '#d1d5db',
+                        'boton'       => '#1e3a5f',
+                        'texto_boton' => '#ffffff',
+                    );
+
+                    $cis_estilo_perfil = isset(
+                        $cis_estilos_guardados[ $cis_id ]
+                    ) && is_array(
+                        $cis_estilos_guardados[ $cis_id ]
+                    )
+                        ? $cis_estilos_guardados[ $cis_id ]
+                        : array();
+
+                    $cis_etiquetas_colores = array(
+                        'fondo'       => 'Fondo',
+                        'texto'       => 'Texto',
+                        'borde'       => 'Borde',
+                        'boton'       => 'Botón de búsqueda',
+                        'texto_boton' => 'Texto del botón',
+                    );
+                    ?>
+
+                    <form method="post"
+                        action="<?php echo esc_url(
+                            admin_url( 'options.php' )
+                        ); ?>"
+                        style="padding:15px;border:1px solid #ddd;margin:0 0 20px;">
+
+                        <?php
+                        settings_fields(
+                            'compuciber_estilos_perfiles_settings_group'
+                        );
+                        ?>
+
+                        <?php
+                        // Conservar los estilos de los demás perfiles.
+                        foreach (
+                            $cis_estilos_guardados as $cis_otro_id => $cis_otro_estilo
+                        ) :
+
+                            if (
+                                $cis_otro_id === $cis_id
+                                || ! is_array( $cis_otro_estilo )
+                            ) {
+                                continue;
+                            }
+
+                            foreach (
+                                array(
+                                    'fondo',
+                                    'texto',
+                                    'borde',
+                                    'boton',
+                                    'texto_boton',
+                                    'radio',
+                                    'placeholder'
+                                ) as $cis_campo
+                            ) :
+                        ?>
+
+                            <input type="hidden"
+                                name="compuciber_estilos_perfiles[<?php
+                                    echo esc_attr( $cis_otro_id );
+                                ?>][<?php echo esc_attr( $cis_campo ); ?>]"
+                                value="<?php echo esc_attr(
+                                    $cis_otro_estilo[ $cis_campo ] ?? ''
+                                ); ?>">
+
+                        <?php
+                            endforeach;
+                        endforeach;
+                        ?>
+
+                        <h4>Personalizar apariencia del buscador</h4>
+
+                        <?php foreach (
+                            $cis_etiquetas_colores as $cis_campo => $cis_etiqueta
+                        ) : ?>
+
+                            <p>
+                                <label>
+                                    <?php echo esc_html( $cis_etiqueta ); ?>
+
+                                    <input type="color"
+                                        name="compuciber_estilos_perfiles[<?php
+                                            echo esc_attr( $cis_id );
+                                        ?>][<?php echo esc_attr( $cis_campo ); ?>]"
+                                        value="<?php echo esc_attr(
+                                            sanitize_hex_color(
+                                                (string) (
+                                                    $cis_estilo_perfil[ $cis_campo ] ?? ''
+                                                )
+                                            ) ?: $cis_colores_base[ $cis_campo ]
+                                        ); ?>">
+                                </label>
+                            </p>
+
+                        <?php endforeach; ?>
+
+                        <p>
+                            <label>
+                                Redondeo de bordes (0 a 30 px)
+
+                                <input type="number"
+                                    min="0"
+                                    max="30"
+                                    name="compuciber_estilos_perfiles[<?php
+                                        echo esc_attr( $cis_id );
+                                    ?>][radio]"
+                                    value="<?php echo esc_attr(
+                                        min(
+                                            30,
+                                            absint(
+                                                $cis_estilo_perfil['radio'] ?? 8
+                                            )
+                                        )
+                                    ); ?>">
+                            </label>
+                        </p>
+
+                        <p>
+                            <label>
+                                Texto del campo de búsqueda
+
+                                <input type="text"
+                                    class="regular-text"
+                                    maxlength="120"
+                                    name="compuciber_estilos_perfiles[<?php
+                                        echo esc_attr( $cis_id );
+                                    ?>][placeholder]"
+                                    value="<?php echo esc_attr(
+                                        $cis_estilo_perfil['placeholder'] ?? ''
+                                    ); ?>"
+                                    placeholder="¿Qué producto estás buscando?">
+                            </label>
+                        </p>
+
+                        <?php
+                        submit_button(
+                            'Guardar estilo',
+                            'secondary',
+                            'submit',
+                            false
+                        );
+                        ?>
+
+                    </form>  
+                    
+                    <form method="post"
+                        action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+                        style="margin:0 0 25px 0;"
+                        onsubmit="return confirm('¿Seguro que deseas eliminar este perfil y sus estilos? Esta acción no se puede deshacer.');">
+
+                        <input type="hidden"
+                            name="action"
+                            value="compuciber_eliminar_perfil_busqueda">
+
+                        <input type="hidden"
+                            name="cis_perfil_id"
+                            value="<?php echo esc_attr( $cis_id ); ?>">
+
+                        <?php
+                        wp_nonce_field(
+                            'compuciber_eliminar_perfil_busqueda_' . $cis_id
+                        );
+                        ?>
+
+                        <p class="description">
+                            Al eliminar este perfil, los buscadores
+                            que lo utilizan dejarán de funcionar
+                            hasta que selecciones otro perfil.
+                        </p>
+
+                        <button type="submit"
+                            class="button button-secondary"
+                            style="color:#b32d2e;border-color:#b32d2e;">
+                            Eliminar perfil
+                        </button>
+
+                    </form>                    
+
+                </details>
+                <?php endforeach; ?>
+
+            <?php endif; ?>
+
+        </div>        
+
         <form method="post" action="options.php">
 
             <?php
@@ -2524,9 +3168,98 @@ function compuciber_ai_search_configuracion() {
                         );
                         ?>
 
+                        <?php
+                        $cis_destino_id = absint(
+                            get_option( 'compuciber_pagina_resultados', 0 )
+                        );
+
+                        $cis_destino_valido =
+                            $cis_destino_id > 0
+                            && get_post_type( $cis_destino_id ) === 'page'
+                            && get_post_status( $cis_destino_id ) === 'publish';
+                        ?>
+
+                        <?php if ( ! $cis_destino_valido ) : ?>
+
+                            <div class="notice notice-warning inline"
+                                style="margin:12px 0;">
+
+                                <p>
+                                    <strong>Atención al usarlo en la cabecera:</strong>
+                                    no hay una página de resultados publicada
+                                    y seleccionada.
+
+                                    Los resultados del shortcode completo
+                                    se mostrarán en la misma ubicación
+                                    del buscador.
+                                </p>
+
+                                <p>
+                                    <a href="<?php echo esc_url(
+                                        admin_url( 'post-new.php?post_type=page' )
+                                    ); ?>">
+                                        Crear una página de resultados
+                                    </a>
+
+                                    y selecciónala arriba después de publicarla.
+                                </p>
+
+                            </div>
+
+                        <?php else : ?>
+
+                            <p class="description">
+
+                                <strong>Página de resultados seleccionada:</strong>
+
+                                <a href="<?php echo esc_url(
+                                    get_permalink( $cis_destino_id )
+                                ); ?>"
+                                target="_blank"
+                                rel="noopener noreferrer">
+                                    Ver página
+                                </a>.
+
+                                Comprueba que incluya
+                                <code>[compuciber_ai_search]</code>.
+
+                            </p>
+
+                        <?php endif; ?>                        
+
                         <p class="description">
-                            La página seleccionada debe contener
-                            el shortcode [ai_product_search].
+                            <strong>¿Dónde aparecerán los resultados?</strong>
+                        </p>
+
+                        <p class="description">
+                            Si seleccionas "Usar página actual", los resultados
+                            aparecerán donde esté insertado el buscador.
+                            Si lo colocas en una cabecera, también podrían
+                            mostrarse dentro de ella.
+                        </p>
+
+                        <p class="description">
+                            <strong>Recomendado para cabeceras:</strong>
+                            selecciona una página de resultados y coloca
+                            en ella el shortcode:
+                            <code>[compuciber_ai_search]</code>
+                        </p>
+
+                        <p class="description">
+                            En la cabecera utiliza:
+                            <code>[compuciber_ai_search solo_barra="si"]</code>
+                        </p>
+
+                        <p class="description">
+                            Así, el encabezado mostrará únicamente la barra
+                            y sus sugerencias, mientras que los resultados
+                            completos aparecerán en la página seleccionada.
+                        </p>
+
+                        <p class="description">
+                            <strong>Importante:</strong>
+                            el modo "solo barra" necesita una página de
+                            resultados configurada para mostrar los productos.
                         </p>
                     </td>
                 </tr>
@@ -2587,10 +3320,15 @@ function compuciber_ai_search_configuracion() {
                         </select>
 
                         <p class="description">
-                            La opción WooCommerce utilizará
-                            las plantillas compatibles de la tienda.
-                            Su conexión se completará en el
-                            siguiente paso.
+                            <strong>Tarjetas propias del plugin:</strong>
+                            muestra los productos con el diseño
+                            integrado de Compuciber AI Search.
+                            <br>
+                            <strong>Plantilla WooCommerce de la tienda:</strong>
+                            utiliza las plantillas de producto
+                            compatibles de WooCommerce y del tema activo.
+                            La apariencia puede variar según el tema
+                            y sus personalizaciones.
                         </p>
 
                     </td>
@@ -2599,11 +3337,59 @@ function compuciber_ai_search_configuracion() {
 
             </table>            
 
-            <?php submit_button( 'Guardar configuración' ); ?>
+        <?php submit_button( 'Guardar configuración' ); ?>
 
         </form>
 
-    </div>
+        <?php
+        $cis_pagina_id = absint(
+            get_option( 'compuciber_pagina_resultados', 0 )
+        );
+
+        $cis_pagina_valida = $cis_pagina_id > 0
+            && get_post_type( $cis_pagina_id ) === 'page'
+            && get_post_status( $cis_pagina_id ) === 'publish';
+        ?>
+
+        <?php if ( ! $cis_pagina_valida ) : ?>
+
+            <form method="post"
+                action="<?php echo esc_url(
+                    admin_url( 'admin-post.php' )
+                ); ?>">
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compuciber_crear_pagina_resultados"
+                >
+
+                <?php
+                wp_nonce_field(
+                    'compuciber_crear_pagina_resultados'
+                );
+                ?>
+
+                <?php
+                submit_button(
+                    'Crear y seleccionar página de resultados',
+                    'secondary',
+                    'submit',
+                    false
+                );
+                ?>
+
+                <p class="description">
+                    Se creará una página publicada con el
+                    buscador inteligente y se seleccionará
+                    como destino de las búsquedas.
+                </p>
+
+            </form>
+
+        <?php endif; ?>
+
+        </div>
 
     <?php
 }

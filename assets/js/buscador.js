@@ -150,6 +150,14 @@ function compuciberInicializarBuscadorPublico() {
                 consulta
             );
 
+            // Mantener el perfil al abrir los resultados completos.
+            if (root.dataset.cisPerfil) {
+                url.searchParams.set(
+                    'cis_perfil',
+                    root.dataset.cisPerfil
+                );
+            }
+
             const enlace =
                 document.createElement('a');
 
@@ -260,6 +268,14 @@ function compuciberInicializarBuscadorPublico() {
                         CompuciberSearch.suggestionAiNonce,
                     term: term
                 });
+
+            // Enviar el perfil también a la IA de sugerencias.
+            if (root.dataset.cisPerfil) {
+                parametros.set(
+                    'cis_perfil',
+                    root.dataset.cisPerfil
+                );
+            }
 
             fetch(
                 CompuciberSearch.ajaxUrl,
@@ -389,6 +405,15 @@ function compuciberInicializarBuscadorPublico() {
                         'term',
                         propuesta
                     );
+
+
+                    // Mantener el perfil en la búsqueda corregida por IA.
+                    if (root.dataset.cisPerfil) {
+                        urlProductos.searchParams.set(
+                            'cis_perfil',
+                            root.dataset.cisPerfil
+                        );
+                    }
 
                     fetch(
                         urlProductos.toString(),
@@ -606,7 +631,12 @@ function compuciberInicializarBuscadorPublico() {
                     CompuciberSearch.ajaxUrl +
                     '?action=compuciber_sugerencias' +
                     '&term=' +
-                    encodeURIComponent(term);
+                    encodeURIComponent(term) +
+                    (root.dataset.cisPerfil
+                        ? '&cis_perfil=' +
+                        encodeURIComponent(root.dataset.cisPerfil)
+                        : '');
+
 
                 controladorSugerencias = new AbortController();
 
@@ -1572,6 +1602,16 @@ function compuciberInicializarBuscadorPublico() {
     * ======================================================
     */
 
+    /*
+     * Evitar duplicar el registro de selecciones
+     * cuando se inicializan buscadores mediante HTML.
+     */
+    if (document.documentElement.dataset.cisSelectionListenerReady === '1') {
+        return;
+    }
+
+    document.documentElement.dataset.cisSelectionListenerReady = '1';
+
     document.addEventListener(
         'click',
         function (event) {
@@ -1690,5 +1730,109 @@ if (document.readyState === 'loading') {
 } else {
 
     compuciberInicializarBuscadorPublico();
+}
+
+/*
+ * Integración del buscador mediante bloques HTML.
+ * Reutiliza el buscador existente y sus perfiles.
+ */
+function compuciberCargarBuscadoresHTML() {
+
+    document.querySelectorAll(
+        '.compuciber-ai-search-embed'
+    ).forEach(function (contenedor) {
+
+        // Evitar cargar dos veces el mismo bloque.
+        if (contenedor.dataset.cisEmbedReady === '1') {
+            return;
+        }
+
+        contenedor.dataset.cisEmbedReady = '1';
+
+        const perfil =
+            contenedor.getAttribute('data-perfil') || '';
+
+        const datos = new URLSearchParams();
+
+        datos.set(
+            'action',
+            'compuciber_renderizar_buscador_html'
+        );
+
+        datos.set('perfil', perfil);
+
+        fetch(CompuciberSearch.ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type':
+                    'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: datos.toString()
+        })
+
+            .then(function (respuesta) {
+
+                if (!respuesta.ok) {
+                    throw new Error(
+                        'No se pudo cargar el buscador.'
+                    );
+                }
+
+                return respuesta.json();
+            })
+
+            .then(function (respuesta) {
+
+                if (
+                    !respuesta.success ||
+                    !respuesta.data ||
+                    typeof respuesta.data.html !== 'string'
+                ) {
+                    throw new Error(
+                        'Respuesta inválida del buscador.'
+                    );
+                }
+
+                if (!contenedor.isConnected) {
+                    return;
+                }
+
+                // Insertar el buscador generado por PHP.
+                contenedor.innerHTML =
+                    respuesta.data.html;
+
+                // Activar las funciones del buscador.
+                compuciberInicializarBuscadorPublico();
+            })
+
+            .catch(function (error) {
+
+                console.error(
+                    'Compuciber HTML:',
+                    error
+                );
+
+                if (contenedor.isConnected) {
+                    contenedor.textContent =
+                        'No se pudo cargar el buscador.';
+                }
+            });
+
+    });
+}
+
+// Activar la integración cuando cargue la página.
+if (document.readyState === 'loading') {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        compuciberCargarBuscadoresHTML,
+        { once: true }
+    );
+
+} else {
+
+    compuciberCargarBuscadoresHTML();
 }
 

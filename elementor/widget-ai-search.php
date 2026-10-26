@@ -85,6 +85,56 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                     )
                 );        
 
+        /*
+        * Perfiles opcionales del buscador.
+        * El valor vacío utiliza el buscador original.
+        */
+        $opciones_perfiles = array(
+            '' => 'Predeterminado (todos los productos)',
+        );
+
+        $perfiles = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        if ( is_array( $perfiles ) ) {
+
+            foreach ( $perfiles as $id => $datos ) {
+
+                if (
+                    ! is_array( $datos ) ||
+                    empty( $datos['activo'] )
+                ) {
+                    continue;
+                }
+
+                $id = sanitize_key( (string) $id );
+
+                if ( $id === '' ) {
+                    continue;
+                }
+
+                $opciones_perfiles[ $id ] =
+                    sanitize_text_field(
+                        (string) (
+                            $datos['nombre'] ?? $id
+                        )
+                    );
+            }
+        }
+
+        $this->add_control(
+            'perfil_busqueda',
+            array(
+                'label'       => 'Perfil de búsqueda',
+                'type'        => \Elementor\Controls_Manager::SELECT,
+                'options'     => $opciones_perfiles,
+                'default'     => '',
+                'description' => 'Opcional. Sin perfil se muestran todos los productos.',
+            )
+        );
+
         $this->end_controls_section();
 
 
@@ -681,10 +731,49 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
         $solo_barra = isset( $settings['solo_barra'] )
                     && 'yes' === $settings['solo_barra'];
 
-                echo do_shortcode(
-                    $solo_barra
-                        ? '[compuciber_ai_search solo_barra="si"]'
-                        : '[compuciber_ai_search]'
-                );
-    }
+        $perfil_id = '';
+
+        if (
+            isset( $settings['perfil_busqueda'] )
+            && is_string( $settings['perfil_busqueda'] )
+        ) {
+            $perfil_id = sanitize_key( $settings['perfil_busqueda'] );
+        }
+
+        // Consultar perfiles solo cuando se selecciona uno.
+        if ( $perfil_id !== '' ) {
+
+            $perfiles = get_option(
+                'compuciber_perfiles_busqueda',
+                array()
+            );
+
+            if (
+                ! is_array( $perfiles )
+                || ! isset( $perfiles[ $perfil_id ] )
+                || ! is_array( $perfiles[ $perfil_id ] )
+                || empty( $perfiles[ $perfil_id ]['activo'] )
+            ) {
+                if ( current_user_can( 'edit_posts' ) ) {
+                    echo '<p>El perfil seleccionado no existe o está inactivo.</p>';
+                }
+
+                return;
+            }
+        }
+
+        // Conservar el funcionamiento original sin perfil.
+        $shortcode = $solo_barra
+            ? '[compuciber_ai_search solo_barra="si"'
+            : '[compuciber_ai_search';
+
+        // Agregar el perfil únicamente cuando exista.
+        if ( $perfil_id !== '' ) {
+            $shortcode .= ' perfil="' . esc_attr( $perfil_id ) . '"';
+        }
+
+        $shortcode .= ']';
+
+        echo do_shortcode( $shortcode );
+            }
 }

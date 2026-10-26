@@ -119,8 +119,41 @@ function compuciber_buscar_productos_inteligente(
         ";
     }
 
+    /*
+    * Aplicar el filtro del perfil antes
+    * de calcular la puntuación de los productos.
+    */
+    $cis_filtro_resultados_sql = '';
+
+    if (
+        isset( $_GET['cis_perfil'] )
+        && is_string( $_GET['cis_perfil'] )
+    ) {
+
+        $cis_perfil_id = sanitize_key(
+            wp_unslash( $_GET['cis_perfil'] )
+        );
+
+        if ( $cis_perfil_id !== '' ) {
+
+            $cis_filtro_resultados_sql = function_exists(
+                'compuciber_perfil_condicion_sql'
+            )
+                ? compuciber_perfil_condicion_sql(
+                    $cis_perfil_id
+                )
+                : ' AND 1=0';
+        }
+    }
+
+    /*
+    * Consultar únicamente los productos
+    * correspondientes al perfil seleccionado.
+    */
     $productos_candidatos = $wpdb->get_results(
-        "SELECT {$columnas_indice} FROM {$tabla}"
+        "SELECT {$columnas_indice}
+        FROM {$tabla} i
+        WHERE 1=1 {$cis_filtro_resultados_sql}"
     );
 
     if ( empty( $productos_candidatos ) ) {
@@ -402,11 +435,48 @@ function compuciber_buscar_productos_inteligente(
         }
     );
 
-    $productos_puntuados = array_slice(
-        $productos_puntuados,
-        0,
-        10
-    );
+    /*
+    * Aplicar el filtro del perfil antes de limitar
+    * los resultados a los 10 mejores productos.
+    */
+    $cis_perfil_resultados = '';
+
+    if (
+        isset( $_GET['cis_perfil'] )
+        && is_string( $_GET['cis_perfil'] )
+    ) {
+        $cis_perfil_resultados = sanitize_key(
+            wp_unslash( $_GET['cis_perfil'] )
+        );
+    }
+
+    if ( $cis_perfil_resultados !== '' ) {
+
+        $cis_resultados_filtrados = array();
+
+        if (
+            function_exists(
+                'compuciber_perfil_permite_producto'
+            )
+        ) {
+
+            foreach ( $productos_puntuados as $cis_resultado ) {
+
+                if (
+                    compuciber_perfil_permite_producto(
+                        (int) $cis_resultado['id'],
+                        $cis_perfil_resultados
+                    )
+                ) {
+
+                    $cis_resultados_filtrados[] = $cis_resultado;
+
+                }
+            }
+        }
+
+        $productos_puntuados = $cis_resultados_filtrados;
+    }
 
     $ids_resultados = array();
 

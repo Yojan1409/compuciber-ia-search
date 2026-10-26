@@ -96,6 +96,59 @@ function compuciber_ajax_sugerencia_ia() {
         . 'compuciber_product_index';
 
     /*
+    * Perfil utilizado por el buscador.
+    */
+    $cis_perfil_ia = '';
+
+    if (
+        isset( $_POST['cis_perfil'] )
+        && is_string( $_POST['cis_perfil'] )
+    ) {
+        $cis_perfil_ia = sanitize_key(
+            wp_unslash( $_POST['cis_perfil'] )
+        );
+    }
+
+    $cis_filtro_ia_sql = '';
+
+    if ( $cis_perfil_ia !== '' ) {
+
+        if (
+            ! function_exists(
+                'compuciber_perfil_condicion_sql'
+            )
+        ) {
+            wp_send_json_success(
+                array( 'suggested_term' => '' )
+            );
+        }
+
+        $cis_filtro_ia_sql =
+            compuciber_perfil_condicion_sql(
+                $cis_perfil_ia
+            );
+    }
+
+    /*
+    * Identificar cambios en las reglas del perfil
+    * para no reutilizar correcciones antiguas.
+    */
+    $cis_perfiles_cache = get_option(
+        'compuciber_perfiles_busqueda',
+        array()
+    );
+
+    $cis_firma_perfil = $cis_perfil_ia !== ''
+        ? md5(
+            wp_json_encode(
+                is_array( $cis_perfiles_cache )
+                    ? ( $cis_perfiles_cache[ $cis_perfil_ia ] ?? null )
+                    : null
+            )
+        )
+        : '';        
+
+    /*
      * PRIMERO: COMPROBAR EL CATÁLOGO LOCAL.
      *
      * Si ya existen coincidencias directas,
@@ -123,6 +176,7 @@ function compuciber_ajax_sugerencia_ia() {
              ON p.ID = i.id
          WHERE p.post_type = 'product'
            AND p.post_status = 'publish'
+           {$cis_filtro_ia_sql}
            AND "
         . implode( ' AND ', $filtros_locales )
         . ' LIMIT 1';
@@ -166,13 +220,17 @@ function compuciber_ajax_sugerencia_ia() {
      * CACHÉ PARA EVITAR CONSULTAS REPETIDAS
      */
     $clave_cache =
-        'cis_sug_ia_v1_'
+        'cis_sug_ia_v2_'
         . md5(
             $proveedor
             . '|'
             . $modelo
             . '|'
             . $consulta
+            . '|'
+            . $cis_perfil_ia
+            . '|'
+            . $cis_firma_perfil
         );
 
     $cache = get_transient(
@@ -346,6 +404,7 @@ function compuciber_ajax_sugerencia_ia() {
                      ON p.ID = i.id
                  WHERE p.post_type = 'product'
                    AND p.post_status = 'publish'
+                   {$cis_filtro_ia_sql}
                    AND "
                 . implode( ' AND ', $filtros )
                 . ' LIMIT 20';

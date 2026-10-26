@@ -870,9 +870,36 @@ function compuciber_encontrar_variacion_por_atributos(
  * Comprobar si la búsqueda tiene coincidencias
  * textuales directas dentro del catálogo.
  */
-function compuciber_coincidencia_directa_catalogo( $consulta ) {
+/**
+ * Comprobar coincidencias directas dentro
+ * del catálogo permitido por cada perfil.
+ */
+function compuciber_coincidencia_directa_catalogo(
+    $consulta,
+    $perfil_id = ''
+) {
 
     global $wpdb;
+
+    $perfil_id = sanitize_key(
+        (string) $perfil_id
+    );
+
+    $filtro_perfil_sql = '';
+
+    if ( $perfil_id !== '' ) {
+
+        if ( ! function_exists(
+            'compuciber_perfil_condicion_sql'
+        ) ) {
+            return false;
+        }
+
+        $filtro_perfil_sql =
+            compuciber_perfil_condicion_sql(
+                $perfil_id
+            );
+    }
 
     $palabras = array_slice(
         compuciber_obtener_palabras( $consulta ),
@@ -884,7 +911,8 @@ function compuciber_coincidencia_directa_catalogo( $consulta ) {
         return true;
     }
 
-    $tabla = $wpdb->prefix . 'compuciber_product_index';
+    $tabla = $wpdb->prefix
+        . 'compuciber_product_index';
 
     $condiciones = array_fill(
         0,
@@ -896,15 +924,18 @@ function compuciber_coincidencia_directa_catalogo( $consulta ) {
 
     foreach ( $palabras as $palabra ) {
 
-        $valores[] = '%' . $wpdb->esc_like( $palabra ) . '%';
-
+        $valores[] = '%'
+            . $wpdb->esc_like( $palabra )
+            . '%';
     }
 
     $sql = "SELECT 1
         FROM {$tabla} i
-        INNER JOIN {$wpdb->posts} p ON p.ID = i.id
+        INNER JOIN {$wpdb->posts} p
+            ON p.ID = i.id
         WHERE p.post_type = 'product'
           AND p.post_status = 'publish'
+          {$filtro_perfil_sql}
           AND " . implode( ' AND ', $condiciones ) . "
         LIMIT 1";
 
@@ -979,10 +1010,29 @@ function compuciber_validar_correccion_ortografica( $original, $propuesta ) {
 function compuciber_ai_search_shortcode( $atts = array() )
 {
     $atts = shortcode_atts(
-        array( 'solo_barra' => 'no' ),
+        array(
+            'solo_barra' => 'no',
+            'perfil'     => '',
+        ),
         is_array( $atts ) ? $atts : array(),
         'ai_product_search'
     );
+
+    // Identificar el perfil del buscador.
+    $perfil_id = sanitize_key(
+        (string) $atts['perfil']
+    );
+
+    // Recuperar el perfil al llegar a la página de resultados.
+    if (
+        $perfil_id === ''
+        && isset( $_GET['cis_perfil'] )
+        && is_string( $_GET['cis_perfil'] )
+    ) {
+        $perfil_id = sanitize_key(
+            wp_unslash( $_GET['cis_perfil'] )
+        );
+    }
 
     $solo_barra = in_array(
         strtolower( (string) $atts['solo_barra'] ),
@@ -1145,13 +1195,102 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
     }
 
+    /*
+    * Estilos visuales independientes por perfil.
+    * El buscador predeterminado no se modifica.
+    */
+    $cis_estilo_input = '';
+    $cis_estilo_boton = '';
+    $cis_estilo_sugerencias = '';
+    $cis_placeholder = '¿Qué producto estás buscando?';
+
+    if ( $perfil_id !== '' ) {
+
+        $cis_estilos = get_option(
+            'compuciber_estilos_perfiles',
+            array()
+        );
+
+        $cis_datos = is_array( $cis_estilos )
+            ? ( $cis_estilos[ $perfil_id ] ?? array() )
+            : array();
+
+        if ( is_array( $cis_datos ) && ! empty( $cis_datos ) ) {
+
+            $fondo = sanitize_hex_color(
+                (string) ( $cis_datos['fondo'] ?? '' )
+            ) ?: '#ffffff';
+
+            $texto = sanitize_hex_color(
+                (string) ( $cis_datos['texto'] ?? '' )
+            ) ?: '#222222';
+
+            $borde = sanitize_hex_color(
+                (string) ( $cis_datos['borde'] ?? '' )
+            ) ?: '#d1d5db';
+
+            $boton = sanitize_hex_color(
+                (string) ( $cis_datos['boton'] ?? '' )
+            ) ?: '#1e3a5f';
+
+            $texto_boton = sanitize_hex_color(
+                (string) ( $cis_datos['texto_boton'] ?? '' )
+            ) ?: '#ffffff';
+
+            $radio = min(
+                30,
+                absint( $cis_datos['radio'] ?? 8 )
+            );
+
+            $cis_estilo_input = sprintf(
+                'background-color:%s;color:%s;border:1px solid %s;border-radius:%dpx;',
+                $fondo,
+                $texto,
+                $borde,
+                $radio
+            );
+
+            $cis_estilo_boton = sprintf(
+                'background-color:%s;color:%s;border-radius:%dpx;',
+                $boton,
+                $texto_boton,
+                $radio
+            );
+
+            $cis_estilo_sugerencias = sprintf(
+                'background-color:%s;color:%s;border-color:%s;border-radius:%dpx;',
+                $fondo,
+                $texto,
+                $borde,
+                $radio
+            );
+
+            $nuevo_placeholder = sanitize_text_field(
+                (string) ( $cis_datos['placeholder'] ?? '' )
+            );
+
+            if ( $nuevo_placeholder !== '' ) {
+                $cis_placeholder = $nuevo_placeholder;
+            }
+        }
+    }    
 
     ob_start();
     ?>
 
-    <div class="compuciber-ai-search">
+    <div class="compuciber-ai-search"
+     data-cis-perfil="<?php echo esc_attr( $perfil_id ); ?>">
 
         <form method="get" action="<?php echo esc_url( $url_resultados ); ?>">
+        <?php if ( $perfil_id !== '' ) : ?>
+
+            <input
+                type="hidden"
+                name="cis_perfil"
+                value="<?php echo esc_attr( $perfil_id ); ?>"
+            >
+
+        <?php endif; ?>
 
             <div class="compuciber-search-box">
 
@@ -1160,7 +1299,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     class="compuciber-search-input"
                     name="cis_q"
                     value="<?php echo esc_attr( $busqueda_original ); ?>"
-                    placeholder="¿Qué producto estás buscando?"
+                    placeholder="<?php echo esc_attr( $cis_placeholder ); ?>"
+                    style="<?php echo esc_attr( $cis_estilo_input ); ?>"
                     autocomplete="off"
                 >
 
@@ -1210,7 +1350,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 <?php endif; ?>
 
-                <button type="submit">
+                <button type="submit"
+                        style="<?php echo esc_attr( $cis_estilo_boton ); ?>">
                     🔎 Buscar
                 </button>
 
@@ -1224,7 +1365,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
             <div
                 id="compuciber-suggestions"
                 class="compuciber-suggestions"
-            ></div>           
+                style="<?php echo esc_attr( $cis_estilo_sugerencias ); ?>"
+            ></div>          
 
         </form>
 
@@ -1272,7 +1414,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 $propuesta_fuzzy =
                     compuciber_sugerencia_fuzzy_catalogo(
-                        $busqueda_original
+                        $busqueda_original,
+                        $perfil_id
                     );
 
             /*
@@ -1286,7 +1429,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 && (
                     $propuesta_fuzzy !== ''
                     || ! compuciber_coincidencia_directa_catalogo(
-                        $busqueda_original
+                        $busqueda_original,
+                        $perfil_id
                     )
                 )
             ) {
@@ -1294,9 +1438,29 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     'compuciber_proveedor_ia', 'gemini'
                 );
 
-                $clave = 'cis_fuzzy_ia_v3_' . md5(
-                    $proveedor . '|' . $busqueda_original
-                );
+                // Evitar reutilizar correcciones de IA de otros perfiles.
+                $cis_contexto_cache = $proveedor . '|' . $busqueda_original;
+
+                if ( $perfil_id !== '' ) {
+
+                    $cis_perfiles_cache = get_option(
+                        'compuciber_perfiles_busqueda',
+                        array()
+                    );
+
+                    $cis_datos_cache = is_array( $cis_perfiles_cache )
+                        ? ( $cis_perfiles_cache[ $perfil_id ] ?? null )
+                        : null;
+
+                    $cis_contexto_cache .= '|' . $perfil_id . '|' . md5(
+                        wp_json_encode( $cis_datos_cache )
+                    );
+                }
+
+                $clave = ( $perfil_id === ''
+                    ? 'cis_fuzzy_ia_v3_'
+                    : 'cis_fuzzy_ia_perfil_v1_'
+                ) . md5( $cis_contexto_cache );
 
                 $evaluacion = get_transient( $clave );
 
@@ -2000,7 +2164,48 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 echo '</div>';
 
-            } else {
+                /*
+                * Navegación entre páginas de resultados.
+                */
+                if ( (int) $productos->max_num_pages > 1 ) {
+
+                    $cis_enlaces = paginate_links(
+                        array(
+                            'base' => add_query_arg(
+                                'cis_page',
+                                '%#%',
+                                remove_query_arg( 'cis_page' )
+                            ),
+
+                            'format' => '',
+
+                            'current' => max(
+                                1,
+                                (int) $productos->get( 'paged' )
+                            ),
+
+                            'total' => (int) $productos->max_num_pages,
+
+                            'mid_size' => 1,
+
+                            'prev_text' => '« Anterior',
+
+                            'next_text' => 'Siguiente »',
+                        )
+                    );
+
+                    if ( $cis_enlaces ) {
+
+                        echo '<nav class="cis-results-pagination"
+                            aria-label="Páginas de resultados">';
+
+                        echo wp_kses_post( $cis_enlaces );
+
+                        echo '</nav>';
+                    }
+                }
+
+                } else {
 
                 echo '<div class="cis-search-notice" role="status">';
 
@@ -2044,6 +2249,53 @@ add_shortcode(
 );
 
 /**
+ * Devuelve el buscador en modo barra para integraciones HTML.
+ * Esta ruta es pública y solo genera marcado, sin guardar datos.
+ */
+function compuciber_renderizar_buscador_html_ajax() {
+
+    $perfil_id = '';
+
+    if ( isset( $_POST['perfil'] ) && is_string( $_POST['perfil'] ) ) {
+        $perfil_id = sanitize_key( wp_unslash( $_POST['perfil'] ) );
+    }
+
+    if ( $perfil_id !== '' ) {
+        $perfiles = get_option( 'compuciber_perfiles_busqueda', array() );
+
+        if (
+            ! is_array( $perfiles )
+            || ! isset( $perfiles[ $perfil_id ] )
+            || empty( $perfiles[ $perfil_id ]['activo'] )
+        ) {
+            wp_send_json_error(
+                array( 'mensaje' => 'El perfil no existe o está inactivo.' ),
+                400
+            );
+        }
+    }
+
+    $html = compuciber_ai_search_shortcode(
+        array(
+            'solo_barra' => 'si',
+            'perfil'     => $perfil_id,
+        )
+    );
+
+    wp_send_json_success( array( 'html' => $html ) );
+}
+
+add_action(
+    'wp_ajax_compuciber_renderizar_buscador_html',
+    'compuciber_renderizar_buscador_html_ajax'
+);
+
+add_action(
+    'wp_ajax_nopriv_compuciber_renderizar_buscador_html',
+    'compuciber_renderizar_buscador_html_ajax'
+);
+
+/**
  * Muestra el buscador inteligente mediante PHP.
  *
  * Permite a desarrolladores insertar el buscador
@@ -2067,7 +2319,9 @@ function compuciber_ai_search_registrar_bloque() {
             'wp-blocks',
             'wp-element',
         ),
-        '2.0.0',
+        filemtime(
+            plugin_dir_path( __FILE__ ) . 'blocks/buscadores/index.js'
+        ),        
         true
     );
 
@@ -2076,6 +2330,21 @@ function compuciber_ai_search_registrar_bloque() {
         array(
             'editor_script'   => 'compuciber-ai-search-block',
             'render_callback' => 'compuciber_ai_search_render_bloque',
+
+            /*
+            * Perfil opcional.
+            * Vacío = buscador predeterminado.
+            */
+            'attributes' => array(
+                'perfil' => array(
+                    'type'    => 'string',
+                    'default' => '',
+                ),
+                'solo_barra' => array(
+                    'type'    => 'boolean',
+                    'default' => false,
+                ),
+            ),
         )
     );
 }
@@ -2085,6 +2354,66 @@ add_action(
     'compuciber_ai_search_registrar_bloque'
 );
 
+/**
+ * Enviar los perfiles activos al editor Gutenberg.
+ * No se ejecuta en las páginas públicas de la tienda.
+ */
+function compuciber_ai_search_perfiles_gutenberg() {
+
+    $opciones = array(
+        array(
+            'label' => 'Predeterminado (todos los productos)',
+            'value' => '',
+        ),
+    );
+
+    $perfiles = get_option(
+        'compuciber_perfiles_busqueda',
+        array()
+    );
+
+    if ( is_array( $perfiles ) ) {
+
+        foreach ( $perfiles as $id => $datos ) {
+
+            if (
+                ! is_array( $datos ) ||
+                empty( $datos['activo'] )
+            ) {
+                continue;
+            }
+
+            $id = sanitize_key( (string) $id );
+
+            if ( $id === '' ) {
+                continue;
+            }
+
+            $nombre = sanitize_text_field(
+                (string) ( $datos['nombre'] ?? $id )
+            );
+
+            $opciones[] = array(
+                'label' => $nombre !== '' ? $nombre : $id,
+                'value' => $id,
+            );
+        }
+    }
+
+    wp_localize_script(
+        'compuciber-ai-search-block',
+        'CompuciberGutenbergPerfiles',
+        array(
+            'opciones' => $opciones,
+        )
+    );
+}
+
+add_action(
+    'enqueue_block_editor_assets',
+    'compuciber_ai_search_perfiles_gutenberg'
+);
+
 
 /**
  * Renderiza el bloque Gutenberg.
@@ -2092,7 +2421,142 @@ add_action(
  * Utiliza exactamente el mismo buscador
  * que el shortcode.
  */
-function compuciber_ai_search_render_bloque() {
+function compuciber_ai_search_render_bloque( $atributos = array() ) {
 
-    return compuciber_ai_search_shortcode();
+    $perfil_id = '';
+
+    if (
+        is_array( $atributos )
+        && isset( $atributos['perfil'] )
+        && is_string( $atributos['perfil'] )
+    ) {
+        $perfil_id = sanitize_key( $atributos['perfil'] );
+    }
+
+    // Leer el modo elegido en Gutenberg.
+    $solo_barra = (
+        is_array( $atributos )
+        && ! empty( $atributos['solo_barra'] )
+    );
+
+    // Sin perfil: conservar el buscador original.
+    if ( $perfil_id === '' ) {
+
+        if ( ! $solo_barra ) {
+            return compuciber_ai_search_shortcode();
+        }
+
+        return compuciber_ai_search_shortcode(
+            array(
+                'solo_barra' => 'si',
+            )
+        );
+    }
+
+    // Evitar mostrar productos sin filtrar si el perfil ya no existe.
+    $perfiles = get_option(
+        'compuciber_perfiles_busqueda',
+        array()
+    );
+
+    if (
+        ! is_array( $perfiles )
+        || ! isset( $perfiles[ $perfil_id ] )
+        || ! is_array( $perfiles[ $perfil_id ] )
+        || empty( $perfiles[ $perfil_id ]['activo'] )
+    ) {
+        return current_user_can( 'edit_posts' )
+            ? '<p>El perfil seleccionado no existe o está inactivo.</p>'
+            : '';
+    }
+
+    return compuciber_ai_search_shortcode(
+        array(
+            'perfil'     => $perfil_id,
+            'solo_barra' => $solo_barra ? 'si' : 'no',
+        )
+    );
 }
+
+/**
+ * Modo completo para los bloques HTML nativos de WordPress.
+ * Las barras HTML existentes continúan usando su carga AJAX.
+ */
+function compuciber_renderizar_html_completo_en_bloques( $contenido ) {
+
+    if (
+        strpos( $contenido, 'compuciber-ai-search-embed' ) === false
+        || strpos( $contenido, 'data-modo' ) === false
+        || ! class_exists( 'WP_HTML_Tag_Processor' )
+    ) {
+        return $contenido;
+    }
+
+    return preg_replace_callback(
+        '~<div\b[^>]*>\s*</div>~i',
+        function ( $coincidencia ) {
+
+            $etiqueta = new WP_HTML_Tag_Processor( $coincidencia[0] );
+
+            if ( ! $etiqueta->next_tag( 'DIV' ) ) {
+                return $coincidencia[0];
+            }
+
+            $clases = preg_split(
+                '/\s+/',
+                trim( (string) $etiqueta->get_attribute( 'class' ) )
+            );
+
+            $modo = strtolower(
+                trim( (string) $etiqueta->get_attribute( 'data-modo' ) )
+            );
+
+            if (
+                ! in_array(
+                    'compuciber-ai-search-embed',
+                    $clases,
+                    true
+                )
+                || $modo !== 'completo'
+            ) {
+                return $coincidencia[0];
+            }
+
+            $perfil = sanitize_key(
+                (string) $etiqueta->get_attribute( 'data-perfil' )
+            );
+
+            if ( $perfil !== '' ) {
+
+                $perfiles = get_option(
+                    'compuciber_perfiles_busqueda',
+                    array()
+                );
+
+                if (
+                    ! is_array( $perfiles )
+                    || ! isset( $perfiles[ $perfil ] )
+                    || ! is_array( $perfiles[ $perfil ] )
+                    || empty( $perfiles[ $perfil ]['activo'] )
+                ) {
+                    return current_user_can( 'edit_posts' )
+                        ? '<p>El perfil seleccionado no existe o está inactivo.</p>'
+                        : '';
+                }
+            }
+
+            return compuciber_ai_search_shortcode(
+                array(
+                    'perfil'     => $perfil,
+                    'solo_barra' => 'no',
+                )
+            );
+        },
+        $contenido
+    );
+}
+
+add_filter(
+    'render_block_core/html',
+    'compuciber_renderizar_html_completo_en_bloques'
+);
