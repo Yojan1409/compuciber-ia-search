@@ -165,6 +165,41 @@ function compuciber_registrar_busqueda(
         return;
     }
 
+    /*
+     * Evitar registros duplicados de una búsqueda.
+     *
+     * La paginación no representa una nueva búsqueda.
+     * Varios buscadores completos en una misma página
+     * tampoco deben duplicar el registro.
+     */
+
+    static $cis_busqueda_ya_registrada = false;
+
+    // Evitar registros repetidos en la misma petición.
+    if ( $cis_busqueda_ya_registrada ) {
+        return;
+    }
+
+    // No registrar nuevamente al navegar por los resultados.
+    $cis_pagina_resultados = 1;
+
+    if (
+        isset( $_GET['cis_page'] )
+        && is_scalar( $_GET['cis_page'] )
+    ) {
+        $cis_pagina_resultados = max(
+            1,
+            absint( wp_unslash( $_GET['cis_page'] ) )
+        );
+    }
+
+    if ( $cis_pagina_resultados > 1 ) {
+        return;
+    }
+
+    // Marcar esta búsqueda como registrada durante la petición.
+    $cis_busqueda_ya_registrada = true;
+
     global $wpdb;
 
     $tabla = $wpdb->prefix . 'compuciber_search_stats';
@@ -914,7 +949,7 @@ function compuciber_exportar_estadisticas_csv() {
             'Con resultados',
             'Sin resultados',
             'Total resultados mostrados',
-            'Selecciones',
+            'Selecciones (total por búsqueda, una sola vez)',
             'Última búsqueda',
         ),
         $separador
@@ -940,21 +975,30 @@ function compuciber_exportar_estadisticas_csv() {
      * ======================================================
      */
 
+    $cis_selecciones_ya_mostradas = array();
+
     foreach ( $estadisticas as $estadistica ) {
 
-        $busqueda =
-            (string) $estadistica->busqueda;
+        $busqueda = (string) $estadistica->busqueda;
 
-        $total_selecciones =
-            isset(
-                $selecciones_por_busqueda[
-                    $busqueda
-                ]
+        // Las selecciones pertenecen al término de búsqueda,
+        // no a un tipo específico (texto, voz o imagen).
+        if ( ! isset( $cis_selecciones_ya_mostradas[ $busqueda ] ) ) {
+
+            $total_selecciones = isset(
+                $selecciones_por_busqueda[ $busqueda ]
             )
-                ? $selecciones_por_busqueda[
-                    $busqueda
-                ]
+                ? (int) $selecciones_por_busqueda[ $busqueda ]
                 : 0;
+
+            $cis_selecciones_ya_mostradas[ $busqueda ] = true;
+
+        } else {
+
+            // Evitar repetir el total en otras filas del mismo término.
+            $total_selecciones = '';
+
+        }
 
         fputcsv(
             $salida,
@@ -973,8 +1017,7 @@ function compuciber_exportar_estadisticas_csv() {
                     $estadistica->sin_resultados,
                 (int)
                     $estadistica->total_resultados,
-                (int)
-                    $total_selecciones,
+                $total_selecciones,
                 (string)
                     $estadistica->ultima_busqueda,
             ),

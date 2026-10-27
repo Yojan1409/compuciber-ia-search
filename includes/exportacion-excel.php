@@ -116,7 +116,7 @@ function compuciber_exportar_estadisticas_excel() {
         'Con resultados',
         'Sin resultados',
         'Total resultados mostrados',
-        'Selecciones',
+        'Selecciones (total por búsqueda, una sola vez)',
         'Última búsqueda',
     );
 
@@ -144,12 +144,32 @@ function compuciber_exportar_estadisticas_excel() {
     $filas_xml .= '</row>';
     $numero_fila = 1;
 
+    // Evitar mostrar varias veces las selecciones
+    // de una misma búsqueda en el archivo Excel.
+    $cis_selecciones_ya_mostradas = array();
+
     foreach ( $estadisticas as $estadistica ) {
+
         ++$numero_fila;
+
         $busqueda = (string) $estadistica->busqueda;
-        $total_selecciones = isset( $selecciones_por_busqueda[ $busqueda ] )
-            ? (int) $selecciones_por_busqueda[ $busqueda ]
-            : 0;
+
+        if ( ! isset( $cis_selecciones_ya_mostradas[ $busqueda ] ) ) {
+
+            $total_selecciones = isset(
+                $selecciones_por_busqueda[ $busqueda ]
+            )
+                ? (int) $selecciones_por_busqueda[ $busqueda ]
+                : 0;
+
+            $cis_selecciones_ya_mostradas[ $busqueda ] = true;
+
+        } else {
+
+            // Las selecciones ya se mostraron en otra fila.
+            $total_selecciones = '';
+
+        }
 
         $valores_fila = array(
             $busqueda,
@@ -170,7 +190,7 @@ function compuciber_exportar_estadisticas_excel() {
                 chr( 65 + $posicion ),
                 $numero_fila,
                 $valor,
-                $posicion >= 3 && $posicion <= 7
+                $posicion >= 3 && $posicion <= 7 && $valor !== ''
             );
         }
 

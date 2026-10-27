@@ -1,101 +1,89 @@
-# CHANGELOG — Compuciber AI Search
+# Historial de cambios — Compuciber AI Search
 
-**Propietario del desarrollo:** COMPUCIBER S.A.C.
+**Proyecto:** Compuciber AI Search  
+**Titular:** COMPUCIBER S.A.C.  
+**Versión documentada:** 2.1.1  
+**Estado:** desarrollo funcional completados
 
-Este archivo documenta la evolución funcional del código fuente entregado.
+Este historial reúne las funcionalidades incorporadas a Compuciber AI Search y las mejoras de integración, administración y presentación realizadas durante el desarrollo.
 
-## [2.0.0] - 2026-10-06
+## [2.1.1] — 2026-10-26
 
 ### Añadido
 
-- Estadísticas avanzadas.
-- Total de búsquedas, búsquedas con/sin resultados y selecciones.
-- Tasa de éxito y CTR global.
-- Estadísticas por tipo de búsqueda.
-- Historial diario.
-- Búsquedas populares y búsquedas sin resultados.
-- Productos seleccionados y consultas que generan selecciones.
-- Aprendizaje de ranking basado en selecciones históricas.
-- Activación/desactivación del aprendizaje de ranking.
-- Sistema cliente de licencias.
-- UUID por instalación.
-- Identificación de dominio e instalación.
-- Estados de licencia.
-- Validación manual y periódica.
-- Caché y periodo de gracia.
-- Soporte del lado cliente para límites de instalaciones.
-- Preparación para múltiples tiendas.
-- Cliente HTTP y contrato para futuro servicio externo de licencias/SaaS.
-- Widget nativo de Elementor.
-- Controles de presentación para Elementor.
-- Configuración independiente de modelos para Gemini.
-- Configuración independiente de modelos para OpenAI.
-- Persistencia de configuración al cambiar de proveedor.
-- Selector centralizado de proveedor mediante `compuciber_obtener_proveedor_ia()`.
+- **Perfiles de búsqueda opcionales** con identificador propio y estado activo/inactivo.
+- Inclusión y exclusión de categorías WooCommerce, con aplicación a categorías padre y descendientes.
+- Perfiles independientes que comparten el mismo motor y la configuración de IA de la tienda.
+- Personalización visual por perfil: colores, bordes, redondeo y texto del campo de búsqueda.
+- Gestión de perfiles desde Configuración: creación, edición, activación, desactivación y eliminación.
+- Presentación de cada perfil en un **desplegable** para mantener el panel administrativo compacto.
+- Integración mediante **HTML personalizado** para insertar barras de búsqueda en cabeceras y otros elementos HTML.
+- Renderizado de **buscador completo mediante HTML** en bloques HTML nativos compatibles de WordPress.
+- Integración de perfiles en el **widget de Elementor**.
+- Selector de perfil y de modo **Buscador completo / Solo barra** en el bloque Gutenberg.
+- Separación de barra de cabecera y página independiente de resultados, con conservación del perfil seleccionado.
+- Configuración de **página de resultados**, con posibilidad de utilizar la página actual cuando corresponda.
+- Opción de visualización de resultados con **tarjetas propias** o **plantillas de producto WooCommerce compatibles**.
+- Paginación de resultados de búsqueda.
+- Documentación de inserción HTML, shortcode, Elementor, Gutenberg y PHP desde un desplegable del Dashboard.
 
-### Cambiado
+### Mejorado
 
-- Separación completa de opciones de modelos Gemini y OpenAI.
-- Actualización de indexación y resultados para reconocer el modelo de embeddings del proveedor activo.
-- Centralización de la creación del proveedor de IA.
-- Reducción de código duplicado entre texto, imagen y embeddings.
-- Preparación de la arquitectura para incorporar proveedores adicionales.
-- Mejoras responsive.
-- Ampliación de la arquitectura de licencias e instalaciones.
-- Versión principal actualizada a 2.0.0.
+- Conservación del funcionamiento del **buscador predeterminado sin perfiles**.
+- Sugerencias y resultados compatibles con los filtros de los perfiles.
+- Tratamiento de SKU exactos, correcciones aproximadas y validación de interpretaciones en búsquedas con perfiles.
+- Correcciones con mensaje visible «Interpretamos tu búsqueda…» cuando corresponde.
+- Priorización de la búsqueda local y uso condicionado de funciones de IA.
+- Comportamiento de las sugerencias al cambiar rápidamente el texto buscado.
+- Compatibilidad de múltiples instancias del buscador dentro de una misma página.
+- Posicionamiento de las sugerencias para su visualización en cabeceras.
+- Diseño administrativo y explicación de los métodos de inserción.
+- Versión del JavaScript de Gutenberg asociada a la modificación del archivo para reducir cargas obsoletas por caché.
 
-### Eliminado / limpieza
+### Estadísticas y exportaciones
 
-- Eliminación de referencias activas a las antiguas opciones compartidas:
-  - `compuciber_modelo_ia`
-  - `compuciber_modelo_embeddings`
-  - `compuciber_modelo_multimodal`
-  - `compuciber_modelo_voz`
-- Eliminación del archivo de desarrollo `includes/resultado/hola.txt`.
-- Limpieza progresiva de trazas de depuración para la entrega.
+- Protección para evitar registros repetidos de la misma consulta dentro de una petición de resultados.
+- Exclusión del registro de nuevas búsquedas al navegar por páginas posteriores de resultados.
+- Ajuste de **CSV** y **Excel** para mostrar el total de selecciones de un término una sola vez cuando ese término figura en varios tipos de búsqueda.
+- Conservación de indicadores y estadísticas globales aunque la tienda tenga distintos buscadores y perfiles.
+- Mantenimiento de la exportación desde el Dashboard, sin un submenú administrativo adicional.
 
-### Verificado
+### Compatibilidad
 
-- Gemini después de la separación de modelos.
-- Persistencia Gemini → OpenAI → Gemini.
-- Búsqueda local sin API de IA.
-- Autocomplete.
-- Fuzzy search.
-- SKU.
-- Coincidencias técnicas.
-- Búsqueda semántica con Gemini.
-- Búsqueda por imagen con Gemini.
-- Instalación externa mediante ZIP.
-- Funcionamiento con más de un tema.
-- Estadísticas avanzadas.
-- Aprendizaje de ranking.
-- Widget Elementor.
-- Arquitectura cliente de licencias.
+- Shortcode: `[compuciber_ai_search]` y alias `[ai_product_search]`.
+- Shortcode en cabeceras: `[compuciber_ai_search solo_barra="si"]`.
+- HTML personalizado en modo `solo_barra`.
+- Gutenberg con perfiles y modo de visualización.
+- Elementor con controles de presentación y perfiles.
+- Inserción desde plantillas PHP mediante la función pública del plugin.
 
-### Propiedad y entrega
+### Alcance de la versión
 
-La V2.0.0 se documenta para su entrega a **COMPUCIBER S.A.C.** incluyendo:
+Las funcionalidades de búsqueda, perfiles, integración, presentación y administración correspondientes a esta versión están **desarrolladas**. Las integraciones de temas o constructores externos se adaptan a las capacidades disponibles en cada instalación.
 
-- código fuente;
-- ZIP instalable;
-- esquema/rutinas de base de datos;
-- documentación técnica;
-- documentación de instalación;
-- dependencias;
-- APIs externas;
-- configuración separada de credenciales;
-- repositorio Git;
-- historial/versionado.
+---
 
-Los servicios externos no forman parte del código fuente del buscador salvo acuerdo expreso.
+## [2.0.0] — 2026-10-06
 
-### Pendiente antes del cierre de producción
+### Añadido
 
-- Finalizar limpieza de `error_log()` de depuración.
-- Validar OpenAI con una API key real.
-- Revisar migraciones de base de datos para actualización.
-- Ejecutar regresión final del ZIP V2.0.0.
-- Probar actualización sobre la instalación externa existente.
+- Dashboard con estadísticas avanzadas de búsqueda y selección de productos.
+- Indicadores de consultas con resultados, sin resultados, tasa de éxito y CTR.
+- Consultas populares, productos seleccionados e historial de actividad.
+- Aprendizaje de relevancia basado en interacciones históricas.
+- Exportación administrativa de estadísticas.
+- Widget nativo de Elementor con controles de apariencia.
+- Arquitectura de proveedores de IA con configuración independiente para Gemini y OpenAI.
+- Selección centralizada del proveedor y de los modelos correspondientes.
+- Sistema cliente de licencias: identificación de instalación, validación, caché y periodo de gracia.
+- Componentes cliente para integración con servicios externos de licencias y SaaS.
+
+### Mejorado
+
+- Separación de opciones y modelos de los distintos proveedores de IA.
+- Estructura modular de indexación, resultados y proveedores.
+- Compatibilidad responsive del buscador.
+- Gestión de embeddings vinculados al proveedor y modelo configurados.
 
 ---
 
@@ -104,15 +92,8 @@ Los servicios externos no forman parte del código fuente del buscador salvo acu
 ### Añadido
 
 - Búsqueda por imagen.
-- Interpretación multimodal.
-- Conversión del análisis visual en consulta de productos.
-- Integración de imagen con el motor local.
-
-### Mejorado
-
-- Flujo multimodal.
-- Integración con IA.
-- Presentación responsive del buscador.
+- Interpretación de fotografías mediante IA.
+- Conversión de la interpretación visual en una consulta contra productos existentes en WooCommerce.
 
 ---
 
@@ -120,45 +101,31 @@ Los servicios externos no forman parte del código fuente del buscador salvo acu
 
 ### Añadido
 
-- Búsqueda por voz.
-- Integración con Web Speech API.
-- Reconocimiento configurado para `es-PE`.
-- Conversión y envío de voz a consulta de búsqueda.
+- Búsqueda por voz mediante Web Speech API en navegadores compatibles.
+- Conversión del reconocimiento de voz en consultas del buscador.
 
 ---
 
 ## [1.0.0]
 
-### Añadido
+### Versión inicial
 
-- Plugin instalable mediante ZIP.
-- Integración WordPress/WooCommerce.
-- Índice propio de productos.
-- Indexación automática.
-- Productos simples y variables.
-- Búsqueda por nombre.
-- Búsqueda por SKU.
-- Marca y modelo.
-- Categorías, atributos y etiquetas.
-- Autocomplete.
-- Fuzzy search.
-- Corrección de errores.
-- Sinónimos.
-- Ranking.
-- Coincidencias técnicas.
-- Búsqueda semántica.
-- Integración inicial con Gemini.
-- Arquitectura para OpenAI.
-- Embeddings.
-- Panel administrativo.
-- Configuración de API.
-- Shortcode `[compuciber_ai_search]`.
-- Integración Gutenberg.
-- Integración PHP.
-- Funcionamiento local sin IA.
+- Plugin instalable en WordPress con WooCommerce.
+- Índice local de productos y mecanismos de actualización.
+- Búsquedas por nombre, SKU, marca, modelo, categorías y atributos.
+- Autocompletado de productos.
+- Búsqueda aproximada, sinónimos y correcciones.
+- Ordenación por relevancia y coincidencias técnicas.
+- Búsqueda semántica y embeddings.
+- Integración inicial con proveedores de IA.
+- Panel de administración.
+- Inserción mediante shortcode, integración PHP y bloque Gutenberg.
+- Funcionamiento local sin depender de una API de IA para las consultas ordinarias.
 
 ---
 
-## Convención de entrega
+## Nota sobre el servicio de licencias/SaaS
 
-El repositorio Git y este historial forman parte de la trazabilidad del proyecto. Las credenciales privadas y secretos no deben incorporarse al historial del repositorio ni a los paquetes ZIP.
+El plugin contiene el **cliente y las funciones de conexión** con servicios externos de licencias/SaaS. El backend de un servicio SaaS comercial es independiente del código del plugin y no se considera incluido en este historial como parte del ZIP distribuible.
+
+**Compuciber AI Search — versión 2.1.1**
