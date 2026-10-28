@@ -216,8 +216,85 @@ if (
         </p>
 
         <p>
-            En esa página coloca el shortcode principal
-            para mostrar los productos encontrados.
+            <strong>Modo Solo resultados (recomendado para cabeceras):</strong>
+            si ya tienes una barra de búsqueda en la cabecera,
+            coloca este shortcode en tu página de resultados:
+        </p>
+
+        <p>
+            <code>[compuciber_ai_search solo_resultados="si"]</code>
+        </p>
+
+        <p>
+            Así se mostrarán únicamente los productos encontrados,
+            sin repetir la barra de búsqueda que ya aparece
+            en la cabecera de la tienda.
+        </p>
+
+        <p>
+            <strong>Buscador completo:</strong>
+            si prefieres mostrar la barra y los resultados
+            en una misma página, utiliza:
+        </p>
+
+        <p>
+            <code>[compuciber_ai_search]</code>
+        </p>
+
+        <p>
+            <strong>Páginas de resultados por perfil:</strong>
+            puedes configurar una página general para todos
+            los buscadores y, opcionalmente, seleccionar
+            una página diferente dentro de la configuración
+            de cada perfil.
+        </p>
+
+        <p>
+            Si un perfil no tiene una página específica,
+            utilizará automáticamente la página general.
+            No es necesario crear una página por perfil.
+        </p>
+
+        <p>
+            <strong>¿Cómo funciona "Solo resultados" con los perfiles?</strong>
+        </p>
+
+        <p>
+            Para mostrar los productos encontrados sin repetir
+            la barra de búsqueda, coloca este shortcode
+            en la página de resultados:
+            <code>[compuciber_ai_search solo_resultados="si"]</code>.
+        </p>
+
+        <p>
+            Cuando un cliente realiza una búsqueda desde un
+            perfil personalizado, el plugin conserva
+            automáticamente el identificador del perfil
+            mediante el parámetro <code>cis_perfil</code>.
+        </p>
+
+        <p>
+            De esta manera, los productos encontrados respetan
+            las categorías incluidas y excluidas del perfil
+            desde el que se realizó la búsqueda.
+        </p>
+
+        <p>
+            <strong>No necesitas configurar nuevamente
+            las categorías ni indicar el perfil
+            en el shortcode de resultados.</strong>
+        </p>
+
+        <p>
+            Puedes colocar exactamente el mismo shortcode
+            de "Solo resultados" en la página general
+            o en las páginas específicas de los perfiles.
+        </p>
+
+        <p>
+            La página de destino determina dónde aparecen
+            los resultados, mientras que el perfil determina
+            qué productos pueden mostrarse.
         </p>
 
         <p>
@@ -236,22 +313,53 @@ if (
             <strong>Gutenberg:</strong>
             inserta el bloque "Compuciber AI Search"
             desde el editor de WordPress.
-            Puedes seleccionar un perfil de búsqueda
-            directamente desde el bloque.
-            La opción predeterminada utiliza todo
-            el catálogo, sin filtros de perfil.
+
+            Puedes seleccionar el buscador predeterminado
+            o cualquiera de los perfiles activos.
+
+            En "Modo de visualización" encontrarás
+            tres opciones:
+            <strong>Buscador completo</strong>,
+            <strong>Solo barra</strong> y
+            <strong>Solo resultados</strong>.
         </p>
 
         <p>
             <strong>Elementor:</strong>
-            utiliza el widget "Compuciber AI Search".
-            Puedes seleccionar uno de los perfiles
-            activos o utilizar el buscador predeterminado.
+            utiliza el widget "Compuciber AI Search"
+            desde el constructor visual.
 
-            También puedes personalizar su apariencia
+            Puedes seleccionar un perfil personalizado
+            o utilizar el buscador predeterminado.
+
+            En "Modo de visualización" elige:
+
+            <br>
+            <strong>Buscador completo:</strong>
+            muestra la barra y los resultados.
+
+            <br>
+            <strong>Solo barra:</strong>
+            recomendado para cabeceras.
+
+            <br>
+            <strong>Solo resultados:</strong>
+            muestra únicamente los productos encontrados,
+            sin repetir la barra de búsqueda.
+
+            <br><br>
+            También puedes personalizar la apariencia
             desde los controles visuales de Elementor.
-            Para cabeceras, activa la opción
-            "Mostrar solo la barra".
+        </p>
+
+        <p class="description">
+            <strong>Importante:</strong>
+            cuando utilices "Solo barra" en una cabecera,
+            configura una página de resultados.
+
+            En esa página puedes utilizar
+            "Solo resultados" para evitar
+            mostrar dos barras de búsqueda.
         </p>
 
         <p>
@@ -298,6 +406,696 @@ if (
         </details>
 
     </div>
+
+    <div class="postbox" style="padding:16px;max-width:900px;">
+
+        <h2 style="margin-top:0;">
+            Diagnóstico de instalación
+        </h2>
+
+        <p>
+            Comprueba la configuración básica del plugin
+            sin modificar ajustes ni realizar búsquedas.
+        </p>
+
+        <p>
+            <a
+                class="button button-secondary"
+                href="<?php
+                    echo esc_url(
+                        wp_nonce_url(
+                            add_query_arg(
+                                array(
+                                    'page' => 'compuciber-ai-search',
+                                    'cis_diagnostico' => '1',
+                                ),
+                                admin_url( 'admin.php' )
+                            ),
+                            'cis_diagnostico_instalacion'
+                        )
+                    );
+                ?>"
+            >
+                Comprobar instalación
+            </a>
+        </p>
+
+        <?php
+
+        $cis_diag_ver = isset( $_GET['cis_diagnostico'] )
+            && is_string( $_GET['cis_diagnostico'] )
+            && '1' === $_GET['cis_diagnostico'];
+
+        if ( $cis_diag_ver ) :
+
+            $cis_diag_nonce = isset( $_GET['_wpnonce'] )
+                && is_string( $_GET['_wpnonce'] )
+                ? sanitize_text_field(
+                    wp_unslash( $_GET['_wpnonce'] )
+                )
+                : '';
+
+            if (
+                ! wp_verify_nonce(
+                    $cis_diag_nonce,
+                    'cis_diagnostico_instalacion'
+                )
+            ) :
+
+                ?>
+
+                <p>
+                    El enlace de diagnóstico ha caducado.
+                    Vuelve a pulsar el botón.
+                </p>
+
+                <?php
+
+            else :
+
+                $cis_diag_filas = array();
+
+                /*
+                * WooCommerce.
+                */
+                $cis_diag_wc = class_exists( 'WooCommerce' );
+
+                $cis_diag_filas[] = array(
+                    'WooCommerce',
+                    $cis_diag_wc ? 'Correcto' : 'Revisar',
+                    $cis_diag_wc
+                        ? 'Activo.'
+                        : 'Debe estar instalado y activo.'
+                );
+
+                /*
+                * Shortcode principal.
+                */
+                $cis_diag_shortcode = shortcode_exists(
+                    'compuciber_ai_search'
+                );
+
+                $cis_diag_filas[] = array(
+                    'Shortcode',
+                    $cis_diag_shortcode ? 'Correcto' : 'Revisar',
+                    $cis_diag_shortcode
+                        ? 'Buscador registrado.'
+                        : 'No se encuentra registrado.'
+                );
+
+                /*
+                * Gutenberg.
+                */
+                $cis_diag_bloque = class_exists(
+                    'WP_Block_Type_Registry'
+                ) && WP_Block_Type_Registry::get_instance()
+                    ->is_registered( 'compuciber/ai-search' );
+
+                $cis_diag_filas[] = array(
+                    'Gutenberg',
+                    $cis_diag_bloque ? 'Correcto' : 'Revisar',
+                    $cis_diag_bloque
+                        ? 'Bloque registrado.'
+                        : 'Bloque no registrado.'
+                );
+
+                /*
+                * Elementor es opcional.
+                */
+                $cis_diag_elementor = class_exists(
+                    'Elementor\Plugin'
+                );
+
+                $cis_diag_filas[] = array(
+                    'Elementor',
+                    $cis_diag_elementor
+                        ? 'Disponible'
+                        : 'Opcional',
+                    $cis_diag_elementor
+                        ? 'Activo.'
+                        : 'No está activo; no es obligatorio.'
+                );
+
+                /*
+                * Página general de resultados.
+                */
+                $cis_diag_pagina = absint(
+                    get_option(
+                        'compuciber_pagina_resultados',
+                        0
+                    )
+                );
+
+                $cis_diag_publicada =
+                    $cis_diag_pagina > 0
+                    && 'page' === get_post_type(
+                        $cis_diag_pagina
+                    )
+                    && 'publish' === get_post_status(
+                        $cis_diag_pagina
+                    );
+
+                $cis_diag_filas[] = array(
+                    'Destino general',
+
+                    $cis_diag_publicada
+                        ? 'Correcto'
+                        : (
+                            $cis_diag_pagina
+                                ? 'Revisar'
+                                : 'Información'
+                        ),
+
+                    $cis_diag_publicada
+                        ? 'Página seleccionada y publicada.'
+                        : (
+                            $cis_diag_pagina
+                                ? 'La página no existe o no está publicada.'
+                                : 'Usar página actual. Para Solo barra, configura una página publicada.'
+                        )
+                );
+
+                /*
+                * Comprobar páginas específicas
+                * de los perfiles activos.
+                */
+                $cis_diag_perfiles = get_option(
+                    'compuciber_perfiles_busqueda',
+                    array()
+                );
+
+                $cis_diag_activos = 0;
+                $cis_diag_invalidos = array();
+
+                if ( is_array( $cis_diag_perfiles ) ) {
+
+                    foreach (
+                        $cis_diag_perfiles
+                        as $cis_diag_id => $cis_diag_datos
+                    ) {
+
+                        if (
+                            ! is_array( $cis_diag_datos )
+                            || empty( $cis_diag_datos['activo'] )
+                        ) {
+                            continue;
+                        }
+
+                        $cis_diag_activos++;
+
+                        $cis_diag_destino = absint(
+                            $cis_diag_datos['pagina_resultados']
+                            ?? 0
+                        );
+
+                        if (
+                            $cis_diag_destino > 0
+                            && (
+                                'page' !== get_post_type(
+                                    $cis_diag_destino
+                                )
+                                || 'publish' !== get_post_status(
+                                    $cis_diag_destino
+                                )
+                            )
+                        ) {
+
+                            $cis_diag_invalidos[] =
+                                sanitize_text_field(
+                                    (string) (
+                                        $cis_diag_datos['nombre']
+                                        ?? $cis_diag_id
+                                    )
+                                );
+                        }
+                    }
+                }
+
+                $cis_diag_filas[] = array(
+                    'Perfiles activos',
+
+                    $cis_diag_invalidos
+                        ? 'Revisar'
+                        : 'Correcto',
+
+                    $cis_diag_invalidos
+                        ? 'Páginas específicas no publicadas: '
+                            . implode(
+                                ', ',
+                                array_slice(
+                                    $cis_diag_invalidos,
+                                    0,
+                                    5
+                                )
+                            )
+                        : $cis_diag_activos
+                            . ' perfil(es) activo(s).'
+                );
+
+                ?>
+
+                <table
+                    class="widefat striped"
+                    style="max-width:850px;"
+                >
+
+                    <thead>
+                        <tr>
+                            <th>Comprobación</th>
+                            <th>Estado</th>
+                            <th>Detalle</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <?php foreach (
+                            $cis_diag_filas as $cis_diag_fila
+                        ) : ?>
+
+                            <tr>
+
+                                <td>
+                                    <?php echo esc_html(
+                                        $cis_diag_fila[0]
+                                    ); ?>
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        <?php echo esc_html(
+                                            $cis_diag_fila[1]
+                                        ); ?>
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <?php echo esc_html(
+                                        $cis_diag_fila[2]
+                                    ); ?>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                    </tbody>
+
+                </table>
+
+                <p class="description">
+                    Este informe es informativo.
+                    No modifica productos, perfiles,
+                    estadísticas ni configuraciones.
+                    No comprueba la conexión externa con Gemini.
+                </p>
+
+            <?php endif; ?>
+
+        <?php endif; ?>
+
+    </div>
+
+<!-- SIMULADOR ADMINISTRATIVO DE BÚSQUEDAS -->
+
+    <div class="postbox" style="padding:16px;max-width:900px;">
+
+        <h2 style="margin-top:0;">
+            Simulador de búsquedas
+        </h2>
+
+        <p>
+            Comprueba los resultados del motor local
+            y las categorías permitidas por cada perfil.
+        </p>
+
+        <?php
+
+        $cis_sim_perfiles = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        $cis_sim_perfiles = is_array( $cis_sim_perfiles )
+            ? $cis_sim_perfiles
+            : array();
+
+        $cis_sim_ejecutar = isset( $_GET['cis_simular'] )
+            && is_string( $_GET['cis_simular'] )
+            && '1' === wp_unslash( $_GET['cis_simular'] );
+
+        $cis_sim_texto = isset( $_GET['cis_sim_q'] )
+            && is_string( $_GET['cis_sim_q'] )
+            ? trim(
+                sanitize_text_field(
+                    wp_unslash( $_GET['cis_sim_q'] )
+                )
+            )
+            : '';
+
+        $cis_sim_texto = mb_substr(
+            $cis_sim_texto,
+            0,
+            100
+        );
+
+        $cis_sim_perfil = isset( $_GET['cis_perfil'] )
+            && is_string( $_GET['cis_perfil'] )
+            ? sanitize_key(
+                wp_unslash( $_GET['cis_perfil'] )
+            )
+            : '';
+
+        ?>
+
+        <form
+            method="get"
+            action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+        >
+
+            <input
+                type="hidden"
+                name="page"
+                value="compuciber-ai-search"
+            >
+
+            <input
+                type="hidden"
+                name="cis_simular"
+                value="1"
+            >
+
+            <?php
+            wp_nonce_field(
+                'cis_simulacion_local',
+                'cis_sim_nonce'
+            );
+            ?>
+
+            <p>
+                <label for="cis-sim-q">
+                    <strong>Producto o término de búsqueda</strong>
+                </label>
+                <br>
+
+                <input
+                    type="search"
+                    id="cis-sim-q"
+                    name="cis_sim_q"
+                    value="<?php echo esc_attr( $cis_sim_texto ); ?>"
+                    maxlength="100"
+                    required
+                    class="regular-text"
+                    placeholder="Ejemplo: laptop Lenovo"
+                >
+            </p>
+
+            <p>
+                <label for="cis-sim-perfil">
+                    <strong>Perfil de búsqueda</strong>
+                </label>
+                <br>
+
+                <select
+                    name="cis_perfil"
+                    id="cis-sim-perfil"
+                >
+
+                    <option value="">
+                        Predeterminado (todo el catálogo)
+                    </option>
+
+                    <?php foreach (
+                        $cis_sim_perfiles as $cis_id => $cis_datos
+                    ) : ?>
+
+                        <?php
+                        if (
+                            ! is_array( $cis_datos )
+                            || empty( $cis_datos['activo'] )
+                        ) {
+                            continue;
+                        }
+                        ?>
+
+                        <option
+                            value="<?php echo esc_attr( $cis_id ); ?>"
+                            <?php
+                            selected(
+                                $cis_sim_perfil,
+                                $cis_id
+                            );
+                            ?>
+                        >
+                            <?php
+                            echo esc_html(
+                                $cis_datos['nombre'] ?? $cis_id
+                            );
+                            ?>
+                        </option>
+
+                    <?php endforeach; ?>
+
+                </select>
+            </p>
+
+            <p>
+                <button
+                    type="submit"
+                    class="button button-primary"
+                >
+                    Simular búsqueda
+                </button>
+            </p>
+
+        </form>
+
+        <?php if ( $cis_sim_ejecutar ) : ?>
+
+            <?php
+
+            $cis_sim_nonce = isset( $_GET['cis_sim_nonce'] )
+                && is_string( $_GET['cis_sim_nonce'] )
+                ? sanitize_text_field(
+                    wp_unslash( $_GET['cis_sim_nonce'] )
+                )
+                : '';
+
+            $cis_sim_perfil_valido = $cis_sim_perfil === ''
+                || (
+                    isset( $cis_sim_perfiles[ $cis_sim_perfil ] )
+                    && is_array(
+                        $cis_sim_perfiles[ $cis_sim_perfil ]
+                    )
+                    && ! empty(
+                        $cis_sim_perfiles[ $cis_sim_perfil ]['activo']
+                    )
+                );
+
+            ?>
+
+            <?php if (
+                ! wp_verify_nonce(
+                    $cis_sim_nonce,
+                    'cis_simulacion_local'
+                )
+            ) : ?>
+
+                <p class="notice notice-error inline">
+                    La verificación ha caducado.
+                    Vuelve a simular.
+                </p>
+
+            <?php elseif (
+                $cis_sim_texto === ''
+                || ! $cis_sim_perfil_valido
+            ) : ?>
+
+                <p class="notice notice-error inline">
+                    Escribe una búsqueda y selecciona
+                    un perfil activo.
+                </p>
+
+            <?php elseif (
+                ! class_exists( 'WooCommerce' )
+            ) : ?>
+
+                <p class="notice notice-error inline">
+                    WooCommerce debe estar activo.
+                </p>
+
+            <?php else : ?>
+
+                <?php
+
+                /*
+                 * Aplicar las correcciones existentes.
+                 */
+                $cis_sim_corregida =
+                    compuciber_corregir_busqueda(
+                        $cis_sim_texto
+                    );
+
+                /*
+                 * Desactivar temporalmente las funciones
+                 * semánticas solo durante esta simulación.
+                 *
+                 * No modifica la configuración guardada.
+                 */
+                add_filter(
+                    'pre_option_compuciber_busqueda_semantica',
+                    '__return_zero',
+                    PHP_INT_MAX
+                );
+
+                try {
+
+                    /*
+                     * Utilizar directamente el motor local.
+                     *
+                     * Esta llamada no registra búsquedas
+                     * en las estadísticas del plugin.
+                     */
+                    $cis_sim_resultados =
+                        compuciber_buscar_productos_inteligente(
+                            $cis_sim_corregida,
+                            array()
+                        );
+
+                } finally {
+
+                    /*
+                     * Restaurar inmediatamente el
+                     * comportamiento habitual del plugin.
+                     */
+                    remove_filter(
+                        'pre_option_compuciber_busqueda_semantica',
+                        '__return_zero',
+                        PHP_INT_MAX
+                    );
+
+                }
+
+                ?>
+
+                <?php if (
+                    $cis_sim_resultados instanceof WP_Query
+                ) : ?>
+
+                    <p>
+                        <strong>Productos encontrados:</strong>
+
+                        <?php
+                        echo esc_html(
+                            (string) $cis_sim_resultados->found_posts
+                        );
+                        ?>
+                    </p>
+
+                    <?php if (
+                        $cis_sim_corregida !== $cis_sim_texto
+                    ) : ?>
+
+                        <p>
+                            Corrección aplicada:
+
+                            <strong>
+                                <?php
+                                echo esc_html(
+                                    $cis_sim_corregida
+                                );
+                                ?>
+                            </strong>
+                        </p>
+
+                    <?php endif; ?>
+
+                    <?php if (
+                        ! empty( $cis_sim_resultados->posts )
+                    ) : ?>
+
+                        <h3>Primeros productos encontrados</h3>
+
+                        <ol>
+
+                            <?php foreach (
+                                $cis_sim_resultados->posts
+                                as $cis_sim_producto
+                            ) : ?>
+
+                                <li>
+
+                                    <a
+                                        href="<?php
+                                            echo esc_url(
+                                                get_permalink(
+                                                    $cis_sim_producto->ID
+                                                )
+                                            );
+                                        ?>"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+
+                                        <?php
+                                        echo esc_html(
+                                            get_the_title(
+                                                $cis_sim_producto->ID
+                                            )
+                                        );
+                                        ?>
+
+                                    </a>
+
+                                    <small>
+                                        (ID:
+                                        <?php
+                                        echo esc_html(
+                                            (string) $cis_sim_producto->ID
+                                        );
+                                        ?>)
+                                    </small>
+
+                                </li>
+
+                            <?php endforeach; ?>
+
+                        </ol>
+
+                    <?php else : ?>
+
+                        <p>
+                            No encontramos productos
+                            en esta simulación local.
+                        </p>
+
+                    <?php endif; ?>
+
+                <?php endif; ?>
+
+            <?php endif; ?>
+
+        <?php endif; ?>
+
+        <p class="description">
+            <strong>Modo de prueba local:</strong>
+            utiliza el motor de búsqueda existente
+            respetando los perfiles y sus categorías.
+
+            No consulta Gemini ni genera embeddings.
+
+            Los resultados pueden diferir de una búsqueda
+            real que utilice interpretación semántica
+            o correcciones fuzzy adicionales.
+
+            Las simulaciones no se registran
+            como búsquedas de clientes.
+        </p>
+
+    </div>
+
+    <!-- FIN DEL SIMULADOR ADMINISTRATIVO -->    
+
             <h2>Exportar estadísticas</h2>
 
             <p>
@@ -1912,6 +2710,34 @@ function compuciber_ai_search_configuracion() {
                             </label>
                         </p>
 
+                        <p>
+                            <label for="cis_pagina_resultados_<?php echo esc_attr( $cis_id ); ?>">
+                                <strong>Página de resultados de este perfil</strong>
+                            </label><br>
+
+                            <?php
+                            wp_dropdown_pages(
+                                array(
+                                    'name'              => 'cis_pagina_resultados',
+                                    'id'                => 'cis_pagina_resultados_' . $cis_id,
+                                    'selected'          => absint(
+                                        $cis_datos['pagina_resultados'] ?? 0
+                                    ),
+                                    'show_option_none'  => 'Usar página general (predeterminado)',
+                                    'option_none_value' => '0',
+                                    'post_status'       => 'publish',
+                                )
+                            );
+                            ?>
+                        </p>
+
+                        <p class="description">
+                            Si no seleccionas otra página, este perfil utilizará
+                            la página de resultados general configurada en el plugin.
+                            Si eliges una página específica, deberá estar preparada
+                            para mostrar los resultados de Compuciber AI Search.
+                        </p>                        
+
                         <h4>Filtros por categorías</h4>
 
                         <p class="description">
@@ -3220,7 +4046,12 @@ function compuciber_ai_search_configuracion() {
                                     Ver página
                                 </a>.
 
-                                Comprueba que incluya
+                                Comprueba que esta página contenga
+                                <code>[compuciber_ai_search solo_resultados="si"]</code>
+                                si ya tienes una barra de búsqueda en la cabecera.
+
+                                Si prefieres mostrar la barra y los productos
+                                en la misma página, utiliza
                                 <code>[compuciber_ai_search]</code>.
 
                             </p>
@@ -3232,17 +4063,16 @@ function compuciber_ai_search_configuracion() {
                         </p>
 
                         <p class="description">
-                            Si seleccionas "Usar página actual", los resultados
-                            aparecerán donde esté insertado el buscador.
-                            Si lo colocas en una cabecera, también podrían
-                            mostrarse dentro de ella.
+                            Si seleccionas "Usar página actual",
+                            el buscador completo mostrará los resultados
+                            donde esté insertado.
                         </p>
 
                         <p class="description">
                             <strong>Recomendado para cabeceras:</strong>
-                            selecciona una página de resultados y coloca
-                            en ella el shortcode:
-                            <code>[compuciber_ai_search]</code>
+                            selecciona una página de resultados
+                            independiente y coloca en ella:
+                            <code>[compuciber_ai_search solo_resultados="si"]</code>
                         </p>
 
                         <p class="description">
@@ -3251,15 +4081,26 @@ function compuciber_ai_search_configuracion() {
                         </p>
 
                         <p class="description">
-                            Así, el encabezado mostrará únicamente la barra
-                            y sus sugerencias, mientras que los resultados
-                            completos aparecerán en la página seleccionada.
+                            Así, la cabecera mostrará únicamente
+                            la barra y sus sugerencias.
+                            Los productos aparecerán en la
+                            página de resultados seleccionada,
+                            sin repetir la barra.
                         </p>
 
                         <p class="description">
-                            <strong>Importante:</strong>
-                            el modo "solo barra" necesita una página de
-                            resultados configurada para mostrar los productos.
+                            <strong>Buscador completo:</strong>
+                            si prefieres mostrar el campo de búsqueda
+                            y los productos juntos, utiliza:
+                            <code>[compuciber_ai_search]</code>
+                        </p>
+
+                        <p class="description">
+                            <strong>Perfiles personalizados:</strong>
+                            cada perfil puede utilizar la página
+                            general o una página específica.
+                            Si no seleccionas otra, se utilizará
+                            automáticamente la página general.
                         </p>
                     </td>
                 </tr>

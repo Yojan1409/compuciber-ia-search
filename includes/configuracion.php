@@ -335,6 +335,14 @@ function compuciber_sanitizar_perfiles_busqueda( $valor ) {
                 $datos['activo'] ?? '0'
             ) === '1' ? 1 : 0,
 
+            /*
+            * Página de resultados opcional del perfil.
+            * 0 = utilizar la página general configurada.
+            */
+            'pagina_resultados' => absint(
+                $datos['pagina_resultados'] ?? 0
+            ),            
+
             'incluir' => array_values(
                 array_unique(
                     array_filter( $incluir )
@@ -556,6 +564,32 @@ function compuciber_admin_guardar_perfil_busqueda() {
         return $validos;
     };
 
+    /*
+    * Página de resultados opcional del perfil.
+    * Si no se selecciona ninguna, se utiliza
+    * la página general configurada en el plugin.
+    */
+    $pagina_resultados_perfil = isset(
+        $_POST['cis_pagina_resultados']
+    ) && is_scalar( $_POST['cis_pagina_resultados'] )
+        ? absint(
+            wp_unslash( $_POST['cis_pagina_resultados'] )
+        )
+        : absint(
+            $perfiles[ $id ]['pagina_resultados'] ?? 0
+        );
+
+    // Aceptar únicamente páginas publicadas.
+    if (
+        $pagina_resultados_perfil > 0
+        && (
+            get_post_type( $pagina_resultados_perfil ) !== 'page'
+            || get_post_status( $pagina_resultados_perfil ) !== 'publish'
+        )
+    ) {
+        $pagina_resultados_perfil = 0;
+    }
+
     $perfiles[ $id ] = array(
         'nombre' => $nombre,
 
@@ -571,6 +605,8 @@ function compuciber_admin_guardar_perfil_busqueda() {
         'excluir' => $categorias_validas(
             'cis_categorias_excluir'
         ),
+
+        'pagina_resultados' => $pagina_resultados_perfil,
     );
 
     update_option(

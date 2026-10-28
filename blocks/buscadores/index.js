@@ -24,7 +24,14 @@
             solo_barra: {
                 type: 'boolean',
                 default: false
+            },
+
+            solo_resultados: {
+                type: 'boolean',
+                default: false
             }
+
+
 
         },
 
@@ -159,15 +166,17 @@
                     {
                         id: 'cis-modo-' + props.clientId,
 
-                        value: props.attributes.solo_barra
-                            ? 'barra'
-                            : 'completo',
+                        value: props.attributes.solo_resultados
+                            ? 'resultados'
+                            : (props.attributes.solo_barra ? 'barra' : 'completo'),
 
                         onChange: function (evento) {
 
+                            const modo = evento.target.value;
+
                             props.setAttributes({
-                                solo_barra:
-                                    evento.target.value === 'barra'
+                                solo_barra: modo === 'barra',
+                                solo_resultados: modo === 'resultados'
                             });
 
                         },
@@ -188,6 +197,12 @@
                         'option',
                         { value: 'barra' },
                         'Solo barra (ideal para cabeceras)'
+                    ),
+
+                    el(
+                        'option',
+                        { value: 'resultados' },
+                        'Solo resultados (páginas de destino)'
                     )
                 ),
 

@@ -73,17 +73,23 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
         );
 
         $this->add_control(
-                    'solo_barra',
-                    array(
-                        'label'        => 'Mostrar solo la barra',
-                        'type'         => \Elementor\Controls_Manager::SWITCHER,
-                        'label_on'     => 'Sí',
-                        'label_off'    => 'No',
-                        'return_value' => 'yes',
-                        'default'      => '',
-                        'description'  => 'Actívalo para cabeceras. Los resultados se mostrarán en la página seleccionada en Configuración.',
-                    )
-                );        
+            'solo_barra',
+            array(
+                'label' => 'Modo de visualización',
+
+                'type' => \Elementor\Controls_Manager::SELECT,
+
+                'options' => array(
+                    ''           => 'Buscador completo',
+                    'yes'        => 'Solo barra (cabeceras)',
+                    'resultados' => 'Solo resultados (páginas de destino)',
+                ),
+
+                'default' => '',
+
+                'description' => 'Elige qué elementos mostrar. La página de resultados se configura en el plugin.',
+            )
+        );      
 
         /*
         * Perfiles opcionales del buscador.
@@ -762,10 +768,32 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
             }
         }
 
-        // Conservar el funcionamiento original sin perfil.
-        $shortcode = $solo_barra
-            ? '[compuciber_ai_search solo_barra="si"'
-            : '[compuciber_ai_search';
+        /*
+        * Modos de visualización de Elementor.
+        *
+        * Vacío      = buscador completo.
+        * yes        = solo barra.
+        * resultados = solo resultados.
+        *
+        * Se conservan los valores anteriores
+        * para mantener la compatibilidad.
+        */
+        if (
+            isset( $settings['solo_barra'] )
+            && 'resultados' === $settings['solo_barra']
+        ) {
+
+            $shortcode = '[compuciber_ai_search solo_resultados="si"';
+
+        } elseif ( $solo_barra ) {
+
+            $shortcode = '[compuciber_ai_search solo_barra="si"';
+
+        } else {
+
+            $shortcode = '[compuciber_ai_search';
+
+        }
 
         // Agregar el perfil únicamente cuando exista.
         if ( $perfil_id !== '' ) {

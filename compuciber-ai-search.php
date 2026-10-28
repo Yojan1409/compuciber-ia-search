@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 2.1.1
+ * Version: 2.1.2
  * Author: Compuciber
  */
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2.1.1'
+        '2.1.2'
     );
 }
 
@@ -1011,8 +1011,9 @@ function compuciber_ai_search_shortcode( $atts = array() )
 {
     $atts = shortcode_atts(
         array(
-            'solo_barra' => 'no',
-            'perfil'     => '',
+            'solo_barra'      => 'no',
+            'solo_resultados' => 'no',
+            'perfil'          => '',
         ),
         is_array( $atts ) ? $atts : array(),
         'ai_product_search'
@@ -1023,9 +1024,19 @@ function compuciber_ai_search_shortcode( $atts = array() )
         (string) $atts['perfil']
     );
 
-    // Recuperar el perfil al llegar a la página de resultados.
+    /*
+    * Recuperar el perfil enviado desde otra página
+    * solamente en buscadores que muestran resultados.
+    *
+    * Las barras de cabecera conservan su propio perfil.
+    */
     if (
         $perfil_id === ''
+        && ! in_array(
+            strtolower( (string) $atts['solo_barra'] ),
+            array( 'si', '1', 'true', 'yes' ),
+            true
+        )
         && isset( $_GET['cis_perfil'] )
         && is_string( $_GET['cis_perfil'] )
     ) {
@@ -1040,9 +1051,70 @@ function compuciber_ai_search_shortcode( $atts = array() )
         true
     );
 
+    /*
+    * Modo Solo resultados.
+    * Permite mostrar los productos sin repetir
+    * la barra que ya existe en la cabecera.
+    */
+    $solo_resultados = in_array(
+        strtolower( (string) $atts['solo_resultados'] ),
+        array( 'si', '1', 'true', 'yes' ),
+        true
+    );
+
+    // Solo resultados tiene prioridad sobre Solo barra.
+    if ( $solo_resultados ) {
+        $solo_barra = false;
+    }    
+
+    /*
+    * Página de resultados predeterminada.
+    * Se utiliza siempre que no exista
+    * una página específica para el perfil.
+    */
     $pagina_resultados_id = absint(
         get_option( 'compuciber_pagina_resultados', 0 )
     );
+
+    /*
+    * Consultar una página específica únicamente
+    * cuando se está utilizando un perfil.
+    *
+    * El buscador predeterminado permanece intacto.
+    */
+    if ( $perfil_id !== '' ) {
+
+        $cis_perfiles_destino = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        if (
+            is_array( $cis_perfiles_destino )
+            && isset( $cis_perfiles_destino[ $perfil_id ] )
+            && is_array( $cis_perfiles_destino[ $perfil_id ] )
+            && ! empty( $cis_perfiles_destino[ $perfil_id ]['activo'] )
+        ) {
+
+            $cis_pagina_especifica = absint(
+                $cis_perfiles_destino[ $perfil_id ]['pagina_resultados'] ?? 0
+            );
+
+            /*
+            * Utilizar la página específica solo
+            * si existe y está publicada.
+            */
+            if (
+                $cis_pagina_especifica > 0
+                && get_post_type( $cis_pagina_especifica ) === 'page'
+                && get_post_status( $cis_pagina_especifica ) === 'publish'
+            ) {
+
+                $pagina_resultados_id = $cis_pagina_especifica;
+
+            }
+        }
+    }
 
     $pagina_configurada =
         $pagina_resultados_id > 0
@@ -1281,6 +1353,7 @@ function compuciber_ai_search_shortcode( $atts = array() )
     <div class="compuciber-ai-search"
      data-cis-perfil="<?php echo esc_attr( $perfil_id ); ?>">
 
+        <?php if ( ! $solo_resultados ) : ?>
         <form method="get" action="<?php echo esc_url( $url_resultados ); ?>">
         <?php if ( $perfil_id !== '' ) : ?>
 
@@ -1369,6 +1442,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
             ></div>          
 
         </form>
+
+        <?php endif; ?>
 
         <?php
 
@@ -2344,6 +2419,15 @@ function compuciber_ai_search_registrar_bloque() {
                     'type'    => 'boolean',
                     'default' => false,
                 ),
+                /*
+                * Modo Solo resultados para Gutenberg.
+                * false = conservar el comportamiento anterior.
+                * true  = mostrar únicamente los resultados.
+                */
+                'solo_resultados' => array(
+                    'type'    => 'boolean',
+                    'default' => false,
+                ),
             ),
         )
     );
@@ -2416,10 +2500,14 @@ add_action(
 
 
 /**
- * Renderiza el bloque Gutenberg.
+ * Renderizar el buscador desde Gutenberg.
  *
- * Utiliza exactamente el mismo buscador
- * que el shortcode.
+ * Admite:
+ * - Buscador completo.
+ * - Solo barra.
+ * - Solo resultados.
+ *
+ * También conserva los perfiles personalizados.
  */
 function compuciber_ai_search_render_bloque( $atributos = array() ) {
 
@@ -2433,49 +2521,81 @@ function compuciber_ai_search_render_bloque( $atributos = array() ) {
         $perfil_id = sanitize_key( $atributos['perfil'] );
     }
 
-    // Leer el modo elegido en Gutenberg.
-    $solo_barra = (
+    /*
+     * Leer el modo de visualización.
+     */
+    $solo_resultados = (
         is_array( $atributos )
+        && ! empty( $atributos['solo_resultados'] )
+    );
+
+    $solo_barra = (
+        ! $solo_resultados
+        && is_array( $atributos )
         && ! empty( $atributos['solo_barra'] )
     );
 
-    // Sin perfil: conservar el buscador original.
-    if ( $perfil_id === '' ) {
-
-        if ( ! $solo_barra ) {
-            return compuciber_ai_search_shortcode();
-        }
-
-        return compuciber_ai_search_shortcode(
-            array(
-                'solo_barra' => 'si',
-            )
-        );
-    }
-
-    // Evitar mostrar productos sin filtrar si el perfil ya no existe.
-    $perfiles = get_option(
-        'compuciber_perfiles_busqueda',
-        array()
-    );
-
+    /*
+     * Sin perfil y en modo completo:
+     * conservar exactamente la llamada original.
+     */
     if (
-        ! is_array( $perfiles )
-        || ! isset( $perfiles[ $perfil_id ] )
-        || ! is_array( $perfiles[ $perfil_id ] )
-        || empty( $perfiles[ $perfil_id ]['activo'] )
+        $perfil_id === ''
+        && ! $solo_resultados
+        && ! $solo_barra
     ) {
-        return current_user_can( 'edit_posts' )
-            ? '<p>El perfil seleccionado no existe o está inactivo.</p>'
-            : '';
+        return compuciber_ai_search_shortcode();
     }
 
-    return compuciber_ai_search_shortcode(
-        array(
-            'perfil'     => $perfil_id,
-            'solo_barra' => $solo_barra ? 'si' : 'no',
-        )
-    );
+    /*
+     * Validar únicamente cuando se utiliza
+     * un perfil personalizado.
+     */
+    if ( $perfil_id !== '' ) {
+
+        $perfiles = get_option(
+            'compuciber_perfiles_busqueda',
+            array()
+        );
+
+        if (
+            ! is_array( $perfiles )
+            || ! isset( $perfiles[ $perfil_id ] )
+            || ! is_array( $perfiles[ $perfil_id ] )
+            || empty( $perfiles[ $perfil_id ]['activo'] )
+        ) {
+            return current_user_can( 'edit_posts' )
+                ? '<p>El perfil seleccionado no existe o está inactivo.</p>'
+                : '';
+        }
+    }
+
+    /*
+     * Preparar los parámetros del buscador.
+     */
+    $opciones = array();
+
+    if ( $perfil_id !== '' ) {
+        $opciones['perfil'] = $perfil_id;
+    }
+
+    /*
+     * Aplicar únicamente un modo de visualización.
+     */
+    if ( $solo_resultados ) {
+
+        $opciones['solo_resultados'] = 'si';
+
+    } elseif ( $solo_barra ) {
+
+        $opciones['solo_barra'] = 'si';
+
+    }
+
+    /*
+     * Reutilizar el motor original.
+     */
+    return compuciber_ai_search_shortcode( $opciones );
 }
 
 /**
