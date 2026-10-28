@@ -2484,6 +2484,109 @@ function compuciber_ai_search_configuracion() {
         <h1>Configuración - AI Product Search</h1>
 
         <?php
+
+        /*
+        * Avisos de confirmación de Compuciber AI Search.
+        * Solo afecta a los mensajes del administrador.
+        */
+
+        $cis_opciones_guardadas = isset( $_GET['settings-updated'] )
+            && is_string( $_GET['settings-updated'] )
+            && 'true' === sanitize_text_field(
+                wp_unslash( $_GET['settings-updated'] )
+            );
+
+        if ( $cis_opciones_guardadas ) {
+
+            settings_errors();
+
+        } else {
+
+            $cis_avisos = array(
+
+                'cis_perfil' => array(
+
+                    'creado' => array(
+                        'success',
+                        'Perfil creado correctamente.'
+                    ),
+
+                    'guardado' => array(
+                        'success',
+                        'Perfil actualizado correctamente.'
+                    ),
+
+                    'eliminado' => array(
+                        'success',
+                        'Perfil eliminado correctamente.'
+                    ),
+
+                    'nombre_vacio' => array(
+                        'error',
+                        'Escribe un nombre para crear el perfil.'
+                    ),
+
+                ),
+
+                'cis_resultado' => array(
+
+                    'creada' => array(
+                        'success',
+                        'Página de resultados preparada y seleccionada correctamente.'
+                    ),
+
+                    'error' => array(
+                        'error',
+                        'No se pudo crear la página de resultados.'
+                    ),
+
+                ),
+
+            );
+
+            foreach ( $cis_avisos as $cis_parametro => $cis_estados ) {
+
+                if (
+                    ! isset( $_GET[ $cis_parametro ] )
+                    || ! is_string( $_GET[ $cis_parametro ] )
+                ) {
+                    continue;
+                }
+
+                $cis_estado = sanitize_key(
+                    wp_unslash( $_GET[ $cis_parametro ] )
+                );
+
+                if ( ! isset( $cis_estados[ $cis_estado ] ) ) {
+                    continue;
+                }
+
+                $cis_tipo_aviso = $cis_estados[ $cis_estado ][0];
+
+                $cis_texto_aviso = $cis_estados[ $cis_estado ][1];
+
+                ?>
+
+                <div
+                    class="notice notice-<?php echo esc_attr( $cis_tipo_aviso ); ?> is-dismissible"
+                    role="<?php echo esc_attr(
+                        'error' === $cis_tipo_aviso ? 'alert' : 'status'
+                    ); ?>"
+                >
+                    <p>
+                        <?php echo esc_html( $cis_texto_aviso ); ?>
+                    </p>
+                </div>
+
+                <?php
+
+                break;
+            }
+        }
+
+        ?>        
+
+        <?php
         $cis_perfiles_panel = get_option(
             'compuciber_perfiles_busqueda',
             array()
@@ -2505,20 +2608,6 @@ function compuciber_ai_search_configuracion() {
                 Cada perfil podrá tener sus propios filtros
                 y configuraciones de búsqueda.
             </p>
-
-            <?php if (
-                isset( $_GET['cis_perfil'] )
-                && is_string( $_GET['cis_perfil'] )
-                && sanitize_key(
-                    wp_unslash( $_GET['cis_perfil'] )
-                ) === 'creado'
-            ) : ?>
-
-                <div class="notice notice-success inline">
-                    <p>Perfil creado correctamente.</p>
-                </div>
-
-            <?php endif; ?>
 
             <form method="post"
                 action="<?php echo esc_url(

@@ -4,6 +4,41 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+/**
+ * Obtener automáticamente la cantidad de productos
+ * por página configurada en WooCommerce.
+ *
+ * Respeta las configuraciones estándar de WooCommerce
+ * y los filtros de personalización del tema.
+ */
+function compuciber_productos_por_pagina() {
+
+    $cantidad = 10;
+
+    if (
+        function_exists( 'wc_get_default_products_per_row' )
+        && function_exists( 'wc_get_default_product_rows_per_page' )
+    ) {
+
+        $predeterminado =
+            wc_get_default_products_per_row()
+            * wc_get_default_product_rows_per_page();
+
+        $configurado = apply_filters(
+            'loop_shop_per_page',
+            $predeterminado
+        );
+
+        if (
+            is_numeric( $configurado )
+            && (int) $configurado > 0
+        ) {
+            $cantidad = (int) $configurado;
+        }
+    }
+
+    return min( 100, max( 1, $cantidad ) );
+}
 
 function compuciber_consulta_vacia() {
 
@@ -110,7 +145,7 @@ function compuciber_consulta_productos(
         array(
             'post_type'      => 'product',
             'post_status'    => 'publish',
-            'posts_per_page' => 10,
+            'posts_per_page' => compuciber_productos_por_pagina(),
             'paged'          => $cis_pagina_actual,
 
             'post__in' =>
