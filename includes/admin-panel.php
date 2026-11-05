@@ -5,6 +5,5730 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
+ * Progreso de procesos por lotes.
+ *
+ * Solo lectura.
+ * No ejecuta indexaciones, auditorías
+ * ni solicitudes a las API.
+ */
+function compuciber_ajax_progreso_lotes() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+
+        wp_send_json_error(
+            array( 'mensaje' => 'Sin permisos.' ),
+            403
+        );
+    }
+
+    check_ajax_referer(
+        'cis_progreso_lotes',
+        'nonce'
+    );
+
+    /*
+     * Consultar estados existentes.
+     */
+
+    $resumen = function_exists(
+        'compuciber_resumen_indice_113'
+    )
+        ? compuciber_resumen_indice_113()
+        : array();
+
+    $indice = get_option(
+        'compuciber_indice_lotes_estado',
+        array()
+    );
+
+    $auditoria = get_option(
+        'compuciber_auditoria_integral_estado',
+        array()
+    );
+
+    $cola = get_option(
+        'compuciber_cola_embeddings_estado',
+        array()
+    );
+
+    $indice = is_array( $indice )
+        ? $indice
+        : array();
+
+    $auditoria = is_array( $auditoria )
+        ? $auditoria
+        : array();
+
+    $cola = is_array( $cola )
+        ? $cola
+        : array();
+
+    $fecha = static function ( $timestamp ) {
+
+        return $timestamp
+            ? wp_date(
+                'Y-m-d H:i:s',
+                absint( $timestamp )
+            )
+            : '—';
+    };
+
+    /*
+     * Indexación.
+     */
+
+    $total = absint(
+        $resumen['total'] ?? 0
+    );
+
+    $indexados = absint(
+        $resumen['indexados'] ?? 0
+    );
+
+    $pendientes = absint(
+        $resumen['pendientes'] ?? 0
+    );
+
+    /*
+     * Auditoría.
+     */
+
+    $total_auditoria = absint(
+        $auditoria['total'] ?? 0
+    );
+
+    $revisados = absint(
+        $auditoria['revisados'] ?? 0
+    );
+
+    /*
+     * Embeddings.
+     */
+
+    $meta = absint(
+        $cola['limite_total'] ?? 0
+    );
+
+    $procesados = absint(
+        $cola['procesados'] ?? 0
+    );
+
+    $proximo_auditoria = ! empty(
+        $auditoria['token']
+    )
+        ? wp_next_scheduled(
+            'compuciber_auditoria_integral_lote',
+            array( $auditoria['token'] )
+        )
+        : false;
+
+    $reparacion = get_option(
+            'compuciber_reparacion_indice_estado',
+            array()
+        );
+
+    $reparacion = is_array( $reparacion )
+        ? $reparacion
+        : array();
+
+    /*
+     * Respuesta para las barras existentes.
+     */
+
+    wp_send_json_success(
+        array(
+
+            'indice' => array(
+
+                'total' => $total,
+
+                'indexados' => $indexados,
+
+                'pendientes' => $pendientes,
+
+                'porcentaje' => $total
+                    ? round(
+                        100 * $indexados / $total,
+                        1
+                    )
+                    : 0,
+
+                'estado' => sanitize_key(
+                    $indice['estado'] ?? 'pendiente'
+                ),
+
+                'cursor' => absint(
+                    $indice['cursor'] ?? 0
+                ),
+
+                'ultima' => $fecha(
+                    $indice['ultima'] ?? 0
+                ),
+
+                'proximo' => $fecha(
+                    wp_next_scheduled(
+                        'compuciber_indice_lote_113'
+                    )
+                ),
+            ),
+
+            'auditoria' => array(
+
+                'total' => $total_auditoria,
+
+                'revisados' => $revisados,
+
+                'porcentaje' => $total_auditoria
+                    ? min(
+                        100,
+                        round(
+                            100 * $revisados
+                            / $total_auditoria,
+                            1
+                        )
+                    )
+                    : 0,
+
+                'estado' => sanitize_key(
+                    $auditoria['situacion']
+                        ?? 'sin_iniciar'
+                ),
+
+                'diferencias' => absint(
+                    $auditoria['con_diferencias'] ?? 0
+                ),
+
+                'no_visibles' => absint(
+                    $auditoria['no_visibles'] ?? 0
+                ),
+
+                'no_verificados' => absint(
+                    $auditoria['no_verificados'] ?? 0
+                ),
+
+                'cursor' => absint(
+                    $auditoria['cursor'] ?? 0
+                ),
+
+                'proximo' => $fecha(
+                    $proximo_auditoria
+                ),
+            ),
+
+            'reparacion' => array(
+
+                'estado' => sanitize_key(
+                    $reparacion['situacion'] ?? 'sin_iniciar'
+                ),
+
+                'total' => absint(
+                    $reparacion['total'] ?? 0
+                ),
+
+                'revisados' => absint(
+                    $reparacion['revisados'] ?? 0
+                ),
+
+                'reindexados' => absint(
+                    $reparacion['reindexados'] ?? 0
+                ),
+
+                'fallidos' => absint(
+                    $reparacion['fallidos'] ?? 0
+                ),
+
+            ),
+
+            'embeddings' => array(
+
+                'meta' => $meta,
+
+                'procesados' => $procesados,
+
+                'porcentaje' => $meta
+                    ? min(
+                        100,
+                        round(
+                            100 * $procesados / $meta,
+                            1
+                        )
+                    )
+                    : 0,
+
+                'estado' => sanitize_key(
+                    $cola['situacion']
+                        ?? 'sin_iniciar'
+                ),
+
+                'generados' => absint(
+                    $cola['generados'] ?? 0
+                ),
+
+                'fallidos' => absint(
+                    $cola['fallidos'] ?? 0
+                ),
+
+                'por_lote' => absint(
+                    $cola['por_lote'] ?? 0
+                ),
+
+                'proximo' => $fecha(
+                    wp_next_scheduled(
+                        'compuciber_cola_embeddings_paso'
+                    )
+                ),
+
+                'ultima' => $fecha(
+                    $cola['ultima'] ?? 0
+                ),
+            ),
+        )
+    );
+}
+
+add_action(
+    'wp_ajax_compuciber_progreso_lotes',
+    'compuciber_ajax_progreso_lotes'
+);
+
+/*
+ * Actualizar las barras existentes del administrador.
+ *
+ * No crea nuevos registros ni inicia procesos.
+ */
+function compuciber_admin_progreso_script() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $pagina = isset( $_GET['page'] )
+        && is_string( $_GET['page'] )
+            ? sanitize_key(
+                wp_unslash( $_GET['page'] )
+            )
+            : '';
+
+    /*
+     * Ejecutar solamente en las páginas
+     * de nuestro plugin que muestran progreso.
+     */
+
+    if (
+        ! in_array(
+            $pagina,
+            array(
+                'compuciber-ai-search',
+                'compuciber-ai-search-diagnostico',
+            ),
+            true
+        )
+    ) {
+        return;
+    }
+
+    $ajustes = array(
+        'url' => admin_url( 'admin-ajax.php' ),
+
+        'nonce' => wp_create_nonce(
+            'cis_progreso_lotes'
+        ),
+    );
+
+    ?>
+
+    <script>
+    (function () {
+
+        'use strict';
+
+        const ajustes = <?php
+            echo wp_json_encode(
+                $ajustes,
+                JSON_HEX_TAG |
+                JSON_HEX_AMP |
+                JSON_HEX_APOS |
+                JSON_HEX_QUOT
+            );
+        ?>;
+
+        /*
+         * Localizar las secciones existentes.
+         */
+
+        function seccion(nombre) {
+
+            return Array.from(
+                document.querySelectorAll('.wrap details')
+            ).find(function (d) {
+
+                const titulo = d.querySelector(
+                    ':scope > summary'
+                );
+
+                return titulo
+                    && titulo.textContent.trim() === nombre;
+            });
+        }
+
+        function parrafo(seccionActual, etiqueta) {
+
+            if (!seccionActual) {
+                return null;
+            }
+
+            return Array.from(
+                seccionActual.children
+            ).find(function (n) {
+
+                return n.tagName === 'P'
+                    && n.textContent.includes(etiqueta);
+            });
+        }
+
+        /*
+         * Actualizar valores sin recargar HTML
+         * de los formularios ni de los botones.
+         */
+
+        function escribirLinea(nodo, datos) {
+
+            if (!nodo) {
+                return;
+            }
+
+            nodo.replaceChildren();
+
+            datos.forEach(function (fila, i) {
+
+                const negrita = document.createElement(
+                    'strong'
+                );
+
+                negrita.textContent = fila[0];
+
+                nodo.append(
+                    negrita,
+                    document.createTextNode(
+                        ' ' + fila[1] +
+                        (
+                            i < datos.length - 1
+                                ? ' | '
+                                : ''
+                        )
+                    )
+                );
+            });
+        }
+
+        function porcentaje(n) {
+
+            const valor = Number(n);
+
+            return Number.isFinite(valor)
+                ? Math.min(
+                    100,
+                    Math.max(0, valor)
+                )
+                : 0;
+        }
+
+        /*
+         * INDEXACIÓN.
+         */
+
+        function actualizarIndice(i) {
+
+            const d = seccion(
+                'Estado y seguimiento de indexación'
+            );
+
+            if (d) {
+
+                const barra = d.querySelector(
+                    'progress'
+                );
+
+                if (barra) {
+                    barra.value = porcentaje(
+                        i.porcentaje
+                    );
+                }
+
+                escribirLinea(
+                    parrafo(d, 'Productos publicados:'),
+                    [
+                        ['Productos publicados:', i.total],
+                        ['Con registro:', i.indexados],
+                        ['Sin registro:', i.pendientes],
+                        ['Avance:', i.porcentaje + ' %']
+                    ]
+                );
+
+                escribirLinea(
+                    parrafo(d, 'Estado del proceso:'),
+                    [
+                        ['Estado del proceso:', i.estado],
+                        ['Último ID del cursor:', i.cursor]
+                    ]
+                );
+
+                escribirLinea(
+                    parrafo(d, 'Última actividad:'),
+                    [
+                        ['Última actividad:', i.ultima],
+                        ['Próximo lote programado:', i.proximo]
+                    ]
+                );
+            }
+
+            /*
+             * Actualizar también la barra original
+             * del Dashboard.
+             */
+
+            const h3 = Array.from(
+                document.querySelectorAll('.wrap h3')
+            ).find(function (n) {
+
+                return n.textContent.trim()
+                    === 'Estado de indexación automática';
+            });
+
+            const caja = h3 && h3.closest(
+                '.postbox'
+            );
+
+            if (!caja) {
+                return;
+            }
+
+            const barra = caja.querySelector(
+                'progress'
+            );
+
+            if (barra) {
+                barra.value = porcentaje(
+                    i.porcentaje
+                );
+            }
+
+            const ps = Array.from(
+                caja.children
+            ).filter(function (n) {
+
+                return n.tagName === 'P';
+            });
+
+            if (ps[0]) {
+
+                const fuerte = ps[0].querySelector(
+                    'strong'
+                );
+
+                if (fuerte) {
+
+                    fuerte.textContent =
+                        i.pendientes === 0
+                            ? 'Completado'
+                            : (
+                                i.estado === 'errores'
+                                    ? 'Con errores: revisar'
+                                    : 'En proceso o pendiente'
+                            );
+                }
+            }
+
+            if (ps[1]) {
+
+                ps[1].textContent =
+                    i.indexados + ' de ' +
+                    i.total +
+                    ' productos publicados indexados.';
+            }
+
+            if (ps[2]) {
+
+                escribirLinea(
+                    ps[2],
+                    [
+                        [
+                            'Progreso:',
+                            i.porcentaje + ' %'
+                        ]
+                    ]
+                );
+            }
+
+            if (ps[3]) {
+
+                escribirLinea(
+                    ps[3],
+                    [
+                        ['Pendientes:', i.pendientes]
+                    ]
+                );
+            }
+        }
+
+        /*
+         * AUDITORÍA INTEGRAL.
+         */
+
+        function actualizarAuditoria(a) {
+
+            const d = seccion(
+                'Auditoría integral del catálogo (por lotes)'
+            );
+
+            if (!d) {
+                return;
+            }
+
+            const barra = d.querySelector(
+                'progress'
+            );
+
+            if (barra) {
+
+                barra.value = porcentaje(
+                    a.porcentaje
+                );
+            }
+
+            escribirLinea(
+                parrafo(d, 'Revisados:'),
+                [
+                    ['Estado:', a.estado],
+
+                    [
+                        'Revisados:',
+                        a.revisados + ' / ' + a.total
+                    ],
+
+                    [
+                        'Avance:',
+                        a.porcentaje + ' %'
+                    ]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Productos con diferencias:'),
+                [
+                    [
+                        'Productos con diferencias:',
+                        a.diferencias
+                    ],
+
+                    [
+                        'No visibles (con índice):',
+                        a.no_visibles
+                    ],
+
+                    [
+                        'Comprobaciones no realizadas:',
+                        a.no_verificados
+                    ]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Último ID recorrido:'),
+                [
+                    ['Último ID recorrido:', a.cursor],
+                    ['Próximo lote:', a.proximo]
+                ]
+            );
+        }
+
+        /*
+         * EMBEDDINGS.
+         */
+
+        function actualizarEmbeddings(e) {
+
+            const d = seccion(
+                'Cola automática de embeddings'
+            );
+
+            if (!d) {
+                return;
+            }
+
+            escribirLinea(
+                parrafo(d, 'Procesados en esta sesión:'),
+                [
+                    [
+                        'Procesados en esta sesión:',
+                        e.procesados
+                    ],
+
+                    ['Generados:', e.generados],
+
+                    ['Fallidos:', e.fallidos]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Tope elegido:'),
+                [
+                    [
+                        'Tope elegido:',
+                        e.meta + ' intentos'
+                    ],
+
+                    ['Por lote:', e.por_lote]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Próxima ejecución:'),
+                [
+                    ['Próxima ejecución:', e.proximo]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Último procesamiento:'),
+                [
+                    ['Último procesamiento:', e.ultima]
+                ]
+            );
+
+            escribirLinea(
+                parrafo(d, 'Estado:'),
+                [
+                    ['Estado:', e.estado]
+                ]
+            );
+
+            /*
+             * La cola todavía no tiene una barra
+             * propia: añadirla al mismo apartado.
+             */
+
+            let barra = d.querySelector(
+                'progress[data-cis-cola]'
+            );
+
+            if (!barra) {
+
+                const despues = parrafo(
+                    d,
+                    'Procesados en esta sesión:'
+                );
+
+                if (despues) {
+
+                    barra = document.createElement(
+                        'progress'
+                    );
+
+                    barra.dataset.cisCola = '1';
+
+                    barra.max = 100;
+
+                    barra.style.cssText =
+                        'display:block;' +
+                        'width:100%;' +
+                        'max-width:700px;' +
+                        'height:18px;' +
+                        'margin:12px 0;';
+
+                    barra.setAttribute(
+                        'aria-label',
+                        'Intentos procesados respecto del máximo autorizado'
+                    );
+
+                    despues.insertAdjacentElement(
+                        'afterend',
+                        barra
+                    );
+                }
+            }
+
+            if (barra) {
+
+                barra.value = porcentaje(
+                    e.porcentaje
+                );
+            }
+        }
+        
+        /*  
+         * Actualización de reparación selectiva.
+         */
+
+        function actualizarReparacion(r) {
+
+            if (!r) {
+                return;
+            }
+
+            const escribir = function (id, valor) {
+
+                const elemento = document.getElementById(id);
+
+                if (elemento) {
+                    elemento.textContent = valor;
+                }
+            };
+
+            escribir('cis-rep-estado', r.estado);
+            escribir('cis-rep-revisados', r.revisados);
+            escribir('cis-rep-total', r.total);
+            escribir('cis-rep-reindexados', r.reindexados);
+            escribir('cis-rep-fallidos', r.fallidos);
+
+            const barra = document.getElementById(
+                'cis-rep-barra'
+            );
+
+            if (barra) {
+
+                barra.value = r.total > 0
+                    ? Math.min(
+                        100,
+                        100 * r.revisados / r.total
+                    )
+                    : 0;
+            }
+        }
+
+        /*
+         * CONSULTA AUTOMÁTICA.
+         *
+         * Una petición cada diez segundos.
+         * Solo cuando la pestaña está visible.
+         */
+
+        let trabajando = false;
+
+        async function refrescar() {
+
+            if (document.hidden || trabajando) {
+                return;
+            }
+
+            trabajando = true;
+
+            const controlador = new AbortController();
+
+            const temporizador = setTimeout(
+                function () {
+
+                    controlador.abort();
+
+                },
+                8000
+            );
+
+            try {
+
+                const url = new URL(
+                    ajustes.url
+                );
+
+                url.searchParams.set(
+                    'action',
+                    'compuciber_progreso_lotes'
+                );
+
+                url.searchParams.set(
+                    'nonce',
+                    ajustes.nonce
+                );
+
+                const respuesta = await fetch(
+                    url.toString(),
+                    {
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        signal: controlador.signal
+                    }
+                );
+
+                if (!respuesta.ok) {
+                    return;
+                }
+
+                const json = await respuesta.json();
+
+                if (
+                    !json.success
+                    || !json.data
+                ) {
+                    return;
+                }
+
+                actualizarIndice(
+                    json.data.indice
+                );
+
+                actualizarAuditoria(
+                    json.data.auditoria
+                );
+
+                actualizarEmbeddings(
+                    json.data.embeddings
+                );
+
+                actualizarReparacion(
+                    json.data.reparacion
+                );
+
+            } catch (error) {
+
+                /*
+                 * No generar logs adicionales.
+                 * Se volverá a consultar normalmente.
+                 */
+
+            } finally {
+
+                clearTimeout(
+                    temporizador
+                );
+
+                trabajando = false;
+            }
+        }
+
+        /*
+         * Primera actualización y seguimiento.
+         */
+
+        refrescar();
+
+        setInterval(
+            refrescar,
+            10000
+        );
+
+    })();
+    </script>
+
+    <?php
+}
+
+add_action(
+    'admin_footer',
+    'compuciber_admin_progreso_script'
+);
+
+/*
+ * Control administrativo del historial técnico
+ * de búsquedas reales.
+ */
+function compuciber_traza_control_admin() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( 'Acceso no autorizado.' );
+    }
+
+    check_admin_referer( 'cis_traza_control' );
+
+    $operacion = isset( $_POST['operacion'] )
+        && is_string( $_POST['operacion'] )
+            ? sanitize_key(
+                wp_unslash( $_POST['operacion'] )
+            )
+            : '';
+
+    if ( $operacion === 'activar' ) {
+
+        update_option(
+            'cis_traza_hasta',
+            time() + 30 * MINUTE_IN_SECONDS,
+            false
+        );
+
+    } elseif ( $operacion === 'desactivar' ) {
+
+        update_option(
+            'cis_traza_hasta',
+            0,
+            false
+        );
+
+    } elseif ( $operacion === 'limpiar' ) {
+
+        delete_transient(
+            'cis_trazas_recientes'
+        );
+    }
+
+    wp_safe_redirect(
+        admin_url(
+            'admin.php?page=compuciber-ai-search-diagnostico'
+        )
+    );
+
+    exit;
+}
+
+add_action(
+    'admin_post_compuciber_traza_control',
+    'compuciber_traza_control_admin'
+);
+
+/*
+ * Centro de diagnóstico de Compuciber AI Search.
+ * Captura un historial breve de eventos de WC_Logger.
+ */
+
+if ( ! function_exists( 'compuciber_historial_capturar' ) ) {
+
+    function compuciber_historial_capturar(
+        $mensaje,
+        $nivel,
+        $contexto,
+        $handler = null
+    ) {
+
+        if (
+            ! is_string( $mensaje )
+            || ! is_array( $contexto )
+            || ( $contexto['source'] ?? '' ) !== 'compuciber-ai-search'
+        ) {
+            return $mensaje;
+        }
+
+        $nivel = sanitize_key( (string) $nivel );
+
+        if (
+            ! in_array(
+                $nivel,
+                array(
+                    'emergency',
+                    'alert',
+                    'critical',
+                    'error',
+                    'warning',
+                    'notice',
+                    'info'
+                ),
+                true
+            )
+        ) {
+            return $mensaje;
+        }
+
+        $texto = wp_html_excerpt(
+            sanitize_text_field(
+                wp_strip_all_tags( $mensaje )
+            ),
+            280,
+            '…'
+        );
+
+        $firma = hash(
+            'sha256',
+            $nivel . '|' . $texto
+        );
+
+        $ahora = time();
+
+        $historial = get_option(
+            'compuciber_historial_diagnostico',
+            array()
+        );
+
+        $historial = is_array( $historial )
+            ? $historial
+            : array();
+
+        foreach ( $historial as $evento ) {
+
+            if (
+                is_array( $evento )
+                && ( $evento['firma'] ?? '' ) === $firma
+                && $ahora - (int) ( $evento['ts'] ?? 0 ) < 60
+            ) {
+                return $mensaje;
+            }
+        }
+
+        array_unshift(
+            $historial,
+            array(
+                'fecha'   => current_time( 'mysql' ),
+                'nivel'   => $nivel,
+                'mensaje' => $texto,
+                'firma'   => $firma,
+                'ts'      => $ahora
+            )
+        );
+
+        $historial = array_values(
+            array_filter(
+                $historial,
+                static function ( $evento ) use ( $ahora ) {
+
+                    return is_array( $evento )
+                        && (int) ( $evento['ts'] ?? 0 )
+                        >= $ahora - 14 * DAY_IN_SECONDS;
+                }
+            )
+        );
+
+        update_option(
+            'compuciber_historial_diagnostico',
+            array_slice( $historial, 0, 40 ),
+            false
+        );
+
+        return $mensaje;
+    }
+}
+
+if (
+    ! has_filter(
+        'woocommerce_logger_log_message',
+        'compuciber_historial_capturar'
+    )
+) {
+
+    add_filter(
+        'woocommerce_logger_log_message',
+        'compuciber_historial_capturar',
+        10,
+        4
+    );
+}
+
+
+/*
+ * Página independiente de Diagnóstico y registros.
+ */
+
+function compuciber_ai_search_diagnostico_registros() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die(
+            'No tienes permisos para acceder a este apartado.'
+        );
+    }
+
+    $historial = get_option(
+        'compuciber_historial_diagnostico',
+        array()
+    );
+
+    $historial = is_array( $historial )
+        ? $historial
+        : array();
+
+    $ahora = time();
+
+    $historial = array_filter(
+        $historial,
+        static function ( $evento ) use ( $ahora ) {
+
+            return is_array( $evento )
+                && (int) ( $evento['ts'] ?? 0 )
+                >= $ahora - 14 * DAY_IN_SECONDS;
+        }
+    );
+
+    ?>
+
+    <div class="wrap">
+
+        <h1>
+            Diagnóstico y registros - Compuciber AI Search
+        </h1>
+
+    <!-- Diagnóstico de recursos y conexión AJAX -->
+
+    <div class="postbox" style="padding:16px;max-width:1000px;">
+
+        <details>
+
+            <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                Comprobación de AJAX, JavaScript y CSS
+            </summary>
+
+            <p>
+                Comprueba si el navegador puede acceder a los
+                archivos del buscador y al endpoint AJAX.
+
+                No utiliza inteligencia artificial ni modifica productos.
+            </p>
+
+            <button
+                type="button"
+                class="button button-primary"
+                id="cis-verificar-recursos"
+            >
+                Comprobar recursos
+            </button>
+
+            <div
+                id="cis-resultado-recursos"
+                role="status"
+                aria-live="polite"
+            ></div>
+
+        </details>
+
+    </div>
+
+    <script>
+    (function () {
+
+        const boton = document.getElementById(
+            'cis-verificar-recursos'
+        );
+
+        const salida = document.getElementById(
+            'cis-resultado-recursos'
+        );
+
+        if (!boton || !salida) {
+            return;
+        }
+
+        const pruebas = <?php
+            echo wp_json_encode(
+                array(
+                    array(
+                        'nombre' => 'AJAX de renovación de tokens',
+                        'url' => add_query_arg(
+                            'action',
+                            'compuciber_tokens_publicos',
+                            admin_url('admin-ajax.php')
+                        ),
+                        'tipo' => 'ajax'
+                    ),
+                    array(
+                        'nombre' => 'JavaScript del buscador',
+                        'url' => plugins_url(
+                            'assets/js/buscador.js',
+                            dirname(__DIR__) . '/compuciber-ai-search.php'
+                        ),
+                        'tipo' => 'js'
+                    ),
+                    array(
+                        'nombre' => 'CSS del buscador',
+                        'url' => plugins_url(
+                            'assets/css/buscador.css',
+                            dirname(__DIR__) . '/compuciber-ai-search.php'
+                        ),
+                        'tipo' => 'css'
+                    )
+                ),
+                JSON_HEX_TAG | JSON_HEX_AMP |
+                JSON_HEX_APOS | JSON_HEX_QUOT
+            );
+        ?>;
+
+        boton.addEventListener('click', async function () {
+
+            boton.disabled = true;
+            salida.textContent = 'Comprobando recursos...';
+
+            const resultados = await Promise.all(
+                pruebas.map(async function (prueba) {
+
+                    const controlador = new AbortController();
+
+                    const reloj = setTimeout(function () {
+                        controlador.abort();
+                    }, 10000);
+
+                    try {
+
+                        const inicio = performance.now();
+
+                        const respuesta = await fetch(
+                            prueba.url,
+                            {
+                                credentials: 'same-origin',
+                                cache: 'no-store',
+                                signal: controlador.signal
+                            }
+                        );
+
+                        const texto = await respuesta.text();
+
+                        if (!respuesta.ok) {
+                            throw new Error(
+                                'HTTP ' + respuesta.status
+                            );
+                        }
+
+                        if (prueba.tipo === 'ajax') {
+
+                            const datos = JSON.parse(texto);
+
+                            if (
+                                datos.success !== true ||
+                                !datos.data ||
+                                !datos.data.imageNonce
+                            ) {
+                                throw new Error(
+                                    'Respuesta AJAX inesperada'
+                                );
+                            }
+                        }
+
+                        if (
+                            prueba.tipo === 'js' &&
+                            !texto.includes(
+                                'compuciberInicializarBuscadorPublico'
+                            )
+                        ) {
+                            throw new Error(
+                                'JavaScript inesperado'
+                            );
+                        }
+
+                        if (
+                            prueba.tipo === 'css' &&
+                            !texto.includes(
+                                '.compuciber-ai-search'
+                            )
+                        ) {
+                            throw new Error(
+                                'CSS inesperado'
+                            );
+                        }
+
+                        return prueba.nombre +
+                            ': CORRECTO (' +
+                            Math.round(
+                                performance.now() - inicio
+                            ) +
+                            ' ms)';
+
+                    } catch (error) {
+
+                        return prueba.nombre +
+                            ': REVISAR (' +
+                            error.message +
+                            ')';
+
+                    } finally {
+
+                        clearTimeout(reloj);
+                    }
+                })
+            );
+
+            salida.replaceChildren();
+
+            resultados.forEach(function (mensaje) {
+
+                const parrafo = document.createElement('p');
+
+                parrafo.textContent = mensaje;
+
+                salida.appendChild(parrafo);
+            });
+
+            boton.disabled = false;
+        });
+
+    })();
+    </script>   
+    
+    <?php
+
+    /*
+    * Diagnóstico de URL y página de resultados.
+    * Solo lectura.
+    */
+
+    $cis_d_url_id = absint(
+        get_option(
+            'compuciber_pagina_resultados',
+            0
+        )
+    );
+
+    $cis_d_url_valida =
+        $cis_d_url_id > 0
+        && get_post_type( $cis_d_url_id ) === 'page'
+        && get_post_status( $cis_d_url_id ) === 'publish';
+
+    $cis_d_url_base = $cis_d_url_valida
+        ? get_permalink( $cis_d_url_id )
+        : '';
+
+    $cis_d_url_prueba = $cis_d_url_base !== ''
+        ? add_query_arg(
+            array(
+                'cis_q' => 'laptop',
+                'cis_page' => 3
+            ),
+            $cis_d_url_base
+        )
+        : '';
+
+    $cis_d_scheme_home = wp_parse_url(
+        home_url(),
+        PHP_URL_SCHEME
+    );
+
+    $cis_d_scheme_site = wp_parse_url(
+        site_url(),
+        PHP_URL_SCHEME
+    );
+
+    ?>
+
+    <div class="postbox" style="padding:16px;max-width:1000px;">
+
+        <details>
+
+            <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                Página de resultados y enlaces de paginación
+            </summary>
+
+            <p>
+                <strong>Estado de la página global:</strong>
+
+                <?php
+                echo esc_html(
+                    $cis_d_url_valida
+                        ? 'Publicada'
+                        : 'No hay página global válida'
+                );
+                ?>
+            </p>
+
+            <?php if ( $cis_d_url_valida ) : ?>
+
+                <p>
+                    <strong>URL de resultados:</strong>
+
+                    <br>
+
+                    <code>
+                        <?php echo esc_html( $cis_d_url_base ); ?>
+                    </code>
+                </p>
+
+                <p>
+                    <strong>Ejemplo de URL para la página 3:</strong>
+
+                    <br>
+
+                    <code style="overflow-wrap:anywhere;">
+                        <?php echo esc_html( $cis_d_url_prueba ); ?>
+                    </code>
+                </p>
+
+                <p class="description">
+                    Este ejemplo utiliza la página global.
+                    Un perfil puede tener una página específica.
+
+                    La dirección es ilustrativa y no se abre
+                    automáticamente.
+                </p>
+
+            <?php endif; ?>
+
+            <p>
+                <strong>Configuración de URL:</strong>
+
+                <?php
+
+                echo esc_html(
+                    $cis_d_scheme_home === $cis_d_scheme_site
+                        ? 'Esquemas coincidentes'
+                        : 'Esquemas diferentes: revisar configuración'
+                );
+
+                ?>
+            </p>
+
+            <p class="description">
+                Este diagnóstico permite identificar la página
+                configurada y comprobar la estructura de las URL.
+
+                No garantiza que los botones de Wolmart funcionen.
+
+                Abrir manualmente una búsqueda pública puede
+                activar solicitudes a la inteligencia artificial.
+            </p>
+
+        </details>
+
+    </div>    
+
+        <p>
+            Centro de diagnóstico del buscador.
+            Aquí reuniremos los registros de indexación,
+            búsquedas, inteligencia artificial y compatibilidad.
+        </p>
+
+        <?php
+        /*
+        * Auditoría de productos indexados.
+        * Solo lectura: no modifica productos ni el índice.
+        */
+
+        global $wpdb;
+
+        $cis_a_tabla = $wpdb->prefix . 'compuciber_product_index';
+
+        $cis_a_resumen = compuciber_resumen_indice_113();
+
+        $cis_a_q = isset( $_GET['cis_a_q'] )
+            && is_string( $_GET['cis_a_q'] )
+            ? substr(
+                sanitize_text_field(
+                    wp_unslash( $_GET['cis_a_q'] )
+                ),
+                0,
+                100
+            )
+            : '';
+
+        $cis_a_estado = isset( $_GET['cis_a_estado'] )
+            && is_string( $_GET['cis_a_estado'] )
+            ? sanitize_key(
+                wp_unslash( $_GET['cis_a_estado'] )
+            )
+            : 'todos';
+
+        if (
+            ! in_array(
+                $cis_a_estado,
+                array( 'todos', 'faltantes', 'incompletos' ),
+                true
+            )
+        ) {
+            $cis_a_estado = 'todos';
+        }
+
+        $cis_a_pagina = isset( $_GET['cis_a_pagina'] )
+            ? max( 1, absint( $_GET['cis_a_pagina'] ) )
+            : 1;
+
+        $cis_a_where =
+            "p.post_type = 'product' AND p.post_status = 'publish'";
+
+        $cis_a_args = array();
+
+        if ( 'faltantes' === $cis_a_estado ) {
+
+            $cis_a_where .= ' AND i.id IS NULL';
+
+        } elseif ( 'incompletos' === $cis_a_estado ) {
+
+            $cis_a_where .= "
+                AND i.id IS NOT NULL
+                AND (
+                    TRIM(i.nombre) = ''
+                    OR TRIM(i.texto_busqueda) = ''
+                )
+            ";
+        }
+
+        if ( '' !== $cis_a_q ) {
+
+            $cis_a_like =
+                '%' . $wpdb->esc_like( $cis_a_q ) . '%';
+
+            $cis_a_where .= "
+                AND (
+                    CAST(p.ID AS CHAR) = %s
+                    OR p.post_title LIKE %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM {$wpdb->postmeta} pm
+                        WHERE pm.post_id = p.ID
+                        AND pm.meta_key = '_sku'
+                        AND pm.meta_value LIKE %s
+                    )
+                )
+            ";
+
+            array_push(
+                $cis_a_args,
+                $cis_a_q,
+                $cis_a_like,
+                $cis_a_like
+            );
+        }
+
+        $cis_a_base = "
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$cis_a_tabla} i
+                ON i.id = p.ID
+            WHERE {$cis_a_where}
+        ";
+
+        $cis_a_count_sql = 'SELECT COUNT(*) ' . $cis_a_base;
+
+        $cis_a_total = (int) $wpdb->get_var(
+            $cis_a_args
+                ? $wpdb->prepare(
+                    $cis_a_count_sql,
+                    $cis_a_args
+                )
+                : $cis_a_count_sql
+        );
+
+        $cis_a_paginas = max(
+            1,
+            (int) ceil( $cis_a_total / 25 )
+        );
+
+        $cis_a_pagina = min(
+            $cis_a_pagina,
+            $cis_a_paginas
+        );
+
+        $cis_a_rows = $wpdb->get_results(
+            $wpdb->prepare(
+                'SELECT
+                    p.ID,
+                    p.post_title,
+                    i.id AS indice_id,
+                    i.nombre,
+                    i.texto_busqueda,
+                    i.actualizado '
+                    . $cis_a_base .
+                    ' ORDER BY p.ID DESC
+                    LIMIT %d OFFSET %d',
+
+                array_merge(
+                    $cis_a_args,
+                    array(
+                        25,
+                        ( $cis_a_pagina - 1 ) * 25
+                    )
+                )
+            )
+        );
+
+        $cis_a_incompletos = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+            FROM {$wpdb->posts} p
+            INNER JOIN {$cis_a_tabla} i
+                ON i.id = p.ID
+            WHERE p.post_type = 'product'
+            AND p.post_status = 'publish'
+            AND (
+                TRIM(i.nombre) = ''
+                OR TRIM(i.texto_busqueda) = ''
+            )"
+        );
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Auditoría de productos indexados
+                </summary>
+
+                <p>
+                    Publicados:
+                    <strong>
+                        <?php echo esc_html( $cis_a_resumen['total'] ); ?>
+                    </strong>
+
+                    | Con índice:
+                    <strong>
+                        <?php echo esc_html( $cis_a_resumen['indexados'] ); ?>
+                    </strong>
+
+                    | Sin índice:
+                    <strong>
+                        <?php echo esc_html( $cis_a_resumen['pendientes'] ); ?>
+                    </strong>
+
+                    | Registros incompletos:
+                    <strong>
+                        <?php echo esc_html( $cis_a_incompletos ); ?>
+                    </strong>
+                </p>
+
+                <form
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                    method="get"
+                >
+
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search-diagnostico"
+                    >
+
+                    <input
+                        name="cis_a_q"
+                        type="search"
+                        maxlength="100"
+                        placeholder="Nombre, ID o SKU"
+                        value="<?php echo esc_attr( $cis_a_q ); ?>"
+                    >
+
+                    <select name="cis_a_estado">
+
+                        <option
+                            value="todos"
+                            <?php selected( $cis_a_estado, 'todos' ); ?>
+                        >
+                            Todos
+                        </option>
+
+                        <option
+                            value="faltantes"
+                            <?php selected( $cis_a_estado, 'faltantes' ); ?>
+                        >
+                            Sin índice
+                        </option>
+
+                        <option
+                            value="incompletos"
+                            <?php selected( $cis_a_estado, 'incompletos' ); ?>
+                        >
+                            Registros incompletos
+                        </option>
+
+                    </select>
+
+                    <button class="button">
+                        Consultar
+                    </button>
+
+                </form>
+
+                <p>
+                    Coincidencias:
+                    <?php echo esc_html( $cis_a_total ); ?>
+
+                    | Página
+                    <?php echo esc_html( $cis_a_pagina ); ?>
+                    de
+                    <?php echo esc_html( $cis_a_paginas ); ?>
+                </p>
+
+                <table class="widefat striped">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>SKU</th>
+                            <th>Índice</th>
+                            <th>Visibilidad</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <?php foreach ( (array) $cis_a_rows as $cis_a_fila ) : ?>
+
+                            <?php
+                            $cis_a_producto =
+                                function_exists( 'wc_get_product' )
+                                    ? wc_get_product( $cis_a_fila->ID )
+                                    : false;
+
+                            $cis_a_presente =
+                                null !== $cis_a_fila->indice_id;
+
+                            $cis_a_incompleto =
+                                $cis_a_presente
+                                && (
+                                    '' === trim( (string) $cis_a_fila->nombre )
+                                    || '' === trim( (string) $cis_a_fila->texto_busqueda )
+                                );
+                            ?>
+
+                            <tr>
+
+                                <td>
+                                    <?php echo esc_html( $cis_a_fila->ID ); ?>
+                                </td>
+
+                                <td>
+                                    <a href="<?php
+                                        echo esc_url(
+                                            get_edit_post_link(
+                                                $cis_a_fila->ID
+                                            )
+                                        );
+                                    ?>">
+                                        <?php
+                                        echo esc_html(
+                                            $cis_a_fila->post_title
+                                        );
+                                        ?>
+                                    </a>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        get_post_meta(
+                                            $cis_a_fila->ID,
+                                            '_sku',
+                                            true
+                                        )
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        ! $cis_a_presente
+                                            ? 'Sin índice'
+                                            : (
+                                                $cis_a_incompleto
+                                                    ? 'Incompleto'
+                                                    : 'Registro presente'
+                                            )
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $cis_a_producto
+                                            ? (
+                                                $cis_a_producto->is_visible()
+                                                    ? 'Visible'
+                                                    : 'No visible'
+                                            )
+                                            : 'No disponible'
+                                    );
+                                    ?>
+                                </td>
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                        <?php if ( empty( $cis_a_rows ) ) : ?>
+
+                            <tr>
+                                <td colspan="5">
+                                    No hay productos que coincidan.
+                                </td>
+                            </tr>
+
+                        <?php endif; ?>
+
+                    </tbody>
+
+                </table>
+
+                <p>
+
+                    <?php
+                    foreach (
+                        array(
+                            'Anterior'  => $cis_a_pagina - 1,
+                            'Siguiente' => $cis_a_pagina + 1
+                        ) as $cis_a_etiqueta => $cis_a_destino
+                    ) :
+
+                        if (
+                            $cis_a_destino < 1
+                            || $cis_a_destino > $cis_a_paginas
+                        ) {
+                            continue;
+                        }
+
+                        $cis_a_url = add_query_arg(
+                            array(
+                                'page'         => 'compuciber-ai-search-diagnostico',
+                                'cis_a_q'      => $cis_a_q,
+                                'cis_a_estado' => $cis_a_estado,
+                                'cis_a_pagina' => $cis_a_destino,
+                            ),
+                            admin_url( 'admin.php' )
+                        );
+                    ?>
+
+                        <a
+                            class="button"
+                            href="<?php echo esc_url( $cis_a_url ); ?>"
+                        >
+                            <?php echo esc_html( $cis_a_etiqueta ); ?>
+                        </a>
+
+                    <?php endforeach; ?>
+
+                </p>
+
+                <p class="description">
+                    La auditoría comprueba la existencia del registro
+                    y sus campos básicos de búsqueda.
+                    No garantiza que todos los datos estén actualizados
+                    ni que un producto deba aparecer en todas las búsquedas.
+                </p>
+
+            </details>
+
+        </div>
+        
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Entorno y posibles interferencias
+                </summary>
+
+                <?php
+
+                /*
+                * Comprobaciones informativas.
+                * No modifican configuraciones.
+                */
+
+                $cis_entorno_plugins = (array) get_option(
+                    'active_plugins',
+                    array()
+                );
+
+                $cis_entorno_litespeed =
+                    in_array(
+                        'litespeed-cache/litespeed-cache.php',
+                        $cis_entorno_plugins,
+                        true
+                    )
+                    || defined( 'LSCWP_V' );
+
+                $cis_entorno_cron_manual =
+                    defined( 'DISABLE_WP_CRON' )
+                    && DISABLE_WP_CRON;
+
+                $cis_entorno_resumen =
+                    compuciber_resumen_indice_113();
+
+                $cis_entorno_pendientes = absint(
+                    $cis_entorno_resumen['pendientes'] ?? 0
+                );
+
+                $cis_entorno_proximo = wp_next_scheduled(
+                    'compuciber_indice_lote_113'
+                );
+
+                ?>
+
+                <table class="widefat striped">
+
+                    <thead>
+                        <tr>
+                            <th>Comprobación</th>
+                            <th>Dato encontrado</th>
+                            <th>Interpretación</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+
+                            <td>LiteSpeed Cache</td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    $cis_entorno_litespeed
+                                        ? 'Detectado'
+                                        : 'No detectado'
+                                );
+                                ?>
+                            </td>
+
+                            <td>
+                                Si está activo, revisar exclusiones
+                                de caché y optimización de JavaScript
+                                cuando existan conflictos.
+                            </td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>WP-Cron</td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    $cis_entorno_cron_manual
+                                        ? 'Automático desactivado'
+                                        : 'No desactivado por constante'
+                                );
+                                ?>
+                            </td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    $cis_entorno_cron_manual
+                                        ? 'Comprobar que el hosting ejecuta un cron alternativo.'
+                                        : 'Esta configuración no garantiza que las tareas se ejecuten puntualmente.'
+                                );
+                                ?>
+                            </td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Próximo lote del índice</td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    $cis_entorno_proximo
+                                        ? wp_date(
+                                            'Y-m-d H:i:s',
+                                            $cis_entorno_proximo
+                                        )
+                                        : 'Sin programación detectada'
+                                );
+                                ?>
+                            </td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    'Productos pendientes: '
+                                    . $cis_entorno_pendientes
+                                );
+                                ?>
+                            </td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Tema activo</td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    wp_get_theme()->get( 'Name' )
+                                );
+                                ?>
+                            </td>
+
+                            <td>
+                                El tema puede modificar plantillas,
+                                estilos y navegación.
+                            </td>
+
+                        </tr>
+
+                        <tr>
+
+                            <td>Caché de WordPress</td>
+
+                            <td>
+                                <?php
+                                echo esc_html(
+                                    defined( 'WP_CACHE' ) && WP_CACHE
+                                        ? 'WP_CACHE activo'
+                                        : 'WP_CACHE no activo'
+                                );
+                                ?>
+                            </td>
+
+                            <td>
+                                Esta comprobación no identifica
+                                todas las capas de caché,
+                                proxies o CDN.
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+                <p class="description">
+                    Estas comprobaciones son informativas.
+                    Detectar un plugin o una configuración
+                    no significa que exista un conflicto.
+
+                    Los errores JavaScript y de red del navegador
+                    necesitarán comprobaciones adicionales.
+                </p>
+
+            </details>
+
+        </div>        
+
+        <!-- Diagnóstico administrativo del ranking: solo lectura. -->
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Diagnóstico de búsquedas y relevancia
+                </summary>
+
+                <p>
+                    Simula una búsqueda local y muestra los puntos
+                    calculados por el motor. No utiliza Gemini,
+                    OpenAI ni genera embeddings.
+                </p>
+
+                <?php
+
+                $cis_dr_perfiles = get_option(
+                    'compuciber_perfiles_busqueda',
+                    array()
+                );
+
+                $cis_dr_perfiles = is_array( $cis_dr_perfiles )
+                    ? $cis_dr_perfiles
+                    : array();
+
+                $cis_dr_ejecutar =
+                    isset( $_GET['cis_dr_ejecutar'] )
+                    && is_string( $_GET['cis_dr_ejecutar'] )
+                    && '1' === wp_unslash( $_GET['cis_dr_ejecutar'] );
+
+                $cis_dr_q =
+                    isset( $_GET['cis_dr_q'] )
+                    && is_string( $_GET['cis_dr_q'] )
+                        ? mb_substr(
+                            trim(
+                                sanitize_text_field(
+                                    wp_unslash( $_GET['cis_dr_q'] )
+                                )
+                            ),
+                            0,
+                            100
+                        )
+                        : '';
+
+                $cis_dr_perfil =
+                    isset( $_GET['cis_perfil'] )
+                    && is_string( $_GET['cis_perfil'] )
+                        ? sanitize_key(
+                            wp_unslash( $_GET['cis_perfil'] )
+                        )
+                        : '';
+
+                ?>
+
+                <form
+                    method="get"
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search-diagnostico"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="cis_dr_ejecutar"
+                        value="1"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'cis_dr_revision',
+                        'cis_dr_nonce'
+                    );
+                    ?>
+
+                    <p>
+                        <label for="cis-dr-q">
+                            Palabra o consulta:
+                        </label>
+
+                        <br>
+
+                        <input
+                            type="search"
+                            id="cis-dr-q"
+                            name="cis_dr_q"
+                            value="<?php echo esc_attr( $cis_dr_q ); ?>"
+                            maxlength="100"
+                            class="regular-text"
+                            required
+                        >
+                    </p>
+
+                    <p>
+                        <label for="cis-dr-perfil">
+                            Perfil de búsqueda:
+                        </label>
+
+                        <br>
+
+                        <select id="cis-dr-perfil" name="cis_perfil">
+
+                            <option value="">
+                                Sin perfil (catálogo general)
+                            </option>
+
+                            <?php foreach (
+                                $cis_dr_perfiles as $cis_dr_id => $cis_dr_datos
+                            ) : ?>
+
+                                <?php
+                                if (
+                                    ! is_array( $cis_dr_datos )
+                                    || empty( $cis_dr_datos['activo'] )
+                                ) {
+                                    continue;
+                                }
+                                ?>
+
+                                <option
+                                    value="<?php echo esc_attr( $cis_dr_id ); ?>"
+                                    <?php selected(
+                                        $cis_dr_perfil,
+                                        $cis_dr_id
+                                    ); ?>
+                                >
+                                    <?php
+                                    echo esc_html(
+                                        $cis_dr_datos['nombre'] ?? $cis_dr_id
+                                    );
+                                    ?>
+                                </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
+                    </p>
+
+                    <button
+                        type="submit"
+                        class="button button-primary"
+                    >
+                        Analizar relevancia
+                    </button>
+
+                </form>
+
+                <?php if ( $cis_dr_ejecutar ) : ?>
+
+                    <?php
+
+                    $cis_dr_nonce =
+                        isset( $_GET['cis_dr_nonce'] )
+                        && is_string( $_GET['cis_dr_nonce'] )
+                            ? sanitize_text_field(
+                                wp_unslash( $_GET['cis_dr_nonce'] )
+                            )
+                            : '';
+
+                    $cis_dr_perfil_valido =
+                        '' === $cis_dr_perfil
+                        || (
+                            isset( $cis_dr_perfiles[ $cis_dr_perfil ] )
+                            && is_array(
+                                $cis_dr_perfiles[ $cis_dr_perfil ]
+                            )
+                            && ! empty(
+                                $cis_dr_perfiles[ $cis_dr_perfil ]['activo']
+                            )
+                        );
+
+                    ?>
+
+                    <?php if (
+                        ! wp_verify_nonce(
+                            $cis_dr_nonce,
+                            'cis_dr_revision'
+                        )
+                    ) : ?>
+
+                        <p class="notice notice-error inline">
+                            La validación caducó.
+                            Vuelve a enviar la consulta.
+                        </p>
+
+                    <?php elseif (
+                        '' === $cis_dr_q
+                        || ! $cis_dr_perfil_valido
+                    ) : ?>
+
+                        <p class="notice notice-error inline">
+                            Indica una búsqueda y un perfil válido.
+                        </p>
+
+                    <?php elseif (
+                        ! class_exists( 'WooCommerce' )
+                        || ! function_exists(
+                            'compuciber_buscar_productos_inteligente'
+                        )
+                    ) : ?>
+
+                        <p class="notice notice-error inline">
+                            El motor de búsqueda o WooCommerce
+                            no está disponible.
+                        </p>
+
+                    <?php else : ?>
+
+                        <?php
+
+                        $cis_dr_info = null;
+
+                        $cis_dr_capturar =
+                            static function ( $info ) use ( &$cis_dr_info ) {
+                                $cis_dr_info = $info;
+                            };
+
+                        $cis_dr_busqueda =
+                            compuciber_corregir_busqueda( $cis_dr_q );
+
+                        add_action(
+                            'compuciber_diagnostico_ranking',
+                            $cis_dr_capturar,
+                            10,
+                            1
+                        );
+
+                        add_filter(
+                            'pre_option_compuciber_busqueda_semantica',
+                            '__return_zero',
+                            PHP_INT_MAX
+                        );
+
+                        try {
+
+                            $cis_dr_query =
+                                compuciber_buscar_productos_inteligente(
+                                    $cis_dr_busqueda,
+                                    array()
+                                );
+
+                        } finally {
+
+                            remove_filter(
+                                'pre_option_compuciber_busqueda_semantica',
+                                '__return_zero',
+                                PHP_INT_MAX
+                            );
+
+                            remove_action(
+                                'compuciber_diagnostico_ranking',
+                                $cis_dr_capturar,
+                                10
+                            );
+                        }
+
+                        ?>
+
+                        <?php if (
+                            $cis_dr_busqueda !== $cis_dr_q
+                        ) : ?>
+
+                            <p>
+                                Corrección local aplicada:
+
+                                <strong>
+                                    <?php echo esc_html( $cis_dr_busqueda ); ?>
+                                </strong>
+                            </p>
+
+                        <?php endif; ?>
+
+                        <?php
+                        /*
+                        * Diagnóstico de paginación y visibilidad.
+                        * Solo lectura.
+                        */
+
+                        $cis_dp_es_consulta = $cis_dr_query instanceof WP_Query;
+
+                        $cis_dp_pagina = $cis_dp_es_consulta
+                            ? max( 1, (int) $cis_dr_query->get( 'paged' ) )
+                            : 1;
+
+                        $cis_dp_total = $cis_dp_es_consulta
+                            ? (int) $cis_dr_query->found_posts
+                            : 0;
+
+                        $cis_dp_paginas = $cis_dp_es_consulta
+                            ? (int) $cis_dr_query->max_num_pages
+                            : 0;
+
+                        $cis_dp_por_pagina = $cis_dp_es_consulta
+                            ? (int) $cis_dr_query->get( 'posts_per_page' )
+                            : 0;
+
+                        $cis_dp_posts = $cis_dp_es_consulta
+                            && is_array( $cis_dr_query->posts )
+                                ? $cis_dr_query->posts
+                                : array();
+
+                        $cis_dp_visibles = 0;
+                        $cis_dp_omitidos = 0;
+
+                        foreach ( $cis_dp_posts as $cis_dp_post ) {
+
+                            $cis_dp_producto = wc_get_product(
+                                $cis_dp_post->ID
+                            );
+
+                            if (
+                                $cis_dp_producto
+                                && $cis_dp_producto->is_visible()
+                            ) {
+                                $cis_dp_visibles++;
+
+                            } else {
+                                $cis_dp_omitidos++;
+                            }
+                        }
+                        ?>
+
+                        <div class="postbox" style="padding:14px;margin-top:18px;">
+
+                            <h3>Diagnóstico de paginación y productos mostrados</h3>
+
+                            <p>
+                                <strong>Resultados que cuenta WooCommerce:</strong>
+                                <?php echo esc_html( $cis_dp_total ); ?>
+
+                                | <strong>Productos por página:</strong>
+                                <?php echo esc_html( $cis_dp_por_pagina ); ?>
+
+                                | <strong>Página solicitada:</strong>
+                                <?php echo esc_html( $cis_dp_pagina ); ?>
+
+                                | <strong>Total de páginas:</strong>
+                                <?php echo esc_html( $cis_dp_paginas ); ?>
+                            </p>
+
+                            <p>
+                                <strong>Productos recuperados en esta página:</strong>
+                                <?php echo esc_html( count( $cis_dp_posts ) ); ?>
+
+                                | <strong>Visibles:</strong>
+                                <?php echo esc_html( $cis_dp_visibles ); ?>
+
+                                | <strong>Omitidos:</strong>
+                                <?php echo esc_html( $cis_dp_omitidos ); ?>
+                            </p>
+
+                            <?php if ( $cis_dp_posts ) : ?>
+
+                                <table class="widefat striped">
+
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Producto</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        <?php foreach ( $cis_dp_posts as $cis_dp_post ) : ?>
+
+                                            <?php
+
+                                            $cis_dp_producto = wc_get_product(
+                                                $cis_dp_post->ID
+                                            );
+
+                                            $cis_dp_visible = $cis_dp_producto
+                                                && $cis_dp_producto->is_visible();
+
+                                            ?>
+
+                                            <tr>
+
+                                                <td>
+                                                    <?php echo esc_html( $cis_dp_post->ID ); ?>
+                                                </td>
+
+                                                <td>
+                                                    <?php
+                                                    echo esc_html(
+                                                        get_the_title( $cis_dp_post->ID )
+                                                    );
+                                                    ?>
+                                                </td>
+
+                                                <td>
+                                                    <?php
+                                                    echo esc_html(
+                                                        $cis_dp_visible
+                                                            ? 'Se muestra'
+                                                            : 'Se omite al mostrar resultados'
+                                                    );
+                                                    ?>
+                                                </td>
+
+                                            </tr>
+
+                                        <?php endforeach; ?>
+
+                                    </tbody>
+
+                                </table>
+
+                            <?php endif; ?>
+
+                            <?php if ( $cis_dp_paginas > 1 ) : ?>
+
+                                <p>
+                                    <strong>Comprobar navegación:</strong>
+                                </p>
+
+                                <p>
+
+                                    <?php
+
+                                    $cis_dp_destinos = array_unique(
+                                        array(
+                                            1,
+                                            2,
+                                            3,
+                                            $cis_dp_paginas
+                                        )
+                                    );
+
+                                    foreach ( $cis_dp_destinos as $cis_dp_destino ) :
+
+                                        if ( $cis_dp_destino > $cis_dp_paginas ) {
+                                            continue;
+                                        }
+
+                                        $cis_dp_url = add_query_arg(
+                                            array(
+                                                'page' => 'compuciber-ai-search-diagnostico',
+                                                'cis_dr_ejecutar' => '1',
+                                                'cis_dr_q' => $cis_dr_q,
+                                                'cis_perfil' => $cis_dr_perfil,
+                                                'cis_dr_nonce' => wp_create_nonce(
+                                                    'cis_dr_revision'
+                                                ),
+                                                'cis_page' => $cis_dp_destino
+                                            ),
+                                            admin_url( 'admin.php' )
+                                        );
+
+                                    ?>
+
+                                        <a
+                                            class="button <?php
+                                                echo $cis_dp_destino === $cis_dp_pagina
+                                                    ? 'button-primary'
+                                                    : '';
+                                            ?>"
+                                            href="<?php echo esc_url( $cis_dp_url ); ?>"
+                                        >
+                                            <?php
+                                            echo esc_html(
+                                                'Página ' . $cis_dp_destino
+                                            );
+                                            ?>
+                                        </a>
+
+                                    <?php endforeach; ?>
+
+                                </p>
+
+                            <?php endif; ?>
+
+                            <p class="description">
+                                Este diagnóstico comprueba la consulta local
+                                y la visibilidad de los productos de esta página.
+
+                                Si la página 3 funciona aquí, pero no en la tienda,
+                                debemos investigar los enlaces públicos,
+                                scripts del tema o sistemas de caché.
+
+                                Esta comprobación no modifica los resultados.
+                            </p>
+
+                        </div>                        
+
+                        <?php if ( is_array( $cis_dr_info ) ) : ?>
+
+                            <p>
+                                <strong>Registros evaluados:</strong>
+
+                                <?php
+                                echo esc_html(
+                                    $cis_dr_info['candidatos']
+                                );
+                                ?>
+
+                                |
+
+                                <strong>Coincidencias puntuadas:</strong>
+
+                                <?php
+                                echo esc_html(
+                                    $cis_dr_info['coincidencias']
+                                );
+                                ?>
+
+                                |
+
+                                <strong>Total consultado por WooCommerce:</strong>
+
+                                <?php
+                                echo esc_html(
+                                    $cis_dr_query instanceof WP_Query
+                                        ? $cis_dr_query->found_posts
+                                        : 0
+                                );
+                                ?>
+                            </p>
+
+                            <table class="widefat striped">
+
+                                <thead>
+                                    <tr>
+                                        <th>Posición</th>
+                                        <th>Producto</th>
+                                        <th>Puntos</th>
+                                        <th>Coincidencia visible</th>
+                                        <th>Visibilidad</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    <?php foreach (
+                                        $cis_dr_info['primeros']
+                                        as $cis_dr_pos => $cis_dr_fila
+                                    ) : ?>
+
+                                        <?php
+
+                                        $cis_dr_id = absint(
+                                            $cis_dr_fila['id']
+                                        );
+
+                                        $cis_dr_producto =
+                                            wc_get_product( $cis_dr_id );
+
+                                        $cis_dr_titulo =
+                                            compuciber_normalizar_texto(
+                                                get_the_title( $cis_dr_id )
+                                            );
+
+                                        $cis_dr_termino =
+                                            compuciber_normalizar_texto(
+                                                $cis_dr_busqueda
+                                            );
+
+                                        $cis_dr_senal =
+                                            $cis_dr_titulo === $cis_dr_termino
+                                                ? 'Título exacto'
+                                                : (
+                                                    strpos(
+                                                        $cis_dr_titulo,
+                                                        $cis_dr_termino
+                                                    ) === 0
+                                                        ? 'Al inicio del título'
+                                                        : (
+                                                            strpos(
+                                                                $cis_dr_titulo,
+                                                                $cis_dr_termino
+                                                            ) !== false
+                                                                ? 'Dentro del título'
+                                                                : 'Otras señales'
+                                                        )
+                                                );
+
+                                        ?>
+
+                                        <tr>
+
+                                            <td>
+                                                <?php
+                                                echo esc_html(
+                                                    $cis_dr_pos + 1
+                                                );
+                                                ?>
+                                            </td>
+
+                                            <td>
+                                                <?php
+                                                echo esc_html(
+                                                    get_the_title( $cis_dr_id )
+                                                );
+                                                ?>
+
+                                                (ID:
+                                                <?php
+                                                echo esc_html( $cis_dr_id );
+                                                ?>)
+                                            </td>
+
+                                            <td>
+                                                <?php
+                                                echo esc_html(
+                                                    round(
+                                                        (float) $cis_dr_fila['score'],
+                                                        2
+                                                    )
+                                                );
+                                                ?>
+                                            </td>
+
+                                            <td>
+                                                <?php echo esc_html( $cis_dr_senal ); ?>
+                                            </td>
+
+                                            <td>
+                                                <?php
+                                                echo esc_html(
+                                                    $cis_dr_producto
+                                                    && $cis_dr_producto->is_visible()
+                                                        ? 'Visible'
+                                                        : 'No visible'
+                                                );
+                                                ?>
+                                            </td>
+
+                                        </tr>
+
+                                    <?php endforeach; ?>
+
+                                </tbody>
+
+                            </table>
+
+                        <?php else : ?>
+
+                            <p>
+                                La búsqueda utilizó una ruta directa,
+                                por ejemplo, una coincidencia de SKU,
+                                o no generó un listado puntuado.
+                            </p>
+
+                        <?php endif; ?>
+
+                        <p class="description">
+                            Se muestran las puntuaciones del motor local,
+                            sin interpretación de IA ni embeddings.
+
+                            La coincidencia visible es orientativa y
+                            no representa un desglose completo de los puntos.
+
+                            El orden real puede variar cuando interviene
+                            la inteligencia artificial.
+
+                            Esta consulta es de solo lectura.
+                        </p>
+
+                    <?php endif; ?>
+
+                <?php endif; ?>
+
+            </details>
+
+        </div>
+
+        <?php
+        /*
+        * Estado del indexador.
+        * Solo lectura: no inicia ni modifica lotes.
+        */
+
+        $cis_pi_resumen =
+            compuciber_resumen_indice_113();
+
+        $cis_pi_estado = get_option(
+            'compuciber_indice_lotes_estado',
+            array()
+        );
+
+        $cis_pi_estado = is_array( $cis_pi_estado )
+            ? $cis_pi_estado
+            : array();
+
+        $cis_pi_fallos =
+            isset( $cis_pi_estado['fallos'] )
+            && is_array( $cis_pi_estado['fallos'] )
+                ? $cis_pi_estado['fallos']
+                : array();
+
+        $cis_pi_programado = wp_next_scheduled(
+            'compuciber_indice_lote_113'
+        );
+
+        $cis_pi_total = absint(
+            $cis_pi_resumen['total'] ?? 0
+        );
+
+        $cis_pi_indexados = absint(
+            $cis_pi_resumen['indexados'] ?? 0
+        );
+
+        $cis_pi_pendientes = absint(
+            $cis_pi_resumen['pendientes'] ?? 0
+        );
+
+        $cis_pi_porcentaje = $cis_pi_total > 0
+            ? round(
+                100 * $cis_pi_indexados / $cis_pi_total,
+                1
+            )
+            : 0;
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Estado y seguimiento de indexación
+                </summary>
+
+                <p>
+                    <strong>Productos publicados:</strong>
+                    <?php echo esc_html( $cis_pi_total ); ?>
+
+                    |
+
+                    <strong>Con registro:</strong>
+                    <?php echo esc_html( $cis_pi_indexados ); ?>
+
+                    |
+
+                    <strong>Sin registro:</strong>
+                    <?php echo esc_html( $cis_pi_pendientes ); ?>
+
+                    |
+
+                    <strong>Avance:</strong>
+                    <?php echo esc_html( $cis_pi_porcentaje ); ?> %
+                </p>
+
+                <progress
+                    max="100"
+                    value="<?php echo esc_attr( $cis_pi_porcentaje ); ?>"
+                    style="width:100%;max-width:700px;"
+                ></progress>
+
+                <p>
+                    <strong>Estado del proceso:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_pi_estado['estado'] ?? 'sin información'
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Último ID del cursor:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint( $cis_pi_estado['cursor'] ?? 0 )
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Productos con intentos fallidos:</strong>
+
+                    <?php
+                    echo esc_html(
+                        count( $cis_pi_fallos )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Total de intentos fallidos:</strong>
+
+                    <?php
+                    echo esc_html(
+                        array_sum(
+                            array_map(
+                                'absint',
+                                $cis_pi_fallos
+                            )
+                        )
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Última actividad:</strong>
+
+                    <?php
+                    echo esc_html(
+                        ! empty( $cis_pi_estado['ultima'] )
+                            ? wp_date(
+                                'Y-m-d H:i:s',
+                                absint( $cis_pi_estado['ultima'] )
+                            )
+                            : 'Sin fecha registrada'
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Próximo lote programado:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_pi_programado
+                            ? wp_date(
+                                'Y-m-d H:i:s',
+                                $cis_pi_programado
+                            )
+                            : 'No programado'
+                    );
+                    ?>
+                </p>
+
+                <?php if (
+                    $cis_pi_pendientes > 0
+                    && ( $cis_pi_estado['estado'] ?? '' ) === 'errores'
+                ) : ?>
+
+                    <p class="notice notice-warning inline">
+                        La indexación indica errores y faltan productos.
+                        Consulta la auditoría y los registros
+                        para investigar la causa.
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="description">
+                    El porcentaje indica cuántos productos publicados
+                    tienen registro en el índice.
+
+                    No garantiza que sus datos estén actualizados
+                    ni que el contenido del registro esté completo.
+
+                    El cursor indica el último ID de la pasada,
+                    no necesariamente un producto en ejecución.
+
+                    WP-Cron puede presentar retrasos.
+                </p>
+
+            </details>
+
+        </div>        
+
+        <?php
+        /*
+        * Diagnóstico bajo demanda:
+        * registros posiblemente desactualizados.
+        */
+
+        $cis_ix_pedir = isset( $_GET['cis_ix_ver'] )
+            && is_string( $_GET['cis_ix_ver'] )
+            && '1' === wp_unslash( $_GET['cis_ix_ver'] );
+
+        $cis_ix_nonce = isset( $_GET['cis_ix_nonce'] )
+            && is_string( $_GET['cis_ix_nonce'] )
+            ? sanitize_text_field(
+                wp_unslash( $_GET['cis_ix_nonce'] )
+            )
+            : '';
+
+        $cis_ix_autorizado = $cis_ix_pedir
+            && wp_verify_nonce(
+                $cis_ix_nonce,
+                'cis_ix_revision'
+            );
+
+        $cis_ix_resumen = null;
+        $cis_ix_muestras = array();
+
+        if ( $cis_ix_autorizado ) {
+
+            global $wpdb;
+
+            $cis_ix_tabla =
+                $wpdb->prefix . 'compuciber_product_index';
+
+            $cis_ix_resumen = $wpdb->get_row(
+                "SELECT
+                    COUNT(*) AS indexados,
+
+                    SUM(
+                        CASE
+                            WHEN p.post_modified > i.actualizado
+                            THEN 1 ELSE 0
+                        END
+                    ) AS fecha_anterior,
+
+                    SUM(
+                        CASE
+                            WHEN i.nombre <> p.post_title
+                            THEN 1 ELSE 0
+                        END
+                    ) AS titulo_diferente
+
+                FROM {$wpdb->posts} p
+
+                INNER JOIN {$cis_ix_tabla} i
+                    ON i.id = p.ID
+
+                WHERE p.post_type = 'product'
+                AND p.post_status = 'publish'",
+
+                ARRAY_A
+            );
+
+            /*
+            * Mostrar únicamente 20 ejemplos.
+            */
+
+            $cis_ix_muestras = $wpdb->get_results(
+                "SELECT
+                    p.ID,
+                    p.post_title,
+                    p.post_modified,
+                    i.nombre,
+                    i.actualizado
+
+                FROM {$wpdb->posts} p
+
+                INNER JOIN {$cis_ix_tabla} i
+                    ON i.id = p.ID
+
+                WHERE p.post_type = 'product'
+                AND p.post_status = 'publish'
+
+                AND (
+                    p.post_modified > i.actualizado
+                    OR i.nombre <> p.post_title
+                )
+
+                ORDER BY p.ID DESC
+                LIMIT 20"
+            );
+        }
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php echo $cis_ix_pedir ? 'open' : ''; ?>>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Revisión de registros posiblemente desactualizados
+                </summary>
+
+                <p>
+                    Comprueba si la fecha de modificación
+                    o el título del producto difieren
+                    de los datos almacenados en el índice.
+                </p>
+
+                <form
+                    method="get"
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search-diagnostico"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="cis_ix_ver"
+                        value="1"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'cis_ix_revision',
+                        'cis_ix_nonce'
+                    );
+                    ?>
+
+                    <button class="button" type="submit">
+                        Revisar actualización del índice
+                    </button>
+
+                </form>
+
+                <?php if (
+                    $cis_ix_pedir
+                    && ! $cis_ix_autorizado
+                ) : ?>
+
+                    <p class="notice notice-error inline">
+                        La solicitud caducó.
+                        Ejecuta otra revisión.
+                    </p>
+
+                <?php elseif (
+                    $cis_ix_autorizado
+                    && is_array( $cis_ix_resumen )
+                ) : ?>
+
+                    <p>
+                        <strong>Productos publicados con índice:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_ix_resumen['indexados'] ?? 0
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Índice anterior a la última modificación:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_ix_resumen['fecha_anterior'] ?? 0
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Productos con título diferente:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_ix_resumen['titulo_diferente'] ?? 0
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <?php if ( $cis_ix_muestras ) : ?>
+
+                        <table class="widefat striped">
+
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Producto</th>
+                                    <th>Última modificación</th>
+                                    <th>Última indexación</th>
+                                    <th>Observación</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach (
+                                    $cis_ix_muestras as $cis_ix_fila
+                                ) : ?>
+
+                                    <?php
+
+                                    $cis_ix_motivos = array();
+
+                                    if (
+                                        $cis_ix_fila->post_modified >
+                                        $cis_ix_fila->actualizado
+                                    ) {
+
+                                        $cis_ix_motivos[] =
+                                            'Fecha del índice anterior';
+                                    }
+
+                                    if (
+                                        $cis_ix_fila->nombre !==
+                                        $cis_ix_fila->post_title
+                                    ) {
+
+                                        $cis_ix_motivos[] =
+                                            'Título diferente';
+                                    }
+
+                                    ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_ix_fila->ID
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td>
+                                            <a href="<?php
+                                                echo esc_url(
+                                                    get_edit_post_link(
+                                                        $cis_ix_fila->ID
+                                                    )
+                                                );
+                                            ?>">
+                                                <?php
+                                                echo esc_html(
+                                                    $cis_ix_fila->post_title
+                                                );
+                                                ?>
+                                            </a>
+                                        </td>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_ix_fila->post_modified
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_ix_fila->actualizado
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                implode(
+                                                    ' / ',
+                                                    $cis_ix_motivos
+                                                )
+                                            );
+                                            ?>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                        <p class="description">
+                            Se muestran como máximo 20 ejemplos.
+                            Los contadores incluyen todos los
+                            productos publicados con índice.
+                        </p>
+
+                    <?php else : ?>
+
+                        <p>
+                            No se encontraron diferencias
+                            de fecha o título.
+                        </p>
+
+                    <?php endif; ?>
+
+                <?php elseif ( $cis_ix_autorizado ) : ?>
+
+                    <p>
+                        No fue posible obtener el resumen.
+                        Revisa los registros de base de datos.
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="description">
+                    Esta comprobación identifica posibles
+                    desactualizaciones, no errores confirmados.
+
+                    Algunos cambios de precio, stock,
+                    categorías o variaciones pueden necesitar
+                    verificaciones adicionales.
+
+                    No modifica ni reindexa productos.
+                </p>
+
+            </details>
+
+        </div>
+
+        <?php
+        /*
+        * Diagnóstico de embeddings bajo demanda.
+        * No genera vectores ni consume API.
+        */
+
+        $cis_em_pedir = isset( $_GET['cis_em_ver'] )
+            && is_string( $_GET['cis_em_ver'] )
+            && '1' === wp_unslash( $_GET['cis_em_ver'] );
+
+        $cis_em_nonce = isset( $_GET['cis_em_nonce'] )
+            && is_string( $_GET['cis_em_nonce'] )
+            ? sanitize_text_field(
+                wp_unslash( $_GET['cis_em_nonce'] )
+            )
+            : '';
+
+        $cis_em_autorizado = $cis_em_pedir
+            && wp_verify_nonce(
+                $cis_em_nonce,
+                'cis_em_revision'
+            );
+
+        $cis_em_estado = null;
+        $cis_em_config = array();
+
+        if (
+            $cis_em_autorizado
+            && function_exists(
+                'compuciber_obtener_estado_embeddings'
+            )
+            && function_exists(
+                'compuciber_obtener_configuracion_embeddings'
+            )
+        ) {
+
+            $cis_em_config =
+                compuciber_obtener_configuracion_embeddings();
+
+            $cis_em_estado =
+                compuciber_obtener_estado_embeddings();
+        }
+
+        $cis_em_bloqueo = get_option(
+            'compuciber_embeddings_lote_lock',
+            false
+        );
+
+        $cis_em_bloqueo_segundos =
+            is_array( $cis_em_bloqueo )
+                ? max(
+                    0,
+                    time() - absint(
+                        $cis_em_bloqueo['creado'] ?? 0
+                    )
+                )
+                : 0;
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php echo $cis_em_pedir ? 'open' : ''; ?>>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Estado de embeddings y procesamiento por lotes
+                </summary>
+
+                <p>
+                    Comprueba los vectores semánticos existentes
+                    sin llamar a Gemini ni OpenAI.
+                </p>
+
+                <form
+                    method="get"
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search-diagnostico"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="cis_em_ver"
+                        value="1"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'cis_em_revision',
+                        'cis_em_nonce'
+                    );
+                    ?>
+
+                    <button class="button" type="submit">
+                        Comprobar embeddings
+                    </button>
+
+                </form>
+
+                <?php if (
+                    $cis_em_pedir
+                    && ! $cis_em_autorizado
+                ) : ?>
+
+                    <p class="notice notice-error inline">
+                        La solicitud caducó.
+                        Ejecuta otra revisión.
+                    </p>
+
+                <?php elseif ( is_array( $cis_em_estado ) ) : ?>
+
+                    <p>
+                        <strong>Proveedor:</strong>
+
+                        <?php
+                        echo esc_html(
+                            $cis_em_config['proveedor'] ?? ''
+                        );
+                        ?>
+
+                        |
+
+                        <strong>Modelo:</strong>
+
+                        <?php
+                        echo esc_html(
+                            $cis_em_config['modelo'] ?? ''
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Búsqueda semántica:</strong>
+
+                        <?php
+                        echo get_option(
+                            'compuciber_busqueda_semantica',
+                            '0'
+                        ) === '1'
+                            ? 'Activada'
+                            : 'Desactivada';
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Registros revisados:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint( $cis_em_estado['total'] ?? 0 )
+                        );
+                        ?>
+
+                        |
+
+                        <strong>Embeddings válidos:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_em_estado['generados'] ?? 0
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Pendientes o desactualizados:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_em_estado['pendientes'] ?? 0
+                            )
+                        );
+                        ?>
+
+                        |
+
+                        <strong>Sin texto semántico:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_em_estado['sin_texto'] ?? 0
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Último ID usado por los lotes:</strong>
+
+                        <?php
+                        echo esc_html(
+                            absint(
+                                get_option(
+                                    'compuciber_embeddings_ultimo_id',
+                                    0
+                                )
+                            )
+                        );
+                        ?>
+                    </p>
+
+                    <p>
+                        <strong>Bloqueo de ejecución:</strong>
+
+                        <?php
+
+                        echo esc_html(
+                            is_array( $cis_em_bloqueo )
+                                ? (
+                                    $cis_em_bloqueo_segundos > 180
+                                        ? 'Antiguo: revisar'
+                                        : 'Registrado'
+                                )
+                                : 'Sin bloqueo'
+                        );
+
+                        ?>
+                    </p>
+
+                    <?php if (
+                        get_option(
+                            'compuciber_busqueda_semantica',
+                            '0'
+                        ) !== '1'
+                    ) : ?>
+
+                        <p class="notice notice-warning inline">
+                            La búsqueda semántica está desactivada.
+                            El indexador no generará nuevos embeddings
+                            hasta habilitarla.
+                        </p>
+
+                    <?php endif; ?>
+
+                    <p>
+
+                        <a
+                            class="button"
+                            href="<?php
+                                echo esc_url(
+                                    admin_url(
+                                        'admin.php?page=compuciber-ai-search'
+                                    )
+                                );
+                            ?>"
+                        >
+                            Ir al Dashboard para generar lotes
+                        </a>
+
+                    </p>
+
+                <?php elseif ( $cis_em_autorizado ) : ?>
+
+                    <p>
+                        Las funciones de diagnóstico
+                        de embeddings no están disponibles.
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="description">
+                    Esta revisión recorre el índice únicamente
+                    cuando pulsas el botón.
+
+                    No genera embeddings ni consume tokens.
+
+                    El generador actual procesa un máximo
+                    de cinco productos por petición.
+
+                    La automatización segura de la cola
+                    todavía está pendiente.
+                </p>
+
+            </details>
+
+        </div>
+
+        <?php
+
+        $cis_cola_estado = get_option(
+            'compuciber_cola_embeddings_estado',
+            array()
+        );
+
+        $cis_cola_estado = is_array( $cis_cola_estado )
+            ? $cis_cola_estado
+            : array();
+
+        $cis_cola_proxima = wp_next_scheduled(
+            'compuciber_cola_embeddings_paso'
+        );
+
+        $cis_cola_aviso = (
+            isset( $_GET['cis_cola_aviso'] )
+            && is_string( $_GET['cis_cola_aviso'] )
+        )
+            ? sanitize_key(
+                wp_unslash(
+                    $_GET['cis_cola_aviso']
+                )
+            )
+            : '';
+
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php echo $cis_cola_aviso ? 'open' : ''; ?>>
+
+                <summary style="
+                    font-size:18px;
+                    font-weight:600;
+                    cursor:pointer;
+                ">
+                    Cola automática de embeddings
+                </summary>
+
+                <p>
+                    Esta función realiza solicitudes a la API
+                    y puede consumir cuota o generar costes.
+
+                    Solamente se inicia cuando lo autorizas.
+                </p>
+
+                <?php if ( $cis_cola_aviso ) : ?>
+
+                    <p>
+                        <strong>Última operación:</strong>
+
+                        <?php
+                        echo esc_html(
+                            str_replace(
+                                '_',
+                                ' ',
+                                $cis_cola_aviso
+                            )
+                        );
+                        ?>
+                    </p>
+
+                <?php endif; ?>
+
+                <p>
+                    <strong>Estado:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_cola_estado['situacion']
+                            ?? 'sin iniciar'
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Procesados en esta sesión:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_cola_estado['procesados'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Generados:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_cola_estado['generados'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Fallidos:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_cola_estado['fallidos'] ?? 0
+                        )
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Tope elegido:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_cola_estado['limite_total'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    intentos
+
+                    |
+
+                    <strong>Por lote:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_cola_estado['por_lote'] ?? 0
+                        )
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Próxima ejecución:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_cola_proxima
+                            ? wp_date(
+                                'Y-m-d H:i:s',
+                                $cis_cola_proxima
+                            )
+                            : 'No programada'
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Último procesamiento:</strong>
+
+                    <?php
+                    echo esc_html(
+                        ! empty( $cis_cola_estado['ultima'] )
+                            ? wp_date(
+                                'Y-m-d H:i:s',
+                                absint(
+                                    $cis_cola_estado['ultima']
+                                )
+                            )
+                            : 'Sin actividad'
+                    );
+                    ?>
+                </p>
+
+                <form
+                    method="post"
+                    action="<?php
+                        echo esc_url(
+                            admin_url( 'admin-post.php' )
+                        );
+                    ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="compuciber_control_cola_embeddings"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'compuciber_control_cola_embeddings'
+                    );
+                    ?>
+
+                    <?php if (
+                        ! empty(
+                            $cis_cola_estado['activo']
+                        )
+                    ) : ?>
+
+                        <input
+                            type="hidden"
+                            name="operacion"
+                            value="detener"
+                        >
+
+                        <button
+                            type="submit"
+                            class="button"
+                        >
+                            Detener cola
+                        </button>
+
+                    <?php else : ?>
+
+                        <input
+                            type="hidden"
+                            name="operacion"
+                            value="iniciar"
+                        >
+
+                        <p>
+                            <label>
+                                Productos por lote:
+
+                                <select name="por_lote">
+
+                                    <option value="1">
+                                        1 (conservador)
+                                    </option>
+
+                                    <option value="2">
+                                        2
+                                    </option>
+
+                                    <option value="5">
+                                        5
+                                    </option>
+
+                                </select>
+                            </label>
+                        </p>
+
+                        <p>
+                            <label>
+                                Cantidad total a procesar
+
+                                <input
+                                    type="number"
+                                    name="limite_total"
+                                    min="1"
+                                    max="2000"
+                                    step="1"
+                                    value="100"
+                                    required
+                                    style="width:120px;"
+                                >
+                            </label>
+                        </p>
+
+                        <p>
+                            <label>
+                                Minutos entre lotes:
+
+                                <input
+                                    type="number"
+                                    name="cada_minutos"
+                                    min="1"
+                                    max="10"
+                                    step="1"
+                                    value="5"
+                                    required
+                                    style="width:80px;"
+                                >
+                            </label>
+                        </p>
+
+                        <p class="description">
+                            Recomendado: 5 minutos para comenzar
+                            con una API gratuita.
+
+                            Con una API de pago y cuota suficiente,
+                            puedes probar 1 minuto.
+
+                            Una frecuencia mayor puede aumentar
+                            el consumo y alcanzar límites de la API.
+                        </p>                        
+
+                        <button
+                            type="submit"
+                            class="button button-primary"
+                        >
+                            Iniciar cola
+                        </button>
+
+                    <?php endif; ?>
+
+                </form>
+
+                <p class="description">
+                    Se programa un lote aproximadamente cada
+                    cinco minutos mediante WP-Cron.
+
+                    La cola se pausa cuando detecta fallos
+                    o cambios de proveedor y modelo.
+
+                    Detener la cola no interrumpe una
+                    solicitud HTTP que ya esté ejecutándose.
+
+                    Recarga esta pantalla para actualizar
+                    los contadores.
+
+                    Seleccionar 2000 permite realizar
+                    numerosas solicitudes a la API.
+                </p>
+
+            </details>
+
+        </div>        
+
+        <?php
+        /*
+        * Auditoría selectiva de los datos indexados.
+        * Solo lectura y sin consumo de API.
+        */
+
+        $cis_fd_solicitada =
+            isset( $_GET['cis_fd_revisar'] )
+            && '1' === (string) wp_unslash(
+                $_GET['cis_fd_revisar']
+            );
+
+        $cis_fd_nonce =
+            isset( $_GET['cis_fd_nonce'] )
+            && is_string( $_GET['cis_fd_nonce'] )
+                ? sanitize_text_field(
+                    wp_unslash( $_GET['cis_fd_nonce'] )
+                )
+                : '';
+
+        $cis_fd_autorizada =
+            $cis_fd_solicitada
+            && wp_verify_nonce(
+                $cis_fd_nonce,
+                'cis_fd_revision'
+            );
+
+        $cis_fd_id = isset( $_GET['cis_fd_id'] )
+            ? absint( $_GET['cis_fd_id'] )
+            : 0;
+
+        $cis_fd_pagina = isset( $_GET['cis_fd_pagina'] )
+            ? max( 1, absint( $_GET['cis_fd_pagina'] ) )
+            : 1;
+
+        $cis_fd_total = 0;
+        $cis_fd_filas = array();
+        $cis_fd_incidencias = 0;
+        $cis_fd_tabla = array();
+        $cis_fd_error = '';
+
+        if ( $cis_fd_autorizada ) {
+
+            global $wpdb;
+
+            $cis_fd_indice =
+                $wpdb->prefix . 'compuciber_product_index';
+
+            $cis_fd_filtro =
+                "p.post_type = 'product'
+                AND p.post_status = 'publish'";
+
+            /*
+            * Permitir consultar un producto concreto.
+            */
+
+            if ( $cis_fd_id ) {
+
+                $cis_fd_filtro .= $wpdb->prepare(
+                    ' AND p.ID = %d',
+                    $cis_fd_id
+                );
+            }
+
+            $cis_fd_total = (int) $wpdb->get_var(
+                "SELECT COUNT(*)
+                FROM {$wpdb->posts} p
+                WHERE {$cis_fd_filtro}"
+            );
+
+            if ( $wpdb->last_error ) {
+
+                $cis_fd_error =
+                    'No se pudo contar el catálogo.';
+
+            } else {
+
+                $cis_fd_paginas = max(
+                    1,
+                    (int) ceil( $cis_fd_total / 15 )
+                );
+
+                $cis_fd_pagina = min(
+                    $cis_fd_pagina,
+                    $cis_fd_paginas
+                );
+
+                /*
+                * Cargar solamente quince productos.
+                */
+
+                $cis_fd_filas = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT
+                            p.ID,
+                            p.post_title,
+                            i.id AS indice_id,
+                            i.sku,
+                            i.precio,
+                            i.precio_oferta,
+                            i.stock,
+                            i.categorias,
+                            i.variaciones
+
+                        FROM {$wpdb->posts} p
+
+                        LEFT JOIN {$cis_fd_indice} i
+                            ON i.id = p.ID
+
+                        WHERE {$cis_fd_filtro}
+
+                        ORDER BY p.ID ASC
+
+                        LIMIT %d OFFSET %d",
+                        15,
+                        ( $cis_fd_pagina - 1 ) * 15
+                    )
+                );
+
+                if (
+                    $wpdb->last_error
+                    || ! is_array( $cis_fd_filas )
+                ) {
+
+                    $cis_fd_filas = array();
+
+                    $cis_fd_error =
+                        'No se pudieron consultar los registros del índice.';
+
+                } else {
+
+                    foreach (
+                        $cis_fd_filas as $cis_fd_fila
+                    ) {
+
+                        $cis_fd_diferencias = array();
+                        $cis_fd_advertencia = '';
+
+                        $cis_fd_producto = wc_get_product(
+                            (int) $cis_fd_fila->ID
+                        );
+
+                        if ( ! $cis_fd_producto ) {
+
+                            $cis_fd_diferencias[] =
+                                'Producto no disponible en WooCommerce';
+
+                        } elseif (
+                            null === $cis_fd_fila->indice_id
+                        ) {
+
+                            $cis_fd_diferencias[] =
+                                'Sin índice';
+
+                        } else {
+
+                            /*
+                            * SKU.
+                            */
+
+                            if (
+                                (string) $cis_fd_fila->sku
+                                !==
+                                (string) $cis_fd_producto->get_sku()
+                            ) {
+
+                                $cis_fd_diferencias[] = 'SKU';
+                            }
+
+                            /*
+                            * Precio regular.
+                            */
+
+                            if (
+                                abs(
+                                    (float) $cis_fd_fila->precio
+                                    -
+                                    (float) $cis_fd_producto->get_regular_price()
+                                ) > 0.000001
+                            ) {
+
+                                $cis_fd_diferencias[] =
+                                    'Precio regular';
+                            }
+
+                            /*
+                            * Precio de oferta.
+                            */
+
+                            if (
+                                abs(
+                                    (float) $cis_fd_fila->precio_oferta
+                                    -
+                                    (float) $cis_fd_producto->get_sale_price()
+                                ) > 0.000001
+                            ) {
+
+                                $cis_fd_diferencias[] =
+                                    'Precio de oferta';
+                            }
+
+                            /*
+                            * Stock.
+                            */
+
+                            $cis_fd_stock_wc =
+                                $cis_fd_producto->get_stock_quantity();
+
+                            if ( null === $cis_fd_stock_wc ) {
+
+                                $cis_fd_stock_wc =
+                                    $cis_fd_producto->get_stock_status();
+                            }
+
+                            if (
+                                (string) $cis_fd_fila->stock
+                                !==
+                                (string) $cis_fd_stock_wc
+                            ) {
+
+                                $cis_fd_diferencias[] =
+                                    'Stock';
+                            }
+
+                            /*
+                            * Categorías.
+                            */
+
+                            $cis_fd_categorias_wc =
+                                wp_get_post_terms(
+                                    $cis_fd_fila->ID,
+                                    'product_cat',
+                                    array(
+                                        'fields' => 'names'
+                                    )
+                                );
+
+                            if (
+                                is_wp_error( $cis_fd_categorias_wc )
+                            ) {
+
+                                $cis_fd_advertencia =
+                                    'No se pudieron leer las categorías';
+
+                            } elseif (
+                                (string) $cis_fd_fila->categorias
+                                !==
+                                implode(
+                                    ', ',
+                                    $cis_fd_categorias_wc
+                                )
+                            ) {
+
+                                $cis_fd_diferencias[] =
+                                    'Categorías';
+                            }
+
+                            /*
+                            * Variaciones.
+                            *
+                            * Evitar consultas excesivas
+                            * para productos con muchas variaciones.
+                            */
+
+                            if (
+                                $cis_fd_producto->is_type( 'variable' )
+                                && count(
+                                    $cis_fd_producto->get_children()
+                                ) > 25
+                            ) {
+
+                                $cis_fd_advertencia = trim(
+                                    $cis_fd_advertencia
+                                    . '; variaciones no comparadas (>25)',
+                                    '; '
+                                );
+
+                            } elseif (
+                                (string) $cis_fd_fila->variaciones
+                                !==
+                                (string) compuciber_obtener_variaciones_producto(
+                                    $cis_fd_fila->ID
+                                )
+                            ) {
+
+                                $cis_fd_diferencias[] =
+                                    'Variaciones';
+                            }
+                        }
+
+                        if ( $cis_fd_diferencias ) {
+                            $cis_fd_incidencias++;
+                        }
+
+                        $cis_fd_tabla[] = array(
+                            'id' => absint(
+                                $cis_fd_fila->ID
+                            ),
+                            'titulo' => (string) $cis_fd_fila->post_title,
+                            'diferencias' => $cis_fd_diferencias,
+                            'advertencia' => $cis_fd_advertencia,
+                        );
+                    }
+                }
+            }
+        }
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php echo $cis_fd_solicitada ? 'open' : ''; ?>>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Comprobar datos de WooCommerce frente al índice
+                </summary>
+
+                <p>
+                    Revisa hasta 15 productos por página
+                    sin modificar productos ni utilizar IA.
+                </p>
+
+                <form
+                    method="get"
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search-diagnostico"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="cis_fd_revisar"
+                        value="1"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'cis_fd_revision',
+                        'cis_fd_nonce'
+                    );
+                    ?>
+
+                    <label for="cis-fd-id">
+                        ID de producto (opcional):
+                    </label>
+
+                    <input
+                        id="cis-fd-id"
+                        type="number"
+                        min="1"
+                        name="cis_fd_id"
+                        value="<?php
+                            echo $cis_fd_id
+                                ? esc_attr( $cis_fd_id )
+                                : '';
+                        ?>"
+                    >
+
+                    <button
+                        type="submit"
+                        class="button button-primary"
+                    >
+                        Comprobar datos
+                    </button>
+
+                </form>
+
+                <?php if (
+                    $cis_fd_solicitada
+                    && ! $cis_fd_autorizada
+                ) : ?>
+
+                    <p>
+                        La validación caducó.
+                        Ejecuta una consulta nueva.
+                    </p>
+
+                <?php elseif ( $cis_fd_autorizada ) : ?>
+
+                    <?php if ( $cis_fd_error ) : ?>
+
+                        <p class="notice notice-error inline">
+                            <?php echo esc_html( $cis_fd_error ); ?>
+                        </p>
+
+                    <?php else : ?>
+
+                        <p>
+                            <?php
+                            echo esc_html(
+                                'Productos de esta página: '
+                                . count( $cis_fd_tabla )
+                                . ' | Diferencias detectadas aquí: '
+                                . $cis_fd_incidencias
+                                . ' | Productos de la consulta: '
+                                . $cis_fd_total
+                            );
+                            ?>
+                        </p>
+
+                        <table class="widefat striped">
+
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Producto</th>
+                                    <th>Resultado</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach (
+                                    $cis_fd_tabla as $cis_fd_item
+                                ) : ?>
+
+                                    <tr>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_fd_item['id']
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td>
+
+                                            <a href="<?php
+                                                echo esc_url(
+                                                    get_edit_post_link(
+                                                        $cis_fd_item['id']
+                                                    )
+                                                );
+                                            ?>">
+
+                                                <?php
+                                                echo esc_html(
+                                                    $cis_fd_item['titulo']
+                                                );
+                                                ?>
+
+                                            </a>
+
+                                        </td>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_fd_item['diferencias']
+                                                    ? implode(
+                                                        ', ',
+                                                        $cis_fd_item['diferencias']
+                                                    )
+                                                    : 'Sin diferencias en los campos revisados'
+                                            );
+                                            ?>
+                                        </td>
+
+                                        <td>
+                                            <?php
+                                            echo esc_html(
+                                                $cis_fd_item['advertencia']
+                                                    ?: '—'
+                                            );
+                                            ?>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                                <?php if ( ! $cis_fd_tabla ) : ?>
+
+                                    <tr>
+                                        <td colspan="4">
+                                            No se encontraron productos.
+                                        </td>
+                                    </tr>
+
+                                <?php endif; ?>
+
+                            </tbody>
+
+                        </table>
+
+                        <?php if (
+                            ! $cis_fd_id
+                            && $cis_fd_total > 15
+                        ) : ?>
+
+                            <p>
+
+                                <?php foreach (
+                                    array(
+                                        'Anterior' => $cis_fd_pagina - 1,
+                                        'Siguiente' => $cis_fd_pagina + 1
+                                    ) as $cis_fd_texto => $cis_fd_destino
+                                ) : ?>
+
+                                    <?php
+
+                                    if (
+                                        $cis_fd_destino < 1
+                                        || $cis_fd_destino >
+                                            max(
+                                                1,
+                                                (int) ceil(
+                                                    $cis_fd_total / 15
+                                                )
+                                            )
+                                    ) {
+                                        continue;
+                                    }
+
+                                    $cis_fd_enlace = add_query_arg(
+                                        array(
+                                            'page' =>
+                                                'compuciber-ai-search-diagnostico',
+
+                                            'cis_fd_revisar' => '1',
+
+                                            'cis_fd_nonce' =>
+                                                wp_create_nonce(
+                                                    'cis_fd_revision'
+                                                ),
+
+                                            'cis_fd_pagina' =>
+                                                $cis_fd_destino,
+                                        ),
+                                        admin_url( 'admin.php' )
+                                    );
+
+                                    ?>
+
+                                    <a
+                                        class="button"
+                                        href="<?php
+                                            echo esc_url(
+                                                $cis_fd_enlace
+                                            );
+                                        ?>"
+                                    >
+                                        <?php
+                                        echo esc_html(
+                                            $cis_fd_texto
+                                        );
+                                        ?>
+                                    </a>
+
+                                <?php endforeach; ?>
+
+                            </p>
+
+                        <?php endif; ?>
+
+                    <?php endif; ?>
+
+                <?php endif; ?>
+
+                <p class="description">
+                    Las diferencias corresponden únicamente
+                    a los productos revisados en esta página.
+
+                    No es una auditoría completa de los
+                    2.000 productos.
+
+                    La comparación de categorías puede detectar
+                    diferencias debidas solamente al orden
+                    de sus nombres.
+
+                    Las variaciones con más de 25 elementos
+                    se omiten para proteger el rendimiento.
+                </p>
+
+            </details>
+
+        </div>
+
+        <?php
+
+        /*
+        * Panel de auditoría integral.
+        */
+
+        $cis_ai_estado = get_option(
+            'compuciber_auditoria_integral_estado',
+            array()
+        );
+
+        $cis_ai_estado = is_array( $cis_ai_estado )
+            ? $cis_ai_estado
+            : array();
+
+        $cis_ai_token = (string) (
+            $cis_ai_estado['token'] ?? ''
+        );
+
+        $cis_ai_siguiente = $cis_ai_token !== ''
+            ? wp_next_scheduled(
+                'compuciber_auditoria_integral_lote',
+                array( $cis_ai_token )
+            )
+            : false;
+
+        $cis_ai_total = absint(
+            $cis_ai_estado['total'] ?? 0
+        );
+
+        $cis_ai_revisados = absint(
+            $cis_ai_estado['revisados'] ?? 0
+        );
+
+        $cis_ai_progreso = $cis_ai_total > 0
+            ? min(
+                100,
+                round(
+                    100 * $cis_ai_revisados / $cis_ai_total,
+                    1
+                )
+            )
+            : 0;
+
+        $cis_ai_aviso = isset(
+            $_GET['cis_auditoria_aviso']
+        )
+            && is_string( $_GET['cis_auditoria_aviso'] )
+                ? sanitize_key(
+                    wp_unslash(
+                        $_GET['cis_auditoria_aviso']
+                    )
+                )
+                : '';
+
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php
+                echo (
+                    $cis_ai_aviso
+                    || ! empty( $cis_ai_estado['activo'] )
+                ) ? 'open' : '';
+            ?>>
+
+                <summary style="
+                    cursor:pointer;
+                    font-size:18px;
+                    font-weight:600;
+                ">
+                    Auditoría integral del catálogo (por lotes)
+                </summary>
+
+                <p>
+                    Examina los productos publicados,
+                    de 15 en 15, mediante WP-Cron.
+
+                    No modifica el índice, no genera
+                    embeddings y no utiliza API.
+                </p>
+
+                <?php if ( $cis_ai_aviso ) : ?>
+
+                    <p>
+                        <strong>Operación:</strong>
+
+                        <?php
+                        echo esc_html(
+                            str_replace(
+                                '_',
+                                ' ',
+                                $cis_ai_aviso
+                            )
+                        );
+                        ?>
+                    </p>
+
+                <?php endif; ?>
+
+                <p>
+                    <strong>Estado:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_ai_estado['situacion']
+                            ?? 'sin iniciar'
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Revisados:</strong>
+
+                    <?php echo esc_html( $cis_ai_revisados ); ?>
+
+                    /
+
+                    <?php echo esc_html( $cis_ai_total ); ?>
+
+                    |
+
+                    <strong>Avance:</strong>
+
+                    <?php echo esc_html( $cis_ai_progreso ); ?> %
+                </p>
+
+                <progress
+                    max="100"
+                    value="<?php echo esc_attr( $cis_ai_progreso ); ?>"
+                    style="width:100%;max-width:700px;"
+                ></progress>
+
+                <p>
+                    <strong>Productos con diferencias:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_ai_estado['con_diferencias'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>No visibles (con índice):</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_ai_estado['no_visibles'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Comprobaciones no realizadas:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_ai_estado['no_verificados'] ?? 0
+                        )
+                    );
+                    ?>
+                </p>
+
+                <p>
+                    <strong>Último ID recorrido:</strong>
+
+                    <?php
+                    echo esc_html(
+                        absint(
+                            $cis_ai_estado['cursor'] ?? 0
+                        )
+                    );
+                    ?>
+
+                    |
+
+                    <strong>Próximo lote:</strong>
+
+                    <?php
+                    echo esc_html(
+                        $cis_ai_siguiente
+                            ? wp_date(
+                                'Y-m-d H:i:s',
+                                $cis_ai_siguiente
+                            )
+                            : 'No programado'
+                    );
+                    ?>
+                </p>
+
+                <form
+                    method="post"
+                    action="<?php
+                        echo esc_url(
+                            admin_url( 'admin-post.php' )
+                        );
+                    ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="compuciber_auditoria_integral_control"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'compuciber_auditoria_integral_control'
+                    );
+                    ?>
+
+                    <?php if (
+                        ! empty( $cis_ai_estado['activo'] )
+                    ) : ?>
+
+                        <input
+                            type="hidden"
+                            name="operacion"
+                            value="detener"
+                        >
+
+                        <button type="submit" class="button">
+                            Detener auditoría
+                        </button>
+
+                    <?php else : ?>
+
+                        <input
+                            type="hidden"
+                            name="operacion"
+                            value="iniciar"
+                        >
+
+                        <button
+                            type="submit"
+                            class="button button-primary"
+                        >
+                            Iniciar auditoría integral
+                        </button>
+
+                    <?php endif; ?>
+
+                </form>
+
+                <?php if (
+                    ! empty( $cis_ai_estado['motivos'] )
+                ) : ?>
+
+                    <h4>Diferencias detectadas durante el recorrido</h4>
+
+                    <table class="widefat striped">
+
+                        <thead>
+                            <tr>
+                                <th>Motivo</th>
+                                <th>Productos afectados</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <?php foreach (
+                                $cis_ai_estado['motivos']
+                                as $motivo => $cantidad
+                            ) : ?>
+
+                                <tr>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            str_replace(
+                                                '_',
+                                                ' ',
+                                                $motivo
+                                            )
+                                        );
+                                        ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            absint( $cantidad )
+                                        );
+                                        ?>
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                <?php endif; ?>
+
+                <?php if (
+                    ! empty( $cis_ai_estado['muestras'] )
+                ) : ?>
+
+                    <h4>Primeros 60 productos con diferencias</h4>
+
+                    <table class="widefat striped">
+
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th>Diferencias</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <?php foreach (
+                                $cis_ai_estado['muestras']
+                                as $muestra
+                            ) : ?>
+
+                                <?php
+                                $cis_ai_id = absint(
+                                    $muestra['id'] ?? 0
+                                );
+                                ?>
+
+                                <tr>
+
+                                    <td>
+                                        <?php echo esc_html( $cis_ai_id ); ?>
+                                    </td>
+
+                                    <td>
+                                        <a href="<?php
+                                            echo esc_url(
+                                                get_edit_post_link( $cis_ai_id )
+                                            );
+                                        ?>">
+                                            <?php
+                                            echo esc_html(
+                                                get_the_title( $cis_ai_id )
+                                            );
+                                            ?>
+                                        </a>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            implode(
+                                                ', ',
+                                                (array) (
+                                                    $muestra['motivos']
+                                                    ?? array()
+                                                )
+                                            )
+                                        );
+                                        ?>
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                <?php endif; ?>
+
+                <?php if (
+                    ! empty(
+                        $cis_ai_estado['incidencias']
+                    )
+                ) : ?>
+
+                    <p>
+
+                        <a
+                            class="button button-secondary"
+                            href="<?php
+
+                                echo esc_url(
+                                    wp_nonce_url(
+                                        admin_url(
+                                            'admin-post.php?action=compuciber_auditoria_integral_exportar'
+                                        ),
+                                        'compuciber_auditoria_integral_exportar'
+                                    )
+                                );
+
+                            ?>"
+                        >
+                            Exportar incidencias (CSV)
+                        </a>
+
+                    </p>
+
+                    <?php if (
+                        ! empty(
+                            $cis_ai_estado['activo']
+                        )
+                    ) : ?>
+
+                        <p class="description">
+                            La auditoría todavía está ejecutándose.
+                            El CSV contendrá resultados parciales.
+                        </p>
+
+                    <?php endif; ?>
+
+                    <?php if (
+                        ! empty(
+                            $cis_ai_estado['registro_limitado']
+                        )
+                    ) : ?>
+
+                        <p class="notice notice-warning inline">
+                            Se alcanzó el límite de 5000 incidencias.
+                            El archivo puede estar incompleto.
+                        </p>
+
+                    <?php endif; ?>
+
+                <?php endif; ?>                
+
+                <p class="description">
+                    El total corresponde al catálogo
+                    existente cuando comenzó la auditoría.
+
+                    Los productos pueden modificarse
+                    mientras se realiza el recorrido.
+
+                    Una diferencia es una señal para
+                    investigar, no necesariamente un error.
+
+                    No se comparan las variaciones de productos
+                    que tengan más de 20 variaciones.
+
+                    La comparación de categorías puede dar
+                    diferencias inexactas si sus nombres
+                    contienen comas.
+
+                    WP-Cron depende de las visitas o de
+                    un cron real configurado en el hosting.
+
+                    Recarga esta pantalla para actualizar
+                    los contadores.
+                </p>
+
+            </details>
+
+        </div>        
+
+        <?php
+
+        $cis_traza_activa =
+            (int) get_option( 'cis_traza_hasta', 0 ) > time();
+
+        $cis_trazas_recientes = get_transient(
+            'cis_trazas_recientes'
+        );
+
+        $cis_trazas_recientes =
+            is_array( $cis_trazas_recientes )
+                ? $cis_trazas_recientes
+                : array();
+
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php echo $cis_traza_activa ? 'open' : ''; ?>>
+
+                <summary style="
+                    font-size:18px;
+                    font-weight:600;
+                    cursor:pointer;
+                ">
+                    Últimas cinco búsquedas: traza técnica
+                </summary>
+
+                <p>
+                    Estado:
+                    <strong>
+                        <?php
+                        echo esc_html(
+                            $cis_traza_activa
+                                ? 'Captura activa'
+                                : 'Captura desactivada'
+                        );
+                        ?>
+                    </strong>
+                </p>
+
+                <p>
+                    La captura se desactiva automáticamente
+                    30 minutos después de iniciarse.
+                </p>
+
+                <form
+                    method="post"
+                    action="<?php
+                        echo esc_url(
+                            admin_url( 'admin-post.php' )
+                        );
+                    ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="compuciber_traza_control"
+                    >
+
+                    <?php wp_nonce_field( 'cis_traza_control' ); ?>
+
+                    <?php if ( $cis_traza_activa ) : ?>
+
+                        <button
+                            class="button"
+                            type="submit"
+                            name="operacion"
+                            value="desactivar"
+                        >
+                            Detener captura
+                        </button>
+
+                    <?php else : ?>
+
+                        <button
+                            class="button button-primary"
+                            type="submit"
+                            name="operacion"
+                            value="activar"
+                        >
+                            Capturar durante 30 minutos
+                        </button>
+
+                    <?php endif; ?>
+
+                    <button
+                        class="button"
+                        type="submit"
+                        name="operacion"
+                        value="limpiar"
+                    >
+                        Borrar las cinco trazas
+                    </button>
+
+                </form>
+
+                <?php if ( empty( $cis_trazas_recientes ) ) : ?>
+
+                    <p>No hay búsquedas capturadas todavía.</p>
+
+                <?php endif; ?>
+
+                <?php foreach (
+                    $cis_trazas_recientes as $cis_traza
+                ) : ?>
+
+                    <details style="
+                        padding:10px 0;
+                        border-top:1px solid #ddd;
+                    ">
+
+                        <summary>
+
+                            <strong>
+                                <?php
+                                echo esc_html(
+                                    $cis_traza['fecha'] ?? ''
+                                );
+                                ?>
+                            </strong>
+
+                            —
+
+                            <?php
+                            echo esc_html(
+                                $cis_traza['original'] ?? ''
+                            );
+                            ?>
+
+                            (
+                            <?php
+                            echo esc_html(
+                                absint(
+                                    $cis_traza['resultados'] ?? 0
+                                )
+                            );
+                            ?>
+                            resultados)
+
+                        </summary>
+
+                        <p>
+                            <strong>Consulta final:</strong>
+
+                            <?php
+                            echo esc_html(
+                                $cis_traza['final'] ?? ''
+                            );
+                            ?>
+
+                            |
+
+                            <strong>Perfil:</strong>
+
+                            <?php
+                            echo esc_html(
+                                ! empty( $cis_traza['perfil'] )
+                                    ? $cis_traza['perfil']
+                                    : 'general'
+                            );
+                            ?>
+                        </p>
+
+                        <p>
+                            <strong>Interpretación IA disponible:</strong>
+
+                            <?php
+                            echo ! empty(
+                                $cis_traza['interpretacion_ia']
+                            ) ? 'Sí' : 'No';
+                            ?>
+
+                            |
+
+                            <strong>Semántica configurada:</strong>
+
+                            <?php
+                            echo ! empty(
+                                $cis_traza['semantica_configurada']
+                            ) ? 'Sí' : 'No';
+                            ?>
+                        </p>
+
+                        <?php foreach (
+                            (array) (
+                                $cis_traza['pasadas'] ?? array()
+                            ) as $cis_numero => $cis_paso
+                        ) : ?>
+
+                            <p>
+
+                                <strong>
+                                    Pasada
+                                    <?php
+                                    echo esc_html(
+                                        $cis_numero + 1
+                                    );
+                                    ?>:
+                                </strong>
+
+                                <?php
+                                echo esc_html(
+                                    absint(
+                                        $cis_paso['candidatos'] ?? 0
+                                    )
+                                );
+                                ?>
+                                candidatos,
+
+                                <?php
+                                echo esc_html(
+                                    absint(
+                                        $cis_paso['puntuados'] ?? 0
+                                    )
+                                );
+                                ?>
+                                puntuados.
+
+                            </p>
+
+                            <p>
+
+                                <strong>Primeros ID y puntos:</strong>
+
+                                <?php
+
+                                $cis_puntos = array();
+
+                                foreach (
+                                    (array) (
+                                        $cis_paso['mejores'] ?? array()
+                                    ) as $cis_item
+                                ) {
+
+                                    $cis_puntos[] =
+                                        '#'
+                                        . absint(
+                                            $cis_item['id'] ?? 0
+                                        )
+                                        . ' ('
+                                        . (float) (
+                                            $cis_item['puntos'] ?? 0
+                                        )
+                                        . ')';
+                                }
+
+                                echo esc_html(
+                                    implode( ', ', $cis_puntos )
+                                );
+
+                                ?>
+
+                            </p>
+
+                        <?php endforeach; ?>
+
+                        <p>
+                            <strong>Primeros productos finales (ID):</strong>
+
+                            <?php
+                            echo esc_html(
+                                implode(
+                                    ', ',
+                                    array_map(
+                                        'absint',
+                                        (array) (
+                                            $cis_traza['finales'] ?? array()
+                                        )
+                                    )
+                                )
+                            );
+                            ?>
+                        </p>
+
+                        <p class="description">
+                            Se muestran puntuaciones totales,
+                            no el desglose de cada regla.
+
+                            La semántica configurada no confirma
+                            que se hayan comparado embeddings.
+
+                            Las coincidencias directas por SKU
+                            pueden no generar una pasada
+                            de puntuación.
+                        </p>
+
+                    </details>
+
+                <?php endforeach; ?>
+
+                <p class="description">
+                    Se conservan como máximo cinco búsquedas.
+                    El historial temporal caduca tras un día
+                    sin nuevas capturas.
+
+                    No se almacenan IP ni identidades
+                    de clientes. Se ocultan consultas que
+                    parecen contener correos o teléfonos.
+                </p>
+
+            </details>
+
+        </div>
+        
+        <?php
+
+        $cis_rep_estado = get_option(
+            'compuciber_reparacion_indice_estado',
+            array()
+        );
+
+        $cis_rep_estado = is_array( $cis_rep_estado )
+            ? $cis_rep_estado
+            : array();
+
+        $cis_rep_auditoria = get_option(
+            'compuciber_auditoria_integral_estado',
+            array()
+        );
+
+        $cis_rep_auditoria = is_array( $cis_rep_auditoria )
+            ? $cis_rep_auditoria
+            : array();
+
+        $cis_rep_habilitada =
+            ( $cis_rep_auditoria['situacion'] ?? '' ) === 'completada'
+            && empty( $cis_rep_auditoria['registro_limitado'] );
+
+        $cis_rep_elegibles = 0;
+
+        $cis_rep_motivos = array_flip(
+            array(
+                'incompleto',
+                'nombre',
+                'sku',
+                'precio',
+                'oferta',
+                'stock',
+                'variaciones'
+            )
+        );
+
+        if ( $cis_rep_habilitada ) {
+
+            foreach (
+                (array) (
+                    $cis_rep_auditoria['incidencias'] ?? array()
+                ) as $fila
+            ) {
+
+                if (
+                    is_array( $fila )
+                    && array_intersect_key(
+                        array_flip(
+                            (array) ( $fila['motivos'] ?? array() )
+                        ),
+                        $cis_rep_motivos
+                    )
+                ) {
+
+                    $cis_rep_elegibles++;
+                }
+            }
+        }
+
+        $cis_rep_total = absint(
+            $cis_rep_estado['total'] ?? 0
+        );
+
+        $cis_rep_revisados = absint(
+            $cis_rep_estado['revisados'] ?? 0
+        );
+
+        $cis_rep_pct = $cis_rep_total
+            ? min(
+                100,
+                round(
+                    100 * $cis_rep_revisados / $cis_rep_total,
+                    1
+                )
+            )
+            : 0;
+
+        $cis_rep_aviso = (
+            isset( $_GET['cis_reparacion_aviso'] )
+            && is_string( $_GET['cis_reparacion_aviso'] )
+        )
+            ? sanitize_key(
+                wp_unslash( $_GET['cis_reparacion_aviso'] )
+            )
+            : '';
+
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:1000px;">
+
+            <details <?php
+                echo ! empty( $cis_rep_estado['activo'] )
+                    || $cis_rep_aviso
+                        ? 'open'
+                        : '';
+            ?>>
+
+                <summary style="cursor:pointer;font-size:18px;font-weight:600;">
+                    Reindexación selectiva de productos afectados
+                </summary>
+
+                <p>
+                    Utiliza la última auditoría integral completada.
+                    Reindexa únicamente registros con diferencias
+                    concretas de nombre, SKU, precio, oferta,
+                    stock, variaciones o campos incompletos.
+                </p>
+
+                <p>
+                    Los productos <strong>sin índice</strong> ya los
+                    procesa «Reintentar indexación» del Dashboard.
+
+                    No se reparan automáticamente diferencias
+                    indicadas solo por fecha o categoría.
+                </p>
+
+                <p>
+                    <strong>Elegibles en la última auditoría:</strong>
+
+                    <?php echo esc_html( $cis_rep_elegibles ); ?>
+
+                    |
+
+                    <strong>Estado:</strong>
+
+                    <span id="cis-rep-estado">
+                        <?php
+                        echo esc_html(
+                            $cis_rep_estado['situacion']
+                                ?? 'sin iniciar'
+                        );
+                        ?>
+                    </span>
+                </p>
+
+                <p>
+                    <strong>Procesados:</strong>
+
+                    <span id="cis-rep-revisados">
+                        <?php echo esc_html( $cis_rep_revisados ); ?>
+                    </span>
+
+                    /
+
+                    <span id="cis-rep-total">
+                        <?php echo esc_html( $cis_rep_total ); ?>
+                    </span>
+
+                    |
+
+                    <strong>Reindexados:</strong>
+
+                    <span id="cis-rep-reindexados">
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_rep_estado['reindexados'] ?? 0
+                            )
+                        );
+                        ?>
+                    </span>
+
+                    |
+
+                    <strong>Fallidos:</strong>
+
+                    <span id="cis-rep-fallidos">
+                        <?php
+                        echo esc_html(
+                            absint(
+                                $cis_rep_estado['fallidos'] ?? 0
+                            )
+                        );
+                        ?>
+                    </span>
+                </p>
+
+                <progress
+                    id="cis-rep-barra"
+                    max="100"
+                    value="<?php echo esc_attr( $cis_rep_pct ); ?>"
+                    style="width:100%;max-width:700px;"
+                ></progress>
+
+                <?php if ( $cis_rep_aviso ) : ?>
+
+                    <p>
+                        <strong>Última acción:</strong>
+
+                        <?php
+                        echo esc_html(
+                            str_replace(
+                                '_',
+                                ' ',
+                                $cis_rep_aviso
+                            )
+                        );
+                        ?>
+                    </p>
+
+                <?php endif; ?>
+
+                <?php if (
+                    ! $cis_rep_habilitada
+                    && empty( $cis_rep_estado['activo'] )
+                ) : ?>
+
+                    <p>
+                        Para iniciar, completa primero
+                        la auditoría integral.
+                    </p>
+
+                <?php endif; ?>
+
+                <form
+                    method="post"
+                    action="<?php
+                        echo esc_url(
+                            admin_url( 'admin-post.php' )
+                        );
+                    ?>"
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="compuciber_reparacion_indice_control"
+                    >
+
+                    <?php
+                    wp_nonce_field(
+                        'compuciber_reparacion_indice_control'
+                    );
+                    ?>
+
+                    <?php if (
+                        ! empty( $cis_rep_estado['activo'] )
+                    ) : ?>
+
+                        <button
+                            class="button"
+                            type="submit"
+                            name="operacion"
+                            value="detener"
+                        >
+                            Detener reparación
+                        </button>
+
+                    <?php elseif (
+                        $cis_rep_habilitada
+                        && $cis_rep_elegibles
+                    ) : ?>
+
+                        <button
+                            class="button button-primary"
+                            type="submit"
+                            name="operacion"
+                            value="iniciar"
+                        >
+                            Reindexar productos elegibles
+                        </button>
+
+                    <?php endif; ?>
+
+                </form>
+
+                <?php if (
+                    ! empty( $cis_rep_estado['ids_fallidos'] )
+                ) : ?>
+
+                    <p>
+                        <strong>ID que requieren revisión:</strong>
+
+                        <?php
+                        echo esc_html(
+                            implode(
+                                ', ',
+                                array_map(
+                                    'absint',
+                                    (array) $cis_rep_estado['ids_fallidos']
+                                )
+                            )
+                        );
+                        ?>
+                    </p>
+
+                <?php endif; ?>
+
+                <p class="description">
+                    Cada ejecución procesa hasta diez productos.
+
+                    No genera embeddings ni modifica el catálogo
+                    de WooCommerce.
+
+                    Los embeddings que hayan quedado desactualizados
+                    deberán procesarse después con la cola existente.
+                </p>
+
+            </details>
+
+        </div>        
+        
+        <div
+            class="postbox"
+            style="padding:16px;max-width:1000px;"
+        >
+
+            <details open>
+
+                <summary
+                    style="
+                        font-size:18px;
+                        font-weight:600;
+                        cursor:pointer;
+                    "
+                >
+                    Registro de eventos recientes
+                </summary>
+
+                <p>
+                    Últimos 40 eventos del plugin,
+                    conservados hasta 14 días.
+                </p>
+
+                <?php if ( empty( $historial ) ) : ?>
+
+                    <p>
+                        Por ahora no hay eventos registrados.
+                        Los errores anteriores no se recuperan
+                        automáticamente.
+                    </p>
+
+                <?php else : ?>
+
+                    <table class="widefat striped">
+
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Nivel</th>
+                                <th>Detalle</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <?php foreach ( $historial as $evento ) : ?>
+
+                                <tr>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            $evento['fecha'] ?? ''
+                                        );
+                                        ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            $evento['nivel'] ?? ''
+                                        );
+                                        ?>
+                                    </td>
+
+                                    <td>
+                                        <?php
+                                        echo esc_html(
+                                            $evento['mensaje'] ?? ''
+                                        );
+                                        ?>
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                <?php endif; ?>
+
+                <p>
+
+                    <a
+                        class="button"
+                        href="<?php
+                            echo esc_url(
+                                admin_url(
+                                    'admin.php?page=wc-status&tab=logs'
+                                )
+                            );
+                        ?>"
+                    >
+                        Abrir registros completos de WooCommerce
+                    </a>
+
+                </p>
+
+                <p class="description">
+                    Este historial muestra eventos nuevos
+                    enviados por Compuciber a WooCommerce.
+                    Los fallos del navegador y de otros plugins
+                    necesitarán comprobaciones adicionales.
+                </p>
+
+            </details>
+
+        </div>
+
+    </div>
+
+    <?php
+}
+
+/*
+ * Historial breve de errores de Compuciber.
+ * Los registros completos siguen en WooCommerce.
+ */
+function compuciber_historial_capturar( $mensaje, $nivel, $contexto, $handler = null ) {
+
+    if (
+        ! is_string( $mensaje )
+        || ! is_array( $contexto )
+        || ( $contexto['source'] ?? '' ) !== 'compuciber-ai-search'
+    ) {
+        return $mensaje;
+    }
+
+    $nivel = sanitize_key( $nivel );
+
+    if (
+        ! in_array(
+            $nivel,
+            array( 'error', 'warning', 'critical', 'alert', 'emergency', 'info' ),
+            true
+        )
+    ) {
+        return $mensaje;
+    }
+
+    $texto = sanitize_text_field(
+        wp_strip_all_tags( $mensaje )
+    );
+
+    $texto = wp_html_excerpt( $texto, 280, '…' );
+
+    $ahora = time();
+
+    $historial = get_option(
+        'compuciber_historial_diagnostico',
+        array()
+    );
+
+    $historial = is_array( $historial )
+        ? $historial
+        : array();
+
+    $firma = hash(
+        'sha256',
+        $nivel . '|' . $texto
+    );
+
+    foreach ( $historial as $evento ) {
+
+        if (
+            isset( $evento['firma'], $evento['ts'] )
+            && hash_equals(
+                (string) $evento['firma'],
+                $firma
+            )
+            && $ahora - (int) $evento['ts'] < 60
+        ) {
+            return $mensaje;
+        }
+    }
+
+    array_unshift(
+        $historial,
+        array(
+            'fecha'   => current_time( 'mysql' ),
+            'nivel'   => $nivel,
+            'mensaje' => $texto,
+            'firma'   => $firma,
+            'ts'      => $ahora,
+        )
+    );
+
+    $historial = array_values(
+        array_filter(
+            $historial,
+            static function ( $evento ) use ( $ahora ) {
+
+                return is_array( $evento )
+                    && isset( $evento['ts'] )
+                    && $ahora - (int) $evento['ts'] < 14 * DAY_IN_SECONDS;
+            }
+        )
+    );
+
+    update_option(
+        'compuciber_historial_diagnostico',
+        array_slice( $historial, 0, 40 ),
+        false
+    );
+
+    return $mensaje;
+}
+
+add_filter(
+    'woocommerce_logger_log_message',
+    'compuciber_historial_capturar',
+    10,
+    4
+);
+
+/*
  * ==========================================================
  * DASHBOARD
  * ==========================================================
@@ -652,6 +6376,101 @@ if (
                             . ' perfil(es) activo(s).'
                 );
 
+                /*
+                * Comprobaciones informativas del entorno.
+                */
+
+                $cis_litespeed = function_exists( 'is_plugin_active' )
+                    && is_plugin_active(
+                        'litespeed-cache/litespeed-cache.php'
+                    );
+
+                $cis_diag_filas[] = array(
+
+                    'LiteSpeed Cache',
+
+                    $cis_litespeed
+                        ? 'Detectado'
+                        : 'No detectado',
+
+                    $cis_litespeed
+                        ? 'Revisar exclusiones de caché/JS si hay conflictos. No implica un fallo.'
+                        : 'No se detectó el plugin activo con su ruta habitual.'
+                );
+
+
+                /*
+                * Estado de WP-Cron.
+                */
+
+                $cis_cron_deshabilitado =
+                    defined( 'DISABLE_WP_CRON' )
+                    && DISABLE_WP_CRON;
+
+                $cis_diag_filas[] = array(
+
+                    'WP-Cron',
+
+                    $cis_cron_deshabilitado
+                        ? 'Revisar'
+                        : 'Configuración habitual',
+
+                    $cis_cron_deshabilitado
+                        ? 'WP-Cron automático deshabilitado; verificar cron real en hosting.'
+                        : 'WP-Cron no está deshabilitado mediante esta constante.'
+                );
+
+
+                /*
+                * Próximo lote de indexación.
+                */
+
+                $cis_pendientes = absint(
+                    $resumen_indice['pendientes'] ?? 0
+                );
+
+                $cis_programado = wp_next_scheduled(
+                    'compuciber_indice_lote_113'
+                );
+
+                $cis_diag_filas[] = array(
+
+                    'Siguiente lote del índice',
+
+                    $cis_pendientes > 0 && ! $cis_programado
+                        ? 'Revisar'
+                        : 'Información',
+
+                    $cis_programado
+                        ? 'Lote programado para '
+                            . wp_date(
+                                'Y-m-d H:i:s',
+                                $cis_programado
+                            )
+                        : (
+                            $cis_pendientes > 0
+                                ? 'Hay productos pendientes sin lote programado; revisar estado de indexación.'
+                                : 'No hay lote pendiente programado.'
+                        )
+                );
+
+
+                /*
+                * Identificar el tema utilizado.
+                */
+
+                $cis_diag_filas[] = array(
+
+                    'Tema activo',
+
+                    'Información',
+
+                    wp_get_theme()->get( 'Name' )
+                        . ' (plantilla: '
+                        . get_template()
+                        . ').'
+                );
+
                 ?>
 
                 <table
@@ -702,6 +6521,335 @@ if (
                     </tbody>
 
                 </table>
+
+                <?php
+                /* Auditoría de solo lectura. */
+
+                $cis_audit_texto = isset( $_GET['cis_audit_buscar'] )
+                    && is_string( $_GET['cis_audit_buscar'] )
+                    ? substr(
+                        sanitize_text_field(
+                            wp_unslash( $_GET['cis_audit_buscar'] )
+                        ),
+                        0,
+                        100
+                    )
+                    : '';
+
+                $cis_audit_pagina = isset( $_GET['cis_audit_pagina'] )
+                    ? max( 1, absint( $_GET['cis_audit_pagina'] ) )
+                    : 1;
+
+                $cis_audit_por_pagina = 25;
+
+                $cis_audit_where =
+                    'p.post_type = %s AND p.post_status = %s';
+
+                $cis_audit_args = array( 'product', 'publish' );
+
+                if ( $cis_audit_texto !== '' ) {
+
+                    $cis_audit_like =
+                        '%' . $wpdb->esc_like( $cis_audit_texto ) . '%';
+
+                    $cis_audit_where .= "
+                        AND (
+                            p.ID = %d
+                            OR p.post_title LIKE %s
+                            OR EXISTS (
+                                SELECT 1
+                                FROM {$wpdb->postmeta} pm
+                                WHERE pm.post_id = p.ID
+                                AND pm.meta_key = '_sku'
+                                AND pm.meta_value LIKE %s
+                            )
+                        )
+                    ";
+
+                    $cis_audit_args[] = absint( $cis_audit_texto );
+                    $cis_audit_args[] = $cis_audit_like;
+                    $cis_audit_args[] = $cis_audit_like;
+                }
+
+                $cis_audit_total = (int) $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT COUNT(*)
+                        FROM {$wpdb->posts} p
+                        WHERE {$cis_audit_where}",
+                        $cis_audit_args
+                    )
+                );
+
+                $cis_audit_paginas = max(
+                    1,
+                    (int) ceil(
+                        $cis_audit_total / $cis_audit_por_pagina
+                    )
+                );
+
+                $cis_audit_pagina = min(
+                    $cis_audit_pagina,
+                    $cis_audit_paginas
+                );
+
+                $cis_audit_offset =
+                    ( $cis_audit_pagina - 1 ) * $cis_audit_por_pagina;
+
+                $cis_audit_filas = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT
+                            p.ID,
+                            p.post_title,
+                            i.id AS indice_id,
+                            i.actualizado,
+                            CASE
+                                WHEN i.id IS NOT NULL
+                                AND (
+                                    TRIM(i.nombre) = ''
+                                    OR TRIM(i.texto_busqueda) = ''
+                                )
+                                THEN 1
+                                ELSE 0
+                            END AS incompleto
+                        FROM {$wpdb->posts} p
+                        LEFT JOIN {$tabla} i
+                            ON i.id = p.ID
+                        WHERE {$cis_audit_where}
+                        ORDER BY p.ID DESC
+                        LIMIT %d OFFSET %d",
+                        array_merge(
+                            $cis_audit_args,
+                            array(
+                                $cis_audit_por_pagina,
+                                $cis_audit_offset
+                            )
+                        )
+                    )
+                );
+
+                $cis_audit_incompletos = (int) $wpdb->get_var(
+                    "SELECT COUNT(*)
+                    FROM {$wpdb->posts} p
+                    INNER JOIN {$tabla} i
+                        ON i.id = p.ID
+                    WHERE p.post_type = 'product'
+                    AND p.post_status = 'publish'
+                    AND (
+                        TRIM(i.nombre) = ''
+                        OR TRIM(i.texto_busqueda) = ''
+                    )"
+                );
+                ?>
+
+                <h3>Auditoría del índice de productos</h3>
+
+                <p>
+                    Publicados:
+                    <strong>
+                        <?php echo esc_html( $resumen_indice['total'] ); ?>
+                    </strong>
+
+                    | Indexados:
+                    <strong>
+                        <?php echo esc_html( $resumen_indice['indexados'] ); ?>
+                    </strong>
+
+                    | Sin índice:
+                    <strong>
+                        <?php echo esc_html( $resumen_indice['pendientes'] ); ?>
+                    </strong>
+
+                    | Registros incompletos:
+                    <strong>
+                        <?php echo esc_html( $cis_audit_incompletos ); ?>
+                    </strong>
+                </p>
+
+                <p class="description">
+                    Esta auditoría comprueba la existencia del registro
+                    y sus campos básicos de búsqueda.
+                    No modifica productos ni ejecuta indexaciones.
+                </p>
+
+                <form
+                    method="get"
+                    action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>"
+                >
+                    <input
+                        type="hidden"
+                        name="page"
+                        value="compuciber-ai-search"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="cis_diagnostico"
+                        value="1"
+                    >
+
+                    <?php
+                    wp_nonce_field( 'cis_diagnostico_instalacion' );
+                    ?>
+
+                    <label for="cis-audit-buscar">
+                        Buscar por nombre, SKU o ID:
+                    </label>
+
+                    <input
+                        type="search"
+                        id="cis-audit-buscar"
+                        name="cis_audit_buscar"
+                        value="<?php echo esc_attr( $cis_audit_texto ); ?>"
+                        maxlength="100"
+                    >
+
+                    <button type="submit" class="button">
+                        Consultar índice
+                    </button>
+                </form>
+
+                <table
+                    class="widefat striped"
+                    style="max-width:900px;margin-top:12px;"
+                >
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>SKU</th>
+                            <th>Estado</th>
+                            <th>Actualizado</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <?php foreach (
+                            (array) $cis_audit_filas as $cis_audit_fila
+                        ) : ?>
+
+                            <?php
+                            $cis_audit_estado =
+                                is_null( $cis_audit_fila->indice_id )
+                                    ? 'Sin indexar'
+                                    : (
+                                        (int) $cis_audit_fila->incompleto === 1
+                                            ? 'Registro incompleto'
+                                            : 'Indexado'
+                                    );
+                            ?>
+
+                            <tr>
+                                <td>
+                                    <?php
+                                    echo esc_html( $cis_audit_fila->ID );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <a href="<?php
+                                        echo esc_url(
+                                            get_edit_post_link(
+                                                $cis_audit_fila->ID
+                                            )
+                                        );
+                                    ?>">
+                                        <?php
+                                        echo esc_html(
+                                            $cis_audit_fila->post_title
+                                        );
+                                        ?>
+                                    </a>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        get_post_meta(
+                                            $cis_audit_fila->ID,
+                                            '_sku',
+                                            true
+                                        )
+                                    );
+                                    ?>
+                                </td>
+
+                                <td>
+                                    <?php echo esc_html( $cis_audit_estado ); ?>
+                                </td>
+
+                                <td>
+                                    <?php
+                                    echo esc_html(
+                                        $cis_audit_fila->actualizado ?: '—'
+                                    );
+                                    ?>
+                                </td>
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                        <?php if ( empty( $cis_audit_filas ) ) : ?>
+
+                            <tr>
+                                <td colspan="5">
+                                    No se encontraron productos.
+                                </td>
+                            </tr>
+
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+                <p>
+                    Mostrando
+                    <?php echo esc_html( count( (array) $cis_audit_filas ) ); ?>
+                    de
+                    <?php echo esc_html( $cis_audit_total ); ?>
+                    productos.
+
+                    Página
+                    <?php echo esc_html( $cis_audit_pagina ); ?>
+                    de
+                    <?php echo esc_html( $cis_audit_paginas ); ?>.
+
+                    <?php if ( $cis_audit_pagina > 1 ) : ?>
+
+                        <a
+                            class="button"
+                            href="<?php
+                                echo esc_url(
+                                    add_query_arg(
+                                        'cis_audit_pagina',
+                                        $cis_audit_pagina - 1
+                                    )
+                                );
+                            ?>"
+                        >
+                            Anterior
+                        </a>
+
+                    <?php endif; ?>
+
+                    <?php if (
+                        $cis_audit_pagina < $cis_audit_paginas
+                    ) : ?>
+
+                        <a
+                            class="button"
+                            href="<?php
+                                echo esc_url(
+                                    add_query_arg(
+                                        'cis_audit_pagina',
+                                        $cis_audit_pagina + 1
+                                    )
+                                );
+                            ?>"
+                        >
+                            Siguiente
+                        </a>
+
+                    <?php endif; ?>
+                </p>                
 
                 <p class="description">
                     Este informe es informativo.
@@ -4423,4 +10571,296 @@ function compuciber_admin_generar_embeddings() {
 add_action(
     'admin_post_compuciber_generar_embeddings',
     'compuciber_admin_generar_embeddings'
+);
+
+/*
+ * Control administrativo de la cola de embeddings.
+ */
+function compuciber_admin_control_cola_embeddings() {
+
+    if (
+        ! current_user_can(
+            'manage_options'
+        )
+    ) {
+        wp_die(
+            'Acceso no autorizado.'
+        );
+    }
+
+    check_admin_referer(
+        'compuciber_control_cola_embeddings'
+    );
+
+    $accion = (
+        isset( $_POST['operacion'] )
+        && is_string( $_POST['operacion'] )
+    )
+        ? sanitize_key(
+            wp_unslash(
+                $_POST['operacion']
+            )
+        )
+        : '';
+
+    $opcion =
+        'compuciber_cola_embeddings_estado';
+
+    $estado = get_option(
+        $opcion,
+        array()
+    );
+
+    $estado = is_array( $estado )
+        ? $estado
+        : array();
+
+    $aviso = 'sin_cambios';
+
+    /*
+     * Detener la programación.
+     */
+    if ( $accion === 'detener' ) {
+
+        $estado['activo'] = false;
+
+        $estado['situacion'] =
+            'detenida_manual';
+
+        $estado['ultima'] = time();
+
+        update_option(
+            $opcion,
+            $estado,
+            false
+        );
+
+        wp_clear_scheduled_hook(
+            'compuciber_cola_embeddings_paso'
+        );
+
+        $aviso = 'detenida';
+    }
+
+    /*
+     * Iniciar una nueva sesión.
+     */
+    if (
+        $accion === 'iniciar'
+        && empty( $estado['activo'] )
+    ) {
+
+        $config =
+            compuciber_obtener_configuracion_embeddings();
+
+        $opcion_clave =
+            $config['proveedor'] === 'openai'
+                ? 'compuciber_openai_api_key'
+                : 'compuciber_gemini_api_key';
+
+        $tamano = isset(
+            $_POST['por_lote']
+        )
+            ? absint(
+                $_POST['por_lote']
+            )
+            : 1;
+
+        $limite = isset(
+            $_POST['limite_total']
+        )
+            ? absint(
+                $_POST['limite_total']
+            )
+            : 100;
+
+        /*
+         * Solo permitir valores autorizados.
+         */
+        if (
+            ! in_array(
+                $tamano,
+                array( 1, 2, 5 ),
+                true
+            )
+        ) {
+            $tamano = 1;
+        }
+
+        /*
+         * Cantidad total configurable.
+         * Admite cualquier entero de 1 a 2000.
+         */
+        $limite = max(
+            1,
+            min(
+                2000,
+                $limite
+            )
+        );
+
+        /*
+         * Separación configurable entre lotes.
+         *
+         * Mínimo: 1 minuto.
+         * Máximo: 10 minutos.
+         */
+        $minutos = isset(
+            $_POST['cada_minutos']
+        )
+            ? absint(
+                $_POST['cada_minutos']
+            )
+            : 5;
+
+        $minutos = max(
+            1,
+            min(
+                10,
+                $minutos
+            )
+        );
+
+        /*
+         * Comprobar que la generación
+         * está configurada correctamente.
+         */
+        if (
+            ! class_exists( 'WooCommerce' )
+
+            || get_option(
+                'compuciber_busqueda_semantica',
+                '0'
+            ) !== '1'
+
+            || ! trim(
+                (string) get_option(
+                    $opcion_clave,
+                    ''
+                )
+            )
+        ) {
+
+            $aviso = 'configuracion';
+
+        } elseif (
+            ! function_exists(
+                'compuciber_obtener_estado_embeddings'
+            )
+
+            || ! function_exists(
+                'compuciber_generar_lote_embeddings'
+            )
+        ) {
+
+            $aviso = 'no_disponible';
+
+        } else {
+
+            $conteo =
+                compuciber_obtener_estado_embeddings();
+
+            if (
+                absint(
+                    $conteo['pendientes'] ?? 0
+                ) === 0
+            ) {
+
+                $aviso = 'sin_pendientes';
+
+            } else {
+
+                wp_clear_scheduled_hook(
+                    'compuciber_cola_embeddings_paso'
+                );
+
+                $estado = array(
+
+                    'activo'       => true,
+
+                    'situacion'    => 'en_cola',
+
+                    'token'        => wp_generate_uuid4(),
+
+                    'proveedor'    => $config['proveedor'],
+
+                    'modelo'       => $config['modelo'],
+
+                    'por_lote'     => $tamano,
+
+                    'limite_total' => $limite,
+
+                    'cada_minutos' => $minutos,
+
+                    'procesados'   => 0,
+
+                    'generados'    => 0,
+
+                    'fallidos'     => 0,
+
+                    'inicio'      => time(),
+
+                    'ultima'      => 0,
+                );
+
+                update_option(
+                    $opcion,
+                    $estado,
+                    false
+                );
+
+                $programado = wp_schedule_single_event(
+                    time() + MINUTE_IN_SECONDS,
+                    'compuciber_cola_embeddings_paso',
+                    array(),
+                    true
+                );
+
+                if (
+                    is_wp_error( $programado )
+                    || ! $programado
+                ) {
+
+                    $estado['activo'] = false;
+
+                    $estado['situacion'] =
+                        'error_programacion';
+
+                    update_option(
+                        $opcion,
+                        $estado,
+                        false
+                    );
+
+                    $aviso = 'error_programacion';
+
+                } else {
+
+                    $aviso = 'iniciada';
+                }
+            }
+        }
+    }
+
+    /*
+     * Regresar al quinto apartado.
+     */
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page' =>
+                    'compuciber-ai-search-diagnostico',
+
+                'cis_cola_aviso' => $aviso,
+            ),
+            admin_url( 'admin.php' )
+        )
+    );
+
+    exit;
+}
+
+add_action(
+    'admin_post_compuciber_control_cola_embeddings',
+    'compuciber_admin_control_cola_embeddings'
 );

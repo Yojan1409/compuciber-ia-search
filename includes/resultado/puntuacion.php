@@ -424,155 +424,19 @@ function compuciber_calcular_puntuacion_producto(
         $busqueda
     );
 
-    $identidad_producto = compuciber_normalizar_texto(
-        $titulo . ' ' . $categorias
-    );
-
     /*
-    * Reglas de identificación.
-    *
-    * Primero se evalúan los tipos específicos.
-    * Las expresiones compuestas tienen prioridad.
-    */
-
-    $tipos_producto = array(
-
-        'laptop' => array(
-            'consulta' => array(
-                'computadora portatil',
-                'ordenador portatil',
-                'laptop',
-                'notebook',
-                'portatil'
-            ),
-            'producto' => array(
-                'laptop',
-                'notebook',
-                'portatil'
-            )
-        ),
-
-        'mouse' => array(
-            'consulta' => array(
-                'mouse',
-                'raton',
-                'mause',
-                'maus'
-            ),
-            'producto' => array(
-                'mouse',
-                'raton',
-                'mause',
-                'maus'
-            )
-        ),
-
-        'teclado' => array(
-            'consulta' => array(
-                'teclado',
-                'keyboard'
-            ),
-            'producto' => array(
-                'teclado',
-                'keyboard'
-            )
-        ),
-
-        'audifonos' => array(
-            'consulta' => array(
-                'audifonos',
-                'auriculares',
-                'headset',
-                'headphones'
-            ),
-            'producto' => array(
-                'audifonos',
-                'auriculares',
-                'headset',
-                'headphones'
-            )
-        ),
-
-        'monitor' => array(
-            'consulta' => array(
-                'monitor',
-                'pantalla',
-                'display'
-            ),
-            'producto' => array(
-                'monitor',
-                'pantalla',
-                'display'
-            )
-        )
-    );
-
-    $tipo_solicitado = '';
-
-    foreach ( $tipos_producto as $tipo => $reglas ) {
-
-        foreach ( $reglas['consulta'] as $termino ) {
-
-            if (
-                compuciber_contiene_termino(
-                    $consulta_tipo,
-                    $termino
-                )
-            ) {
-
-                $tipo_solicitado = $tipo;
-                break 2;
-            }
-        }
-    }
-
-    if ( $tipo_solicitado !== '' ) {
-
-        /*
-        * No bloquear búsquedas exactas
-        * de SKU o modelo.
-        */
-
-        $coincidencia_identificador =
-            (
-                $sku !== ''
-                && $sku === $consulta_tipo
-            )
-            ||
-            (
-                $modelo !== ''
-                && $modelo === $consulta_tipo
-            );
-
-        if ( ! $coincidencia_identificador ) {
-
-            $tipo_valido = false;
-
-            foreach (
-                $tipos_producto[
-                    $tipo_solicitado
-                ]['producto']
-                as $termino
-            ) {
-
-                if (
-                    compuciber_contiene_termino(
-                        $identidad_producto,
-                        $termino
-                    )
-                ) {
-
-                    $tipo_valido = true;
-                    break;
-                }
-            }
-
-            if ( ! $tipo_valido ) {
-                return -1;
-            }
-        }
-    }
-
+     * VALIDACIÓN GENERAL DEL PRODUCTO
+     *
+     * No utilizamos una lista fija de tipos.
+     *
+     * Las coincidencias se evalúan posteriormente
+     * mediante títulos, categorías, atributos
+     * y sinónimos configurados.
+     *
+     * Se conservan las validaciones independientes
+     * de SKU, modelo, marca, precio y
+     * características técnicas.
+     */
     /*
     * PRECIO
     */
@@ -919,7 +783,301 @@ function compuciber_calcular_puntuacion_producto(
         $puntuacion += 400;
     }   
 
+    /*
+     * RELEVANCIA AUTOMÁTICA
+     *
+     * Priorizar coincidencias en el título
+     * y reforzar la categoría del producto.
+     *
+     * Se aplica a búsquedas de una sola palabra.
+     * No sustituye las prioridades de SKU,
+     * modelo ni título exacto.
+     */
 
+    if (
+        strlen( $busqueda_normalizada ) >= 3
+        && strpos( $busqueda_normalizada, ' ' ) === false
+        && ! is_numeric( $busqueda_normalizada )
+    ) {
+
+        $cis_termino_patron = preg_quote(
+            $busqueda_normalizada,
+            '/'
+        );
+
+        /*
+         * Reconocer también plurales habituales.
+         *
+         * laptop  -> laptops
+         * monitor -> monitores
+         * impresora -> impresoras
+         */
+
+        $cis_patron_inicio =
+            '/^' . $cis_termino_patron
+            . '(?:s|es)?(?![a-z0-9])/';
+
+        $cis_patron_palabra =
+            '/(?<![a-z0-9])'
+            . $cis_termino_patron
+            . '(?:s|es)?(?![a-z0-9])/';
+
+        /*
+         * Coincidencia al inicio del título.
+         */
+
+        if (
+            preg_match(
+                $cis_patron_inicio,
+                $titulo
+            ) === 1
+        ) {
+
+            $puntuacion += 80;
+
+        /*
+         * Coincidencia en otra posición.
+         */
+
+        } elseif (
+            preg_match(
+                $cis_patron_palabra,
+                $titulo
+            ) === 1
+        ) {
+
+            $puntuacion += 35;
+        }
+
+        /*
+         * PRIORIDAD AUTOMÁTICA POR CATEGORÍA
+         *
+         * Diferenciar una categoría que coincide
+         * directamente con la búsqueda de otra
+         * que solamente menciona esa palabra.
+         *
+         * Utiliza las categorías que ya tenemos
+         * en el índice, sin nuevas consultas SQL.
+         */
+
+        $cis_categoria_directa = false;
+
+        $cis_categorias_producto = explode(
+            ',',
+            (string) $producto->categorias
+        );
+
+        foreach (
+            $cis_categorias_producto
+            as $cis_nombre_categoria
+        ) {
+
+            $cis_nombre_categoria =
+                compuciber_normalizar_texto(
+                    $cis_nombre_categoria
+                );
+
+            /*
+             * Categoría exacta o plural habitual.
+             *
+             * laptop   -> laptops
+             * monitor  -> monitores
+             * impresora -> impresoras
+             */
+
+            if (
+                $cis_nombre_categoria ===
+                    $busqueda_normalizada
+
+                || $cis_nombre_categoria ===
+                    $busqueda_normalizada . 's'
+
+                || $cis_nombre_categoria ===
+                    $busqueda_normalizada . 'es'
+            ) {
+
+                $cis_categoria_directa = true;
+
+                break;
+            }
+        }
+
+        /*
+         * Categoría directamente relacionada.
+         */
+
+        if ( $cis_categoria_directa ) {
+
+            $puntuacion += 50;
+
+        /*
+         * Categoría que solamente contiene
+         * la palabra buscada.
+         */
+
+        } elseif (
+            preg_match(
+                $cis_patron_palabra,
+                $categorias
+            ) === 1
+        ) {
+
+            $puntuacion += 10;
+        }
+    }
+
+    /*
+     * RELEVANCIA AUTOMÁTICA PARA VARIAS PALABRAS.
+     *
+     * No excluye productos, no consulta la base
+     * de datos y no llama a la inteligencia artificial.
+     */
+
+    $cis_terminos_compuestos =
+        compuciber_obtener_palabras( $busqueda );
+
+    if ( count( $cis_terminos_compuestos ) >= 2 ) {
+
+        /*
+         * Limitar el cálculo adicional a ocho términos.
+         */
+        $cis_terminos_compuestos = array_slice(
+            $cis_terminos_compuestos,
+            0,
+            8
+        );
+
+        $cis_coincidencias_titulo = 0;
+        $cis_categoria_directa = false;
+        $cis_categoria_mencionada = false;
+
+        /*
+         * Premiar la frase completa en el título.
+         */
+        if (
+            strpos(
+                $titulo,
+                $busqueda_normalizada
+            ) === 0
+        ) {
+
+            $puntuacion += 90;
+
+        } elseif (
+            strpos(
+                $titulo,
+                $busqueda_normalizada
+            ) !== false
+        ) {
+
+            $puntuacion += 40;
+        }
+
+        /*
+         * Obtener las categorías del índice.
+         */
+        $cis_nombres_categorias = array_map(
+            'compuciber_normalizar_texto',
+            explode(
+                ',',
+                (string) $producto->categorias
+            )
+        );
+
+        foreach (
+            $cis_terminos_compuestos
+            as $cis_termino
+        ) {
+
+            if (
+                strlen( $cis_termino ) < 3
+                || is_numeric( $cis_termino )
+            ) {
+                continue;
+            }
+
+            $cis_patron_termino =
+                '/(?<![a-z0-9])'
+                . preg_quote( $cis_termino, '/' )
+                . '(?:s|es)?(?![a-z0-9])/i';
+
+            /*
+             * Coincidencia individual en el título.
+             */
+            if (
+                preg_match(
+                    $cis_patron_termino,
+                    $titulo
+                ) === 1
+            ) {
+
+                $cis_coincidencias_titulo++;
+                $puntuacion += 12;
+            }
+
+            /*
+             * Identificar categorías directas.
+             */
+            foreach (
+                $cis_nombres_categorias
+                as $cis_nombre_categoria
+            ) {
+
+                if (
+                    $cis_nombre_categoria === $cis_termino
+                    || $cis_nombre_categoria === $cis_termino . 's'
+                    || $cis_nombre_categoria === $cis_termino . 'es'
+                ) {
+
+                    $cis_categoria_directa = true;
+
+                } elseif (
+                    preg_match(
+                        $cis_patron_termino,
+                        $cis_nombre_categoria
+                    ) === 1
+                ) {
+
+                    $cis_categoria_mencionada = true;
+                }
+            }
+        }
+
+        /*
+         * Reforzar los productos cuyos títulos
+         * contienen todos los términos relevantes.
+         */
+        $cis_terminos_relevantes = array_filter(
+            $cis_terminos_compuestos,
+            static function ( $termino ) {
+
+                return strlen( $termino ) >= 3
+                    && ! is_numeric( $termino );
+            }
+        );
+
+        if (
+            count( $cis_terminos_relevantes ) >= 2
+            && $cis_coincidencias_titulo ===
+                count( $cis_terminos_relevantes )
+        ) {
+
+            $puntuacion += 35;
+        }
+
+        /*
+         * Prioridad por categoría.
+         */
+        if ( $cis_categoria_directa ) {
+
+            $puntuacion += 30;
+
+        } elseif ( $cis_categoria_mencionada ) {
+
+            $puntuacion += 8;
+        }
+    }    
+    
     /*
      * PRODUCTO
      */

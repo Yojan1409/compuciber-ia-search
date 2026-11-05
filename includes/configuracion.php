@@ -59,6 +59,15 @@ function compuciber_ai_search_menu() {
         'compuciber_pagina_correcciones'
     );
 
+    add_submenu_page(
+        'compuciber-ai-search',
+        'Diagnóstico y registros',
+        'Diagnóstico y registros',
+        'manage_options',
+        'compuciber-ai-search-diagnostico',
+        'compuciber_ai_search_diagnostico_registros'
+    );
+
 }
 
 add_action(

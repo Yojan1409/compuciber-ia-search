@@ -70,7 +70,54 @@ function compuciberInicializarBuscadorPublico() {
 
         posicionarPortalSugerencias();
 
-        window.addEventListener('scroll', posicionarPortalSugerencias, true);
+        /*
+         * Cerrar las sugerencias cuando el usuario
+         * desplaza la página.
+         *
+         * El desplazamiento interno de las propias
+         * sugerencias continúa funcionando.
+         */
+
+        window.addEventListener('scroll', function (evento) {
+
+            /*
+             * Permitir desplazarse dentro de la lista
+             * de sugerencias sin cerrarla.
+             */
+            if (
+                evento.target === suggestions ||
+                suggestions.contains(evento.target) ||
+                evento.target === input
+            ) {
+                return;
+            }
+
+            /*
+             * Cancelar búsquedas pendientes para evitar
+             * que las sugerencias reaparezcan después.
+             */
+
+            clearTimeout(timeout);
+            clearTimeout(aiTimer);
+
+            if (controladorSugerencias) {
+                controladorSugerencias.abort();
+            }
+
+            requestNumber++;
+
+            /*
+             * Cerrar las tarjetas flotantes.
+             */
+            suggestions.replaceChildren();
+
+            /*
+             * Mantener actualizada la posición
+             * para la próxima búsqueda.
+             */
+            posicionarPortalSugerencias();
+
+        }, true);
         window.addEventListener('resize', posicionarPortalSugerencias);
         input.addEventListener('focus', posicionarPortalSugerencias);
 

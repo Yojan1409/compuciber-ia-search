@@ -478,6 +478,26 @@ function compuciber_buscar_productos_inteligente(
         $productos_puntuados = $cis_resultados_filtrados;
     }
 
+    /*
+     * Observador opcional del diagnóstico administrativo.
+     * No altera resultados ni registra búsquedas.
+     */
+    if ( has_action( 'compuciber_diagnostico_ranking' ) ) {
+
+        do_action(
+            'compuciber_diagnostico_ranking',
+            array(
+                'candidatos'    => count( $productos_candidatos ),
+                'coincidencias' => count( $productos_puntuados ),
+                'primeros'     => array_slice(
+                    $productos_puntuados,
+                    0,
+                    20
+                ),
+            )
+        );
+    }    
+
     $ids_resultados = array();
 
     foreach ( $productos_puntuados as $resultado ) {

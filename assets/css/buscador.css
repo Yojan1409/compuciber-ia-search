@@ -6,8 +6,14 @@
     position: relative;
 }
 
+/*
+ * Mantener el buscador dentro del orden visual
+ * normal de la página.
+ *
+ * Las sugerencias utilizan su propia capa flotante.
+ */
 .compuciber-ai-search:focus-within {
-    z-index: 100000;
+    z-index: auto;
 }
 
 .compuciber-ai-search .compuciber-suggestions {

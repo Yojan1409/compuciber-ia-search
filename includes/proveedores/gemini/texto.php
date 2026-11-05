@@ -128,44 +128,74 @@ Consulta del cliente:
         )
     );
 
-    // Diagnóstico temporal del proveedor Gemini.
+    /*
+     * Registrar fallos de Gemini en los logs de WooCommerce.
+     * No guardar la consulta, la respuesta ni la API Key.
+     * Evitar repetir el mismo error durante cinco minutos.
+     */
+    $cis_gemini_error_log = '';
 
     if ( is_wp_error( $response ) ) {
 
-        error_log(
-            'CIS GEMINI TEXTO: WP_ERROR='
-            . sanitize_key( $response->get_error_code() )
-        );
+        $cis_gemini_error_log =
+            'TRANSPORTE: ' . sanitize_key( $response->get_error_code() );
 
     } else {
 
-        $http_diagnostico = (int)
-            wp_remote_retrieve_response_code( $response );
-
-        $datos_diagnostico = json_decode(
-            wp_remote_retrieve_body( $response ),
-            true
+        $cis_gemini_http = absint(
+            wp_remote_retrieve_response_code( $response )
         );
 
-        $estado_diagnostico = 'SIN_ESTADO';
+        if ( $cis_gemini_http < 200 || $cis_gemini_http >= 300 ) {
 
-        if (
-            is_array( $datos_diagnostico )
-            && isset( $datos_diagnostico['error']['status'] )
-            && is_string( $datos_diagnostico['error']['status'] )
-        ) {
+            $cis_gemini_estado = 'sin_estado';
 
-            $estado_diagnostico = sanitize_text_field(
-                $datos_diagnostico['error']['status']
+            $cis_gemini_respuesta = json_decode(
+                wp_remote_retrieve_body( $response ),
+                true
+            );
+
+            if (
+                is_array( $cis_gemini_respuesta )
+                && isset( $cis_gemini_respuesta['error']['status'] )
+                && is_string( $cis_gemini_respuesta['error']['status'] )
+            ) {
+
+                $cis_gemini_estado = sanitize_key(
+                    $cis_gemini_respuesta['error']['status']
+                );
+            }
+
+            $cis_gemini_error_log =
+                'HTTP ' . $cis_gemini_http
+                . ' | ESTADO: '
+                . $cis_gemini_estado;
+        }
+    }
+
+    if (
+        $cis_gemini_error_log !== ''
+        && function_exists( 'wc_get_logger' )
+    ) {
+
+        $cis_gemini_log_clave =
+            'cis_gem_log_' . md5( $cis_gemini_error_log );
+
+        if ( false === get_transient( $cis_gemini_log_clave ) ) {
+
+            wc_get_logger()->error(
+                'Gemini texto: ' . $cis_gemini_error_log,
+                array(
+                    'source' => 'compuciber-ai-search'
+                )
+            );
+
+            set_transient(
+                $cis_gemini_log_clave,
+                1,
+                5 * MINUTE_IN_SECONDS
             );
         }
-
-        error_log(
-            'CIS GEMINI TEXTO: HTTP='
-            . $http_diagnostico
-            . ' | ESTADO='
-            . $estado_diagnostico
-        );
     }
 
     if ( is_wp_error( $response ) ) {
@@ -215,6 +245,47 @@ Consulta del cliente:
     }
 
 
+    /*
+     * Diagnóstico de respuestas HTTP exitosas
+     * que no pueden interpretarse.
+     *
+     * No guarda consultas, respuestas completas
+     * ni credenciales.
+     */
+    $cis_gemini_aviso_respuesta = static function ( $motivo ) use ( $modelo ) {
+
+        if ( ! function_exists( 'wc_get_logger' ) ) {
+            return;
+        }
+
+        $motivo = sanitize_key( $motivo );
+
+        $clave = 'cis_gemini_resp_' . md5(
+            $modelo . '|' . $motivo
+        );
+
+        if ( false !== get_transient( $clave ) ) {
+            return;
+        }
+
+        wc_get_logger()->warning(
+            sprintf(
+                'Gemini texto: respuesta HTTP exitosa no utilizable | motivo=%s | modelo=%s',
+                $motivo,
+                sanitize_text_field( $modelo )
+            ),
+            array(
+                'source' => 'compuciber-ai-search'
+            )
+        );
+
+        set_transient(
+            $clave,
+            1,
+            10 * MINUTE_IN_SECONDS
+        );
+    };
+    
     $body = json_decode(
         wp_remote_retrieve_body( $response ),
         true
@@ -226,6 +297,11 @@ Consulta del cliente:
             $body['candidates'][0]['content']['parts'][0]['text']
         )
     ) {
+
+        $cis_gemini_aviso_respuesta(
+            'sin_texto_en_respuesta'
+        );
+
         return false;
     }
 
@@ -255,7 +331,12 @@ Consulta del cliente:
     );
 
 
-    if ( ! is_array( $resultado ) ) {
+if ( ! is_array( $resultado ) ) {
+
+        $cis_gemini_aviso_respuesta(
+            'interpretacion_json_invalida'
+        );
+
         return false;
     }
 

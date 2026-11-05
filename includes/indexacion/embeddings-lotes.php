@@ -445,6 +445,7 @@ function compuciber_generar_lote_embeddings(
             }
         }
 
+        $cis_emb_ids_fallidos = array();
         foreach ( $productos_lote as $product_id ) {
 
             /*
@@ -502,11 +503,13 @@ function compuciber_generar_lote_embeddings(
                 } else {
 
                     $resultado['fallidos']++;
+                    $cis_emb_ids_fallidos[] = absint( $product_id );
                 }
 
-            } catch ( Throwable $error ) {
+                } catch ( Throwable $error ) {
 
                 $resultado['fallidos']++;
+                $cis_emb_ids_fallidos[] = absint( $product_id );
 
                 /*
                  * No registrar claves API ni
@@ -522,6 +525,48 @@ function compuciber_generar_lote_embeddings(
                 );
             }
         }
+
+    /*
+    * Registrar errores de embeddings en WooCommerce.
+    * Un registro por lote para proteger el rendimiento.
+    */
+    if (
+        ! empty( $cis_emb_ids_fallidos )
+        && function_exists( 'wc_get_logger' )
+    ) {
+
+        $cis_emb_mensaje = sprintf(
+            'Embeddings fallidos: proveedor=%s | modelo=%s | procesados=%d | fallidos=%d | IDs=%s',
+            sanitize_key( $configuracion['proveedor'] ),
+            substr(
+                sanitize_text_field( $configuracion['modelo'] ),
+                0,
+                80
+            ),
+            absint( $resultado['procesados'] ),
+            absint( $resultado['fallidos'] ),
+            implode( ',', $cis_emb_ids_fallidos )
+        );
+
+        $cis_emb_clave =
+            'cis_emb_error_' . md5( $cis_emb_mensaje );
+
+        if ( false === get_transient( $cis_emb_clave ) ) {
+
+            wc_get_logger()->error(
+                $cis_emb_mensaje,
+                array(
+                    'source' => 'compuciber-ai-search'
+                )
+            );
+
+            set_transient(
+                $cis_emb_clave,
+                1,
+                10 * MINUTE_IN_SECONDS
+            );
+        }
+    }
 
         $estado =
             compuciber_obtener_estado_embeddings();
@@ -551,3 +596,381 @@ function compuciber_generar_lote_embeddings(
 
     return $resultado;
 }
+
+/*
+ * Cola opcional de embeddings.
+ * Ejecuta un lote aproximadamente cada cinco minutos.
+ * Solo se inicia desde el panel administrativo.
+ */
+function compuciber_cola_embeddings_paso() {
+
+    $opcion = 'compuciber_cola_embeddings_estado';
+
+    $cola = get_option( $opcion, array() );
+
+    if (
+        ! is_array( $cola )
+        || empty( $cola['activo'] )
+    ) {
+        return;
+    }
+
+    /*
+     * Detener la cola y conservar su estado.
+     */
+    $detener = static function ( $estado, $motivo ) use ( $opcion ) {
+
+        $estado['activo'] = false;
+        $estado['situacion'] = $motivo;
+        $estado['ultima'] = time();
+
+        update_option( $opcion, $estado, false );
+
+        wp_clear_scheduled_hook(
+            'compuciber_cola_embeddings_paso'
+        );
+
+        if ( function_exists( 'wc_get_logger' ) ) {
+
+            wc_get_logger()->info(
+                'Cola de embeddings detenida: '
+                . sanitize_key( $motivo ),
+                array(
+                    'source' => 'compuciber-ai-search'
+                )
+            );
+        }
+    };
+
+    /*
+     * Verificar configuración.
+     */
+    $config = compuciber_obtener_configuracion_embeddings();
+
+    $proveedor = $config['proveedor'];
+
+    $opcion_clave = $proveedor === 'openai'
+        ? 'compuciber_openai_api_key'
+        : 'compuciber_gemini_api_key';
+
+    if (
+        get_option(
+            'compuciber_busqueda_semantica',
+            '0'
+        ) !== '1'
+
+        || ! class_exists( 'WooCommerce' )
+
+        || ! trim(
+            (string) get_option(
+                $opcion_clave,
+                ''
+            )
+        )
+    ) {
+
+        $detener(
+            $cola,
+            'revisar_configuracion'
+        );
+
+        return;
+    }
+
+    /*
+     * Evitar continuar si cambia el proveedor
+     * o el modelo mientras la cola está activa.
+     */
+    if (
+        $proveedor !== (
+            $cola['proveedor'] ?? ''
+        )
+
+        || $config['modelo'] !== (
+            $cola['modelo'] ?? ''
+        )
+    ) {
+
+        $detener(
+            $cola,
+            'proveedor_o_modelo_cambiado'
+        );
+
+        return;
+    }
+
+    /*
+     * Respetar el máximo autorizado.
+     */
+    $restantes = max(
+        0,
+        absint(
+            $cola['limite_total'] ?? 0
+        )
+        - absint(
+            $cola['procesados'] ?? 0
+        )
+    );
+
+    if ( $restantes === 0 ) {
+
+        $detener(
+            $cola,
+            'limite_alcanzado'
+        );
+
+        return;
+    }
+
+    $tamano = min(
+        5,
+        $restantes,
+        max(
+            1,
+            absint(
+                $cola['por_lote'] ?? 1
+            )
+        )
+    );
+
+    /*
+     * Reutilizar el generador existente.
+     * Este ya dispone de bloqueo y límite de tiempo.
+     */
+    try {
+
+        $resultado =
+            compuciber_generar_lote_embeddings(
+                $tamano
+            );
+
+    } catch ( Throwable $error ) {
+
+        $detener(
+            $cola,
+            'error_inesperado'
+        );
+
+        return;
+    }
+
+    /*
+     * Respetar una detención realizada
+     * mientras se procesaba el lote.
+     */
+    $estado_actual = get_option(
+        $opcion,
+        array()
+    );
+
+    if (
+        ! is_array( $estado_actual )
+
+        || empty(
+            $estado_actual['activo']
+        )
+
+        || (
+            $estado_actual['token'] ?? ''
+        ) !== (
+            $cola['token'] ?? ''
+        )
+    ) {
+        return;
+    }
+
+    $cola = $estado_actual;
+
+    $procesados = absint(
+        $resultado['procesados'] ?? 0
+    );
+
+    $fallidos = absint(
+        $resultado['fallidos'] ?? 0
+    );
+
+    /*
+     * Acumular resultados.
+     */
+    $cola['procesados'] =
+        absint(
+            $cola['procesados'] ?? 0
+        ) + $procesados;
+
+    $cola['generados'] =
+        absint(
+            $cola['generados'] ?? 0
+        ) + absint(
+            $resultado['generados'] ?? 0
+        );
+
+    $cola['fallidos'] =
+        absint(
+            $cola['fallidos'] ?? 0
+        ) + $fallidos;
+
+    $cola['ultima'] = time();
+
+    /*
+     * Determinar si debemos continuar.
+     */
+
+    if (
+        ! empty(
+            $resultado['bloqueado']
+        )
+    ) {
+
+        $cola['situacion'] =
+            'esperando_bloqueo';
+
+    } elseif ( $fallidos > 0 ) {
+
+        /*
+         * Evitar gastar cuota en reintentos
+         * repetidos cuando hay errores.
+         */
+        $detener(
+            $cola,
+            'pausada_por_fallos'
+        );
+
+        return;
+
+    } elseif (
+        absint(
+            $resultado['pendientes'] ?? 0
+        ) === 0
+    ) {
+
+        $detener(
+            $cola,
+            'completada'
+        );
+
+        return;
+
+    } elseif ( $procesados === 0 ) {
+
+        $detener(
+            $cola,
+            'sin_avance'
+        );
+
+        return;
+
+    } elseif (
+        $cola['procesados'] >=
+        absint(
+            $cola['limite_total']
+        )
+    ) {
+
+        $detener(
+            $cola,
+            'limite_alcanzado'
+        );
+
+        return;
+
+    } else {
+
+        $cola['situacion'] =
+            'en_cola';
+    }
+
+    update_option(
+        $opcion,
+        $cola,
+        false
+    );
+
+    /*
+     * Programar únicamente el siguiente lote.
+     */
+    if (
+        ! wp_next_scheduled(
+            'compuciber_cola_embeddings_paso'
+        )
+    ) {
+
+        /*
+         * Programar el siguiente lote utilizando
+         * el intervalo elegido por el administrador.
+         */
+
+        $cis_intervalo_minutos = max(
+            1,
+            min(
+                10,
+                absint(
+                    $cola['cada_minutos'] ?? 5
+                )
+            )
+        );
+
+        $programado = wp_schedule_single_event(
+            time() + (
+                $cis_intervalo_minutos
+                * MINUTE_IN_SECONDS
+            ),
+            'compuciber_cola_embeddings_paso',
+            array(),
+            true
+        );
+
+        if (
+            is_wp_error( $programado )
+            || ! $programado
+        ) {
+
+            $detener(
+                $cola,
+                'error_programacion'
+            );
+        }
+    }
+}
+
+add_action(
+    'compuciber_cola_embeddings_paso',
+    'compuciber_cola_embeddings_paso'
+);
+
+
+/*
+ * Limpiar la programación al desactivar el plugin.
+ */
+function compuciber_cola_embeddings_desactivar() {
+
+    wp_clear_scheduled_hook(
+        'compuciber_cola_embeddings_paso'
+    );
+
+    $cola = get_option(
+        'compuciber_cola_embeddings_estado',
+        array()
+    );
+
+    if (
+        is_array( $cola )
+        && ! empty( $cola['activo'] )
+    ) {
+
+        $cola['activo'] = false;
+
+        $cola['situacion'] =
+            'detenida_por_desactivacion';
+
+        update_option(
+            'compuciber_cola_embeddings_estado',
+            $cola,
+            false
+        );
+    }
+}
+
+register_deactivation_hook(
+    dirname( __DIR__, 2 ) . '/compuciber-ai-search.php',
+    'compuciber_cola_embeddings_desactivar'
+);

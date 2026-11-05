@@ -86,6 +86,67 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/admin-correcciones.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/estadisticas.php';
 
+/*
+ * Recopilar puntuaciones para el diagnóstico temporal.
+ * No modifica la relevancia de los productos.
+ */
+function compuciber_traza_ranking_recopilar( $datos ) {
+
+    if (
+        is_admin()
+        || (int) get_option( 'cis_traza_hasta', 0 ) <= time()
+        || ! is_array( $datos )
+    ) {
+        return;
+    }
+
+    global $cis_traza_ranking_pasos;
+
+    if ( ! is_array( $cis_traza_ranking_pasos ) ) {
+        $cis_traza_ranking_pasos = array();
+    }
+
+    $mejores = array();
+
+    foreach (
+        array_slice(
+            (array) ( $datos['primeros'] ?? array() ),
+            0,
+            8
+        ) as $fila
+    ) {
+
+        if ( ! is_array( $fila ) ) {
+            continue;
+        }
+
+        $mejores[] = array(
+            'id' => absint( $fila['id'] ?? 0 ),
+            'puntos' => round(
+                (float) ( $fila['score'] ?? 0 ),
+                2
+            ),
+        );
+    }
+
+    $cis_traza_ranking_pasos[] = array(
+        'candidatos' => absint(
+            $datos['candidatos'] ?? 0
+        ),
+        'puntuados' => absint(
+            $datos['coincidencias'] ?? 0
+        ),
+        'mejores' => $mejores,
+    );
+}
+
+add_action(
+    'compuciber_diagnostico_ranking',
+    'compuciber_traza_ranking_recopilar',
+    10,
+    1
+);
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/exportacion-excel.php';
 
 /**
@@ -2000,7 +2061,149 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     $busqueda,
                     $total_resultados,
                     $tipo_busqueda
-                );                
+                );
+                
+            /*
+             * Guardar una sola traza por búsqueda real.
+             * No registrar nuevamente la paginación.
+             */
+            static $cis_traza_guardada = false;
+
+            $cis_traza_pagina =
+                isset( $_GET['cis_page'] )
+                && is_scalar( $_GET['cis_page'] )
+                    ? max(
+                        1,
+                        absint(
+                            wp_unslash( $_GET['cis_page'] )
+                        )
+                    )
+                    : 1;
+
+            if (
+                ! $cis_traza_guardada
+                && ! is_admin()
+                && $cis_traza_pagina === 1
+                && (int) get_option(
+                    'cis_traza_hasta',
+                    0
+                ) > time()
+            ) {
+
+                $cis_traza_guardada = true;
+
+                global $cis_traza_ranking_pasos;
+
+                /*
+                 * Limitar los términos almacenados.
+                 */
+                $cis_texto_seguro = static function ( $valor ) {
+
+                    $texto = substr(
+                        sanitize_text_field(
+                            (string) $valor
+                        ),
+                        0,
+                        100
+                    );
+
+                    if (
+                        strpos( $texto, '@' ) !== false
+                        || preg_match(
+                            '/\d[\d\s+().-]{6,}\d/',
+                            $texto
+                        )
+                    ) {
+                        return '[oculto por privacidad]';
+                    }
+
+                    return $texto;
+                };
+
+                $cis_ids_finales = array();
+
+                if ( $productos instanceof WP_Query ) {
+
+                    foreach (
+                        array_slice(
+                            (array) $productos->posts,
+                            0,
+                            8
+                        ) as $post
+                    ) {
+
+                        if (
+                            is_object( $post )
+                            && isset( $post->ID )
+                        ) {
+
+                            $cis_ids_finales[] =
+                                absint( $post->ID );
+                        }
+                    }
+                }
+
+                $cis_trazas = get_transient(
+                    'cis_trazas_recientes'
+                );
+
+                $cis_trazas = is_array( $cis_trazas )
+                    ? $cis_trazas
+                    : array();
+
+                array_unshift(
+                    $cis_trazas,
+                    array(
+                        'fecha' => current_time( 'mysql' ),
+
+                        'original' => $cis_texto_seguro(
+                            $busqueda_original
+                        ),
+
+                        'final' => $cis_texto_seguro(
+                            $busqueda
+                        ),
+
+                        'perfil' => sanitize_key(
+                            (string) $perfil_id
+                        ),
+
+                        'tipo' => sanitize_key(
+                            (string) $tipo_busqueda
+                        ),
+
+                        'resultados' => absint(
+                            $total_resultados
+                        ),
+
+                        'interpretacion_ia' =>
+                            is_array( $interpretacion )
+                            && ! empty( $interpretacion ),
+
+                        'semantica_configurada' =>
+                            get_option(
+                                'compuciber_busqueda_semantica',
+                                '0'
+                            ) === '1',
+
+                        'pasadas' => array_slice(
+                            (array) $cis_traza_ranking_pasos,
+                            0,
+                            4
+                        ),
+
+                        'finales' => $cis_ids_finales,
+                    )
+                );
+
+                set_transient(
+                    'cis_trazas_recientes',
+                    array_slice( $cis_trazas, 0, 5 ),
+                    DAY_IN_SECONDS
+                );
+
+                $cis_traza_ranking_pasos = array();
+            }                
 
             echo '<div class="compuciber-ai-results">';
 
@@ -2244,40 +2447,150 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 */
                 if ( (int) $productos->max_num_pages > 1 ) {
 
-                    $cis_enlaces = paginate_links(
-                        array(
-                            'base' => add_query_arg(
-                                'cis_page',
-                                '%#%',
-                                remove_query_arg( 'cis_page' )
-                            ),
+                    /*
+                     * Paginación independiente de los filtros
+                     * de paginate_links().
+                     */
 
-                            'format' => '',
+                    $cis_total_paginas =
+                        (int) $productos->max_num_pages;
 
-                            'current' => max(
-                                1,
-                                (int) $productos->get( 'paged' )
-                            ),
-
-                            'total' => (int) $productos->max_num_pages,
-
-                            'mid_size' => 1,
-
-                            'prev_text' => '« Anterior',
-
-                            'next_text' => 'Siguiente »',
+                    $cis_pagina_actual = max(
+                        1,
+                        min(
+                            $cis_total_paginas,
+                            (int) $productos->get( 'paged' )
                         )
                     );
 
-                    if ( $cis_enlaces ) {
+                    /*
+                     * Conservar la búsqueda y el perfil.
+                     * Retirar únicamente cis_page.
+                     */
 
-                        echo '<nav class="cis-results-pagination"
-                            aria-label="Páginas de resultados">';
+                    $cis_base_paginacion =
+                        remove_query_arg( 'cis_page' );
 
-                        echo wp_kses_post( $cis_enlaces );
+                    /*
+                     * Mostrar primera, última y páginas
+                     * cercanas a la actual.
+                     */
 
-                        echo '</nav>';
+                    $cis_paginas_visibles = array_unique(
+                        array_filter(
+                            array(
+                                1,
+                                2,
+                                $cis_pagina_actual - 1,
+                                $cis_pagina_actual,
+                                $cis_pagina_actual + 1,
+                                $cis_total_paginas - 1,
+                                $cis_total_paginas,
+                            ),
+                            static function ( $pagina ) use ( $cis_total_paginas ) {
+
+                                return $pagina >= 1
+                                    && $pagina <= $cis_total_paginas;
+                            }
+                        )
+                    );
+
+                    sort(
+                        $cis_paginas_visibles,
+                        SORT_NUMERIC
+                    );
+
+                    echo '<nav class="cis-results-pagination"
+                        aria-label="Páginas de resultados">';
+
+                    /*
+                     * Botón anterior.
+                     */
+
+                    if ( $cis_pagina_actual > 1 ) {
+
+                        echo '<a class="page-numbers prev" href="'
+                            . esc_url(
+                                add_query_arg(
+                                    'cis_page',
+                                    $cis_pagina_actual - 1,
+                                    $cis_base_paginacion
+                                )
+                            )
+                            . '">« Anterior</a>';
                     }
+
+                    /*
+                     * Números de página.
+                     */
+
+                    $cis_pagina_anterior = 0;
+
+                    foreach (
+                        $cis_paginas_visibles
+                        as $cis_numero_pagina
+                    ) {
+
+                        if (
+                            $cis_pagina_anterior
+                            && $cis_numero_pagina >
+                                $cis_pagina_anterior + 1
+                        ) {
+
+                            echo '<span class="page-numbers dots"
+                                aria-hidden="true">…</span>';
+                        }
+
+                        if (
+                            $cis_numero_pagina ===
+                                $cis_pagina_actual
+                        ) {
+
+                            echo '<span class="page-numbers current"
+                                aria-current="page">'
+                                . esc_html( $cis_numero_pagina )
+                                . '</span>';
+
+                        } else {
+
+                            echo '<a class="page-numbers" href="'
+                                . esc_url(
+                                    add_query_arg(
+                                        'cis_page',
+                                        $cis_numero_pagina,
+                                        $cis_base_paginacion
+                                    )
+                                )
+                                . '">'
+                                . esc_html( $cis_numero_pagina )
+                                . '</a>';
+                        }
+
+                        $cis_pagina_anterior =
+                            $cis_numero_pagina;
+                    }
+
+                    /*
+                     * Botón siguiente.
+                     */
+
+                    if (
+                        $cis_pagina_actual <
+                            $cis_total_paginas
+                    ) {
+
+                        echo '<a class="page-numbers next" href="'
+                            . esc_url(
+                                add_query_arg(
+                                    'cis_page',
+                                    $cis_pagina_actual + 1,
+                                    $cis_base_paginacion
+                                )
+                            )
+                            . '">Siguiente »</a>';
+                    }
+
+                    echo '</nav>';
                 }
 
                 } else {

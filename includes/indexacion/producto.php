@@ -492,7 +492,7 @@ function compuciber_indexar_producto(
     /*
      * Guardar / actualizar índice.
      */
-    $wpdb->replace(
+    $cis_indice_guardado = $wpdb->replace(
         $tabla,
         array(
             'id' => $product_id,
@@ -586,4 +586,60 @@ function compuciber_indexar_producto(
             '%s',
         )
     );
+
+    /*
+     * Diagnóstico de fallos al guardar el índice.
+     *
+     * No registra el contenido del producto
+     * ni las claves de las API.
+     */
+
+    if (
+        false === $cis_indice_guardado
+        && function_exists( 'wc_get_logger' )
+    ) {
+
+        $cis_indice_aviso =
+            'cis_indice_error_' . absint( $product_id );
+
+        /*
+         * Evitar mensajes repetidos del mismo
+         * producto durante diez minutos.
+         */
+
+        if (
+            false === get_transient( $cis_indice_aviso )
+        ) {
+
+            $cis_indice_motivo = trim(
+                wp_html_excerpt(
+                    sanitize_text_field(
+                        (string) $wpdb->last_error
+                    ),
+                    180,
+                    '…'
+                )
+            );
+
+            wc_get_logger()->error(
+                sprintf(
+                    'Índice: no se guardó el producto ID %d | detalle=%s',
+                    absint( $product_id ),
+                    $cis_indice_motivo !== ''
+                        ? $cis_indice_motivo
+                        : 'wpdb_replace devolvió false'
+                ),
+                array(
+                    'source' => 'compuciber-ai-search'
+                )
+            );
+
+            set_transient(
+                $cis_indice_aviso,
+                1,
+                10 * MINUTE_IN_SECONDS
+            );
+        }
+    }
+    
 }

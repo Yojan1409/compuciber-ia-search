@@ -340,6 +340,50 @@ precio_maximo:
         )
     );
 
+    /*
+     * Diagnóstico de errores OpenAI.
+     * No registra búsquedas, respuestas completas ni claves API.
+     */
+    $cis_openai_error = '';
+
+    if ( is_wp_error( $respuesta ) ) {
+        $cis_openai_error = 'TRANSPORTE: '
+            . sanitize_key( $respuesta->get_error_code() );
+    } else {
+        $cis_openai_http = (int) wp_remote_retrieve_response_code( $respuesta );
+
+        if ( $cis_openai_http < 200 || $cis_openai_http >= 300 ) {
+            $cis_openai_error = 'HTTP ' . absint( $cis_openai_http );
+
+            $cis_openai_datos = json_decode(
+                wp_remote_retrieve_body( $respuesta ),
+                true
+            );
+
+            if (
+                is_array( $cis_openai_datos )
+                && ! empty( $cis_openai_datos['error']['code'] )
+                && is_string( $cis_openai_datos['error']['code'] )
+            ) {
+                $cis_openai_error .= ' | CODIGO: '
+                    . sanitize_key( $cis_openai_datos['error']['code'] );
+            }
+        }
+    }
+
+    if ( $cis_openai_error !== '' && function_exists( 'wc_get_logger' ) ) {
+        $cis_openai_log_id = 'cis_openai_log_' . md5( $cis_openai_error );
+
+        if ( false === get_transient( $cis_openai_log_id ) ) {
+            wc_get_logger()->error(
+                'OpenAI texto: ' . $cis_openai_error,
+                array( 'source' => 'compuciber-ai-search' )
+            );
+
+            set_transient( $cis_openai_log_id, 1, 5 * MINUTE_IN_SECONDS );
+        }
+    }
+
 
     /*
      * Error de transporte.
@@ -364,6 +408,46 @@ precio_maximo:
         return false;
     }
 
+    /*
+     * Diagnóstico de respuestas aceptadas
+     * por OpenAI que no pueden interpretarse.
+     *
+     * No almacena consultas ni credenciales.
+     */
+    $cis_openai_aviso_respuesta = static function ( $motivo ) use ( $modelo, $codigo_http ) {
+
+        if ( ! function_exists( 'wc_get_logger' ) ) {
+            return;
+        }
+
+        $motivo = sanitize_key( $motivo );
+
+        $clave = 'cis_openai_resp_' . md5(
+            $modelo . '|' . $motivo
+        );
+
+        if ( false !== get_transient( $clave ) ) {
+            return;
+        }
+
+        wc_get_logger()->warning(
+            sprintf(
+                'OpenAI texto: respuesta HTTP %d no utilizable | motivo=%s | modelo=%s',
+                absint( $codigo_http ),
+                $motivo,
+                sanitize_text_field( $modelo )
+            ),
+            array(
+                'source' => 'compuciber-ai-search'
+            )
+        );
+
+        set_transient(
+            $clave,
+            1,
+            10 * MINUTE_IN_SECONDS
+        );
+    };
 
     /*
      * Decodificar respuesta.
@@ -376,6 +460,11 @@ precio_maximo:
     );
 
     if ( ! is_array( $datos ) ) {
+
+        $cis_openai_aviso_respuesta(
+            'cuerpo_json_invalido'
+        );
+
         return false;
     }
 
@@ -449,6 +538,11 @@ precio_maximo:
     );
 
     if ( $texto === '' ) {
+
+        $cis_openai_aviso_respuesta(
+            'sin_texto_en_respuesta'
+        );
+
         return false;
     }
 
@@ -486,6 +580,11 @@ precio_maximo:
     );
 
     if ( ! is_array( $resultado ) ) {
+
+        $cis_openai_aviso_respuesta(
+            'interpretacion_json_invalida'
+        );
+
         return false;
     }
 
