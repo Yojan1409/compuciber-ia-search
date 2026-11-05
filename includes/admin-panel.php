@@ -113,6 +113,14 @@ function compuciber_ajax_progreso_lotes() {
         $cola['procesados'] ?? 0
     );
 
+    /*
+     * Consultar la próxima ejecución real
+     * de la indexación automática.
+     */
+    $proximo_indice = wp_next_scheduled(
+        'compuciber_indice_lote_113'
+    );
+
     $proximo_auditoria = ! empty(
         $auditoria['token']
     )
@@ -166,9 +174,12 @@ function compuciber_ajax_progreso_lotes() {
                 ),
 
                 'proximo' => $fecha(
-                    wp_next_scheduled(
-                        'compuciber_indice_lote_113'
-                    )
+                    $proximo_indice
+                ),
+
+                'cron_atrasado' => (bool) (
+                    $proximo_indice
+                    && $proximo_indice < time() - 300
                 ),
             ),
 
@@ -529,13 +540,15 @@ function compuciber_admin_progreso_script() {
                 if (fuerte) {
 
                     fuerte.textContent =
-                        i.pendientes === 0
-                            ? 'Completado'
-                            : (
-                                i.estado === 'errores'
-                                    ? 'Con errores: revisar'
-                                    : 'En proceso o pendiente'
-                            );
+                        i.total === 0
+                            ? 'Sin productos publicados'
+                            : i.pendientes === 0
+                                ? 'Completado'
+                                : i.estado === 'errores'
+                                    ? 'Con errores: requiere revisión'
+                                    : i.cron_atrasado
+                                        ? 'Detenido o retrasado: revisar WP-Cron'
+                                        : 'En proceso o pendiente de ejecución';
                 }
             }
 
@@ -5236,12 +5249,14 @@ function compuciber_ai_search_diagnostico_registros() {
 
         $cis_rep_motivos = array_flip(
             array(
+                'sin_indice',
                 'incompleto',
                 'nombre',
                 'sku',
                 'precio',
                 'oferta',
                 'stock',
+                'categorias',
                 'variaciones'
             )
         );
@@ -5311,11 +5326,18 @@ function compuciber_ai_search_diagnostico_registros() {
                     Reindexación selectiva de productos afectados
                 </summary>
 
-                <p>
+                 <p>
                     Utiliza la última auditoría integral completada.
-                    Reindexa únicamente registros con diferencias
-                    concretas de nombre, SKU, precio, oferta,
-                    stock, variaciones o campos incompletos.
+                    Reindexa productos sin registro en el índice
+                    o con diferencias de nombre, SKU, precio, oferta,
+                    stock, categorías, variaciones o campos incompletos.
+                </p>
+
+                <p>
+                    No reindexa productos cuya única incidencia
+                    sea la fecha de actualización. Si la indexación
+                    inicial sigue activa, deja que termine antes
+                    de iniciar esta reparación selectiva.
                 </p>
 
                 <p>
@@ -7313,7 +7335,7 @@ if (
                 100 * $resumen_indice['indexados']
                 / $resumen_indice['total']
             )
-            : 100;
+            : 0;
 
         $estado_indice = get_option(
             'compuciber_indice_lotes_estado',

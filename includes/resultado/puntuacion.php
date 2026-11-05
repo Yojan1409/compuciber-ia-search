@@ -1566,7 +1566,6 @@ function compuciber_calcular_puntuacion_producto(
             'marcas'  => array(),
             'modelos' => array(),
             'skus'    => array(),
-            'terminos'=> array()
         );
 
         foreach ( $filas_catalogo as $fila_catalogo ) {
@@ -1676,55 +1675,6 @@ function compuciber_calcular_puntuacion_producto(
             * Se utiliza como respaldo para modelos,
             * códigos y otros términos específicos.
             */
-
-            $texto_catalogo =
-                compuciber_normalizar_texto(
-                    trim(
-                        $fila_catalogo->nombre
-                        . ' '
-                        . $fila_catalogo->marca
-                        . ' '
-                        . $fila_catalogo->modelo
-                        . ' '
-                        . $fila_catalogo->categorias
-                        . ' '
-                        . $fila_catalogo->atributos
-                        . ' '
-                        . $fila_catalogo->texto_busqueda
-                        . ' '
-                        . $fila_catalogo->sku
-                    )
-                );
-
-            preg_match_all(
-                '/\b[a-z0-9]+(?:[-][a-z0-9]+)*\b/i',
-                $texto_catalogo,
-                $coincidencias_catalogo
-            );
-
-            if ( ! empty( $coincidencias_catalogo[0] ) ) {
-
-                foreach (
-                    $coincidencias_catalogo[0]
-                    as $termino_catalogo
-                ) {
-
-                    $termino_catalogo =
-                        compuciber_normalizar_texto(
-                            $termino_catalogo
-                        );
-
-                    if (
-                        strlen( $termino_catalogo ) >= 2
-                        && ! is_numeric( $termino_catalogo )
-                    ) {
-
-                        $datos_anclas_catalogo['terminos'][
-                            $termino_catalogo
-                        ] = true;
-                    }
-                }
-            }
         }
     }
 
@@ -1833,58 +1783,6 @@ function compuciber_calcular_puntuacion_producto(
         * Los términos genéricos se excluyen explícitamente.
         */
 
-        $terminos_genericos = array(
-            'laptop',
-            'portatil',
-            'computadora',
-            'ordenador',
-            'pc',
-            'monitor',
-            'mouse',
-            'raton',
-            'teclado',
-            'impresora',
-            'lector',
-            'producto',
-
-            // Finalidad o uso.
-            'estudiar',
-            'estudio',
-            'estudiante',
-            'estudiantes',
-            'trabajar',
-            'trabajo',
-            'oficina',
-            'negocio',
-            'negocios',
-            'clases',
-            'virtuales',
-            'gamer',
-            'gaming',
-            'jugar',
-            'juegos',
-            'diseno',
-            'editar',
-            'edicion',
-            'uso',
-            'ideal'
-        );
-        if (
-            isset(
-                $datos_anclas_catalogo['terminos'][
-                    $palabra_busqueda
-                ]
-            )
-            && ! in_array(
-                $palabra_busqueda,
-                $terminos_genericos,
-                true
-            )
-        ) {
-
-            $anclas_busqueda[] =
-                $palabra_busqueda;
-        }
     }
 
     if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(

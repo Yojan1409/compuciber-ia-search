@@ -366,10 +366,6 @@ add_action(
     'compuciber_procesar_indice_113'
 );
 
-/**
- * Iniciar automáticamente en instalaciones
- * actualizadas si faltan productos.
- */
 function compuciber_revisar_indice_113() {
 
     if (
@@ -379,9 +375,15 @@ function compuciber_revisar_indice_113() {
         return;
     }
 
-    $resumen = compuciber_resumen_indice_113();
-
-    if ( $resumen['pendientes'] === 0 ) {
+    /*
+     * Evitar consultar el catálogo cuando ya existe
+     * un lote pendiente de ejecución.
+     */
+    if (
+        wp_next_scheduled(
+            'compuciber_indice_lote_113'
+        )
+    ) {
         return;
     }
 
@@ -394,28 +396,33 @@ function compuciber_revisar_indice_113() {
         $estado = array();
     }
 
+    /*
+     * Los errores requieren revisión o reintento manual.
+     */
     if (
         ( $estado['estado'] ?? '' ) === 'errores'
     ) {
         return;
     }
 
-    if (
-        wp_next_scheduled(
-            'compuciber_indice_lote_113'
-        )
-    ) {
-        return;
-    }
-
     /*
-     * Dar margen a cualquier ejecución
-     * que todavía esté terminando.
+     * Permitir que una ejecución reciente termine
+     * antes de programar una tarea de recuperación.
      */
     if (
         time() -
         (int) ( $estado['ultima'] ?? 0 ) < 90
     ) {
+        return;
+    }
+
+    /*
+     * Contar faltantes solo si no hay tarea pendiente
+     * y ha transcurrido el margen de seguridad.
+     */
+    $resumen = compuciber_resumen_indice_113();
+
+    if ( $resumen['pendientes'] === 0 ) {
         return;
     }
 
@@ -1693,18 +1700,20 @@ function compuciber_reparacion_indice_control() {
         } else {
 
             /*
-             * Solo diferencias concretas.
-             * Excluimos fecha y categoría.
+             * Reparar diferencias verificables del índice.
+             * Excluimos incidencias solo de fecha.
              */
 
             $aceptados = array_flip(
                 array(
+                    'sin_indice',
                     'incompleto',
                     'nombre',
                     'sku',
                     'precio',
                     'oferta',
                     'stock',
+                    'categorias',
                     'variaciones'
                 )
             );

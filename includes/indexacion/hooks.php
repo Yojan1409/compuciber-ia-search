@@ -5,33 +5,54 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 
-/**
- * Indexa cuando se guarda un producto.
- */
-function compuciber_indexar_al_guardar_producto(
-    $post_id
-) {
+function compuciber_indexar_al_guardar_producto( $post_id, $programar_embedding = true ) {
+
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    $post_id = absint( $post_id );
 
     if (
-        defined( 'DOING_AUTOSAVE' )
-        && DOING_AUTOSAVE
+        ! $post_id
+        || get_post_type( $post_id ) !== 'product'
+        || wp_is_post_revision( $post_id )
     ) {
         return;
     }
 
-    if (
-        wp_is_post_revision( $post_id )
-    ) {
+    /*
+     * Un producto puede disparar varios hooks al guardarse.
+     * Esperamos al final de esta petición para indexar sus
+     * últimos datos (incluidas categorías y variaciones).
+     */
+    static $pendientes = array();
+
+    if ( isset( $pendientes[ $post_id ] ) ) {
+        // Si un hook completo llega después del de stock,
+        // mantenemos también la programación del embedding.
+        $pendientes[ $post_id ] =
+            $pendientes[ $post_id ] || $programar_embedding;
         return;
     }
 
-    compuciber_indexar_producto(
-        $post_id,
-        false
-    );
+    $pendientes[ $post_id ] = (bool) $programar_embedding;
 
-    compuciber_programar_embedding_producto(
-        $post_id
+    add_action(
+        'shutdown',
+        static function () use ( $post_id, &$pendientes ) {
+
+            if ( get_post_type( $post_id ) !== 'product' ) {
+                return;
+            }
+
+            compuciber_indexar_producto( $post_id, false );
+
+            if ( ! empty( $pendientes[ $post_id ] ) ) {
+                compuciber_programar_embedding_producto( $post_id );
+            }
+        },
+        100
     );
 }
 
@@ -102,6 +123,38 @@ add_action(
 add_action(
     'woocommerce_update_product_variation',
     'compuciber_indexar_variacion',
+    20
+);
+
+/**
+ * Los cambios de stock también pueden producirse durante ventas,
+ * sin pasar por la pantalla de edición del producto.
+ */
+function compuciber_indexar_por_cambio_stock( $producto ) {
+
+    if ( ! ( $producto instanceof WC_Product ) ) {
+        return;
+    }
+
+    $post_id = $producto->is_type( 'variation' )
+        ? $producto->get_parent_id()
+        : $producto->get_id();
+
+    if ( $post_id ) {
+        // Un cambio de stock no modifica el texto semántico.
+        compuciber_indexar_al_guardar_producto( $post_id, false );
+    }
+}
+
+add_action(
+    'woocommerce_product_set_stock',
+    'compuciber_indexar_por_cambio_stock',
+    20
+);
+
+add_action(
+    'woocommerce_variation_set_stock',
+    'compuciber_indexar_por_cambio_stock',
     20
 );
 
