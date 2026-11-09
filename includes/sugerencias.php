@@ -391,9 +391,8 @@ function compuciber_buscar_sugerencias() {
 
             if (
                 ! $padre
-                || $padre->get_status() !== 'publish'
-                || ! $padre->is_visible()
-                || ! $variacion->is_visible()
+                || ! compuciber_producto_visible_en_busqueda( $padre )
+                || ! compuciber_producto_visible_en_busqueda( $variacion )
                 || ! $variacion->variation_is_visible()
             ) {
                 wp_send_json_success( array() );
@@ -657,6 +656,14 @@ function compuciber_buscar_sugerencias() {
         . '%';
 
     /*
+     * Priorizar productos cuyo nombre comienza
+     * con la consulta original.
+     */
+    $termino_inicio =
+        $wpdb->esc_like( $termino_corregido ) . '%';
+
+
+    /*
      * PRIORIDAD DEL AUTOCOMPLETADO
      *
      * Primero SKU exacto y modelo exacto.
@@ -688,6 +695,7 @@ function compuciber_buscar_sugerencias() {
             $termino_corregido,
             $termino_corregido,
             $termino_corregido,
+            $termino_inicio,
         ),
         $valores_nombre,
         array(
@@ -726,21 +734,23 @@ function compuciber_buscar_sugerencias() {
 
                 WHEN i.nombre = %s THEN 2
 
+                WHEN i.nombre LIKE %s THEN 3
+
                 WHEN ("
                     . implode( ' AND ', $partes_nombre )
-                . ") THEN 3
+                . ") THEN 4
 
-                WHEN i.nombre LIKE %s THEN 4
+                WHEN i.nombre LIKE %s THEN 5
 
-                WHEN i.categorias LIKE %s THEN 5
+                WHEN i.categorias LIKE %s THEN 6
 
-                WHEN i.marca LIKE %s THEN 6
+                WHEN i.marca LIKE %s THEN 7
 
-                WHEN i.modelo LIKE %s THEN 7
+                WHEN i.modelo LIKE %s THEN 8
 
-                WHEN i.sku LIKE %s THEN 8
+                WHEN i.sku LIKE %s THEN 9
 
-                ELSE 9
+                ELSE 10
 
             END,
             i.nombre ASC
@@ -881,7 +891,7 @@ $consulta_sugerida = '';
                 $producto_id
             );
 
-        if ( ! $producto_wc || ! $producto_wc->is_visible() ) {
+        if ( ! compuciber_producto_visible_en_busqueda( $producto_wc ) ) {  
             continue;
         }
 

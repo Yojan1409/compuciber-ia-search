@@ -47,9 +47,9 @@ function compuciber_buscar_productos_inteligente(
 
             if (
                 $padre
-                && $padre->get_status() === 'publish'
-                && $padre->is_visible()
-                && $producto_sku->is_visible()
+                && compuciber_producto_visible_en_busqueda( $padre )
+                && compuciber_producto_visible_en_busqueda( $producto_sku )
+                && $producto_sku->variation_is_visible()
             ) {
 
                 return compuciber_consulta_productos(
@@ -70,8 +70,7 @@ function compuciber_buscar_productos_inteligente(
         if (
             $producto_sku
             && ! $producto_sku->is_type( 'variation' )
-            && $producto_sku->get_status() === 'publish'
-            && $producto_sku->is_visible()
+            && compuciber_producto_visible_en_busqueda( $producto_sku )
         ) {
 
             return compuciber_consulta_productos(

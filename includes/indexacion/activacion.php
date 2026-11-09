@@ -846,8 +846,11 @@ function compuciber_auditoria_integral_lote( $token ) {
                      * Visibilidad.
                      */
 
-                    if ( ! $producto->is_visible() ) {
-
+                    if (
+                        ! compuciber_producto_visible_en_busqueda(
+                            $producto
+                        )
+                    ) {
                         $estado['no_visibles']++;
                     }
                 }
@@ -1036,6 +1039,128 @@ add_action(
     1
 );
 
+/**
+ * CAMBIO 53
+ *
+ * Recuperar una auditoría activa cuando
+ * pierde su siguiente evento programado.
+ *
+ * No reinicia el cursor ni ejecuta lotes directamente.
+ */
+function compuciber_auditoria_integral_recuperar() {
+
+    if (
+        ! current_user_can( 'manage_options' )
+        || ! class_exists( 'WooCommerce' )
+    ) {
+        return;
+    }
+
+    $estado = get_option(
+        'compuciber_auditoria_integral_estado',
+        array()
+    );
+
+    if (
+        ! is_array( $estado )
+        || empty( $estado['activo'] )
+        || ! in_array(
+            $estado['situacion'] ?? '',
+            array( 'programada', 'en_proceso' ),
+            true
+        )
+    ) {
+        return;
+    }
+
+    $token = $estado['token'] ?? '';
+
+    if (
+        ! is_string( $token )
+        || $token === ''
+    ) {
+        return;
+    }
+
+    /*
+     * Si ya existe una tarea programada,
+     * incluso retrasada, no crear otra.
+     */
+    if (
+        wp_next_scheduled(
+            'compuciber_auditoria_integral_lote',
+            array( $token )
+        )
+    ) {
+        return;
+    }
+
+    /*
+     * Esperar antes de recuperar una auditoría
+     * recién iniciada o ejecutada.
+     */
+    $ultima_actividad = max(
+        (int) ( $estado['inicio'] ?? 0 ),
+        (int) ( $estado['ultima'] ?? 0 )
+    );
+
+    if (
+        $ultima_actividad > 0
+        && time() - $ultima_actividad < 180
+    ) {
+        return;
+    }
+
+    /*
+     * Evitar interferir con un lote
+     * que todavía pueda estar ejecutándose.
+     */
+    $lock = get_option(
+        'compuciber_auditoria_integral_lock',
+        array()
+    );
+
+    if (
+        is_array( $lock )
+        && ! empty( $lock['ts'] )
+        && time() - (int) $lock['ts'] < 300
+    ) {
+        return;
+    }
+
+    /*
+     * Limitar los intentos de recuperación
+     * para evitar solicitudes repetitivas.
+     */
+    $clave_intento =
+        'compuciber_auditoria_recuperar_'
+        . md5( $token );
+
+    if ( get_transient( $clave_intento ) ) {
+        return;
+    }
+
+    set_transient(
+        $clave_intento,
+        1,
+        120
+    );
+
+    /*
+     * Reutilizar el programador existente.
+     * Conserva el token y el avance guardado.
+     */
+    compuciber_auditoria_integral_programar(
+        $token,
+        15
+    );
+}
+
+add_action(
+    'admin_init',
+    'compuciber_auditoria_integral_recuperar',
+    30
+);
 
 /*
  * Control administrativo:

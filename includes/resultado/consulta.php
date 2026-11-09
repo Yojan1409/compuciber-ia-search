@@ -52,6 +52,57 @@ function compuciber_consulta_vacia() {
     );
 }
 
+/**
+ * Visibilidad para una búsqueda propia de Compuciber.
+ *
+ * No depende de is_search(), porque utilizamos cis_q.
+ * Conserva las restricciones de otros plugins.
+ */
+function compuciber_producto_visible_en_busqueda( $producto ) {
+
+    if (
+        ! ( $producto instanceof WC_Product )
+        || $producto->get_status() !== 'publish'
+    ) {
+        return false;
+    }
+
+    /*
+     * Respetar la visibilidad configurada
+     * en WooCommerce.
+     */
+    if ( ! in_array(
+        $producto->get_catalog_visibility(),
+        array( 'visible', 'search' ),
+        true
+    ) ) {
+        return false;
+    }
+
+    /*
+     * Respetar la configuración de stock.
+     */
+    if (
+        get_option(
+            'woocommerce_hide_out_of_stock_items',
+            'no'
+        ) === 'yes'
+        && ! $producto->is_in_stock()
+    ) {
+        return false;
+    }
+
+    /*
+     * Permitir que otros plugins apliquen
+     * sus restricciones de visibilidad.
+     */
+    return (bool) apply_filters(
+        'woocommerce_product_is_visible',
+        true,
+        $producto->get_id()
+    );
+}
+
 
 /**
  * Consultar productos respetando los filtros
@@ -141,12 +192,39 @@ function compuciber_consulta_productos(
         );
     }
 
+    /*
+     * CAMBIO 47
+     *
+     * Aplicar la visibilidad de búsqueda
+     * antes de calcular la paginación.
+     */
+
+    $cis_excluir = array(
+        'exclude-from-search'
+    );
+
+    /*
+     * Ocultar agotados solamente cuando
+     * WooCommerce tenga activada esa opción.
+     */
+    if (
+        get_option(
+            'woocommerce_hide_out_of_stock_items',
+            'no'
+        ) === 'yes'
+    ) {
+        $cis_excluir[] = 'outofstock';
+    }
+
     return new WP_Query(
         array(
-            'post_type'      => 'product',
-            'post_status'    => 'publish',
-            'posts_per_page' => compuciber_productos_por_pagina(),
-            'paged'          => $cis_pagina_actual,
+            'post_type'   => 'product',
+            'post_status' => 'publish',
+
+            'posts_per_page' =>
+                compuciber_productos_por_pagina(),
+
+            'paged' => $cis_pagina_actual,
 
             'post__in' =>
                 ! empty( $ids_resultados )
@@ -154,6 +232,15 @@ function compuciber_consulta_productos(
                     : array( 0 ),
 
             'orderby' => 'post__in',
+
+            'tax_query' => array(
+                array(
+                    'taxonomy' => 'product_visibility',
+                    'field'    => 'slug',
+                    'terms'    => $cis_excluir,
+                    'operator' => 'NOT IN',
+                ),
+            ),
         )
     );
 }

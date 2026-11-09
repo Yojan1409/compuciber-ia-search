@@ -423,8 +423,7 @@ function compuciber_ajax_sugerencia_ia() {
                 );
 
                 if (
-                    $producto
-                    && $producto->is_visible()
+                    compuciber_producto_visible_en_busqueda( $producto )
                 ) {
                     $resultado['suggested_term'] =
                         $propuesta;

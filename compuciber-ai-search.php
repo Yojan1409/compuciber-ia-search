@@ -887,7 +887,7 @@ function compuciber_encontrar_variacion_por_atributos(
         if (
             ! $variacion
             || ! $variacion->is_type( 'variation' )
-            || ! $variacion->is_visible()
+            || ! compuciber_producto_visible_en_busqueda( $variacion )
             || ! $variacion->variation_is_visible()
         ) {
             continue;
@@ -1938,7 +1938,7 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                             if (
                                 ! $wc_similar
-                                || ! $wc_similar->is_visible()
+                                || ! compuciber_producto_visible_en_busqueda( $wc_similar )
                             ) {
                                 continue;
                             }
@@ -2120,6 +2120,53 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     return $texto;
                 };
 
+                /*
+                * Diagnóstico temporal de visibilidad.
+                * Solo se ejecuta cuando está activa
+                * la captura de las últimas cinco búsquedas.
+                */
+                $cis_muestras_visibilidad = array();
+
+                if ( $productos instanceof WP_Query ) {
+
+                    foreach (
+                        array_slice( (array) $productos->posts, 0, 8 )
+                        as $cis_post_muestra
+                    ) {
+
+                        if ( ! isset( $cis_post_muestra->ID ) ) {
+                            continue;
+                        }
+
+                        $cis_producto_muestra = wc_get_product(
+                            (int) $cis_post_muestra->ID
+                        );
+
+                        if ( ! $cis_producto_muestra ) {
+                            continue;
+                        }
+
+                        $cis_muestras_visibilidad[] = array(
+                            'id' => absint( $cis_post_muestra->ID ),
+
+                            'estado' => sanitize_key(
+                                $cis_producto_muestra->get_status()
+                            ),
+
+                            'catalogo' => sanitize_key(
+                                $cis_producto_muestra->get_catalog_visibility()
+                            ),
+
+                            'stock' => sanitize_key(
+                                $cis_producto_muestra->get_stock_status()
+                            ),
+
+                            'visible' => (bool)
+                                $cis_producto_muestra->is_visible(),
+                        );
+                    }
+                }
+                
                 $cis_ids_finales = array();
 
                 if ( $productos instanceof WP_Query ) {
@@ -2193,6 +2240,23 @@ function compuciber_ai_search_shortcode( $atts = array() )
                         ),
 
                         'finales' => $cis_ids_finales,
+
+                        'diagnostico_visibilidad' => array(
+
+                            'es_busqueda_wp' => (bool) is_search(),
+
+                            'ocultar_agotados' => get_option(
+                                'woocommerce_hide_out_of_stock_items',
+                                'no'
+                            ) === 'yes',
+
+                            'filtro_woocommerce' => has_filter(
+                                'woocommerce_product_is_visible'
+                            ) !== false,
+
+                            'muestras' => $cis_muestras_visibilidad,
+                        ),
+
                     )
                 );
 
@@ -2292,7 +2356,8 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     if (
                         $coincidencia_sku
                         && $coincidencia_sku->is_type( 'variation' )
-                        && $coincidencia_sku->is_visible()
+                        && compuciber_producto_visible_en_busqueda( $coincidencia_sku )
+                        && $coincidencia_sku->variation_is_visible()
                     ) {
 
                         $variacion_sku = $coincidencia_sku;
@@ -2305,7 +2370,11 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     $producto_id = get_the_ID();
                     $producto_wc = wc_get_product( $producto_id );
 
-                    if ( ! $producto_wc || ! $producto_wc->is_visible() ) {
+                    if (
+                        ! compuciber_producto_visible_en_busqueda(
+                            $producto_wc
+                        )
+                    ) {
                         continue;
                     }
 
@@ -2392,19 +2461,63 @@ function compuciber_ai_search_shortcode( $atts = array() )
                             999
                         );
 
-                        wc_get_template_part(
-                            'content',
-                            'product'
+                        /*
+                         * Corregir el contexto de visibilidad
+                         * para productos exclusivos de búsqueda.
+                         *
+                         * Los demás filtros de WooCommerce
+                         * siguen pudiendo rechazar el producto.
+                         */
+
+                        $cis_filtro_visibilidad_plantilla =
+                            static function (
+                                $visible,
+                                $id
+                            ) use ( $producto_mostrado ) {
+
+                                if (
+                                    (int) $id ===
+                                        (int) $producto_mostrado->get_id()
+                                    && $producto_mostrado
+                                        ->get_catalog_visibility() === 'search'
+                                ) {
+                                    return true;
+                                }
+
+                                return $visible;
+                            };
+
+                        add_filter(
+                            'woocommerce_product_is_visible',
+                            $cis_filtro_visibilidad_plantilla,
+                            PHP_INT_MIN,
+                            2
                         );
 
-                        remove_filter(
-                            'woocommerce_loop_product_link',
-                            $filtro_enlace,
-                            999
-                        );
+                        try {
 
-                        $GLOBALS['product'] =
-                            $producto_global_anterior;
+                            wc_get_template_part(
+                                'content',
+                                'product'
+                            );
+
+                        } finally {
+
+                            remove_filter(
+                                'woocommerce_product_is_visible',
+                                $cis_filtro_visibilidad_plantilla,
+                                PHP_INT_MIN
+                            );
+
+                            remove_filter(
+                                'woocommerce_loop_product_link',
+                                $filtro_enlace,
+                                999
+                            );
+
+                            $GLOBALS['product'] =
+                                $producto_global_anterior;
+                        }
 
                         continue;
                     }

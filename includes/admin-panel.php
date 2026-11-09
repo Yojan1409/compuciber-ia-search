@@ -1810,7 +1810,7 @@ function compuciber_ai_search_diagnostico_registros() {
                                     echo esc_html(
                                         $cis_a_producto
                                             ? (
-                                                $cis_a_producto->is_visible()
+                                                compuciber_producto_visible_en_busqueda( $cis_a_producto )
                                                     ? 'Visible'
                                                     : 'No visible'
                                             )
@@ -2395,7 +2395,7 @@ function compuciber_ai_search_diagnostico_registros() {
 
                             if (
                                 $cis_dp_producto
-                                && $cis_dp_producto->is_visible()
+                                && compuciber_producto_visible_en_busqueda( $cis_dp_producto )
                             ) {
                                 $cis_dp_visibles++;
 
@@ -2407,7 +2407,7 @@ function compuciber_ai_search_diagnostico_registros() {
 
                         <div class="postbox" style="padding:14px;margin-top:18px;">
 
-                            <h3>Diagnóstico de paginación y productos mostrados</h3>
+                            <h3>Diagnóstico de paginación y elegibilidad para búsqueda</h3>
 
                             <p>
                                 <strong>Resultados que cuenta WooCommerce:</strong>
@@ -2427,10 +2427,10 @@ function compuciber_ai_search_diagnostico_registros() {
                                 <strong>Productos recuperados en esta página:</strong>
                                 <?php echo esc_html( count( $cis_dp_posts ) ); ?>
 
-                                | <strong>Visibles:</strong>
+                                | <strong>Aptos para búsqueda:</strong>
                                 <?php echo esc_html( $cis_dp_visibles ); ?>
 
-                                | <strong>Omitidos:</strong>
+                                | <strong>No aptos:</strong>
                                 <?php echo esc_html( $cis_dp_omitidos ); ?>
                             </p>
 
@@ -2457,7 +2457,7 @@ function compuciber_ai_search_diagnostico_registros() {
                                             );
 
                                             $cis_dp_visible = $cis_dp_producto
-                                                && $cis_dp_producto->is_visible();
+                                                && compuciber_producto_visible_en_busqueda( $cis_dp_producto );
 
                                             ?>
 
@@ -2479,8 +2479,8 @@ function compuciber_ai_search_diagnostico_registros() {
                                                     <?php
                                                     echo esc_html(
                                                         $cis_dp_visible
-                                                            ? 'Se muestra'
-                                                            : 'Se omite al mostrar resultados'
+                                                            ? 'Apto para búsqueda'
+                                                            : 'No apto para búsqueda'
                                                     );
                                                     ?>
                                                 </td>
@@ -2705,7 +2705,7 @@ function compuciber_ai_search_diagnostico_registros() {
                                                 <?php
                                                 echo esc_html(
                                                     $cis_dr_producto
-                                                    && $cis_dr_producto->is_visible()
+                                                    && compuciber_producto_visible_en_busqueda( $cis_dr_producto )
                                                         ? 'Visible'
                                                         : 'No visible'
                                                 );
@@ -4600,7 +4600,7 @@ function compuciber_ai_search_diagnostico_registros() {
 
                     |
 
-                    <strong>No visibles (con índice):</strong>
+                    <strong>No aptos para búsqueda (con índice):</strong>
 
                     <?php
                     echo esc_html(
@@ -5191,6 +5191,75 @@ function compuciber_ai_search_diagnostico_registros() {
                             ?>
                         </p>
 
+                        <?php
+
+                        $cis_dv = $cis_traza['diagnostico_visibilidad'] ?? array();
+
+                        if ( is_array( $cis_dv ) && $cis_dv ) :
+
+                        ?>
+
+                            <p>
+                                <strong>Diagnóstico de visibilidad:</strong>
+
+                                Contexto WP es búsqueda:
+                                <?php
+                                echo ! empty( $cis_dv['es_busqueda_wp'] )
+                                    ? 'Sí'
+                                    : 'No';
+                                ?>
+
+                                | Ocultar agotados:
+                                <?php
+                                echo ! empty( $cis_dv['ocultar_agotados'] )
+                                    ? 'Sí'
+                                    : 'No';
+                                ?>
+
+                                | Filtros de visibilidad:
+                                <?php
+                                echo ! empty( $cis_dv['filtro_woocommerce'] )
+                                    ? 'Registrados'
+                                    : 'No registrados';
+                                ?>
+                            </p>
+
+                            <p>
+                                <strong>Primeros productos evaluados:</strong>
+                                <br>
+
+                                <?php foreach (
+                                    (array) ( $cis_dv['muestras'] ?? array() )
+                                    as $cis_muestra
+                                ) : ?>
+
+                                    <?php
+                                    echo esc_html(
+                                        sprintf(
+                                            '#%d | Estado: %s | Catálogo: %s | Stock: %s | Visible: %s',
+
+                                            absint( $cis_muestra['id'] ?? 0 ),
+
+                                            (string) ( $cis_muestra['estado'] ?? '' ),
+
+                                            (string) ( $cis_muestra['catalogo'] ?? '' ),
+
+                                            (string) ( $cis_muestra['stock'] ?? '' ),
+
+                                            ! empty( $cis_muestra['visible'] )
+                                                ? 'Sí'
+                                                : 'No'
+                                        )
+                                    );
+                                    ?>
+
+                                    <br>
+
+                                <?php endforeach; ?>
+                            </p>
+
+                        <?php endif; ?>
+                        
                         <p class="description">
                             Se muestran puntuaciones totales,
                             no el desglose de cada regla.
