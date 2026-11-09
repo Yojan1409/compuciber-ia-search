@@ -2612,6 +2612,8 @@ function compuciber_ai_search_diagnostico_registros() {
                                         <th>Producto</th>
                                         <th>Puntos</th>
                                         <th>Coincidencia visible</th>
+                                        <th>Inventario</th>
+                                        <th>Visibilidad en WooCommerce</th>
                                         <th>Visibilidad</th>
                                     </tr>
                                 </thead>
@@ -2700,6 +2702,56 @@ function compuciber_ai_search_diagnostico_registros() {
                                             <td>
                                                 <?php echo esc_html( $cis_dr_senal ); ?>
                                             </td>
+
+                                            <td>
+                                                <?php
+                                                $cis_estados_stock = array(
+                                                    'instock'     => 'Disponible',
+                                                    'outofstock'  => 'Agotado',
+                                                    'onbackorder' => 'Bajo pedido',
+                                                );
+
+                                                $cis_estado_stock = $cis_dr_producto
+                                                    ? $cis_dr_producto->get_stock_status()
+                                                    : '';
+
+                                                $cis_stock_texto =
+                                                    $cis_estados_stock[ $cis_estado_stock ]
+                                                    ?? 'Desconocido';
+
+                                                if (
+                                                    $cis_dr_producto
+                                                    && $cis_dr_producto->managing_stock()
+                                                    && null !== $cis_dr_producto->get_stock_quantity()
+                                                ) {
+                                                    $cis_stock_texto .= ' ('
+                                                        . (int) $cis_dr_producto->get_stock_quantity()
+                                                        . ')';
+                                                }
+
+                                                echo esc_html( $cis_stock_texto );
+                                                ?>
+                                            </td>
+
+                                            <td>
+                                                <?php
+                                                $cis_tipos_visibilidad = array(
+                                                    'visible' => 'Tienda y búsqueda',
+                                                    'catalog' => 'Solo tienda',
+                                                    'search'  => 'Solo búsqueda',
+                                                    'hidden'  => 'Oculto',
+                                                );
+
+                                                $cis_visibilidad_wc = $cis_dr_producto
+                                                    ? $cis_dr_producto->get_catalog_visibility()
+                                                    : '';
+
+                                                echo esc_html(
+                                                    $cis_tipos_visibilidad[ $cis_visibilidad_wc ]
+                                                    ?? 'Desconocida'
+                                                );
+                                                ?>
+                                            </td>                                            
 
                                             <td>
                                                 <?php
