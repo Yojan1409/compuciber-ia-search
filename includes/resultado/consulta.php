@@ -233,6 +233,24 @@ function compuciber_consulta_productos(
 
             'orderby' => 'post__in',
 
+            'meta_query' => get_option(
+                'woocommerce_hide_out_of_stock_items',
+                'no'
+            ) === 'yes'
+                ? array(
+                    'relation' => 'OR',
+                    array(
+                        'key'     => '_stock_status',
+                        'value'   => 'outofstock',
+                        'compare' => '!=',
+                    ),
+                    array(
+                        'key'     => '_stock_status',
+                        'compare' => 'NOT EXISTS',
+                    ),
+                )
+                : array(),
+
             'tax_query' => array(
                 array(
                     'taxonomy' => 'product_visibility',
