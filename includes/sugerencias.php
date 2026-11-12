@@ -707,6 +707,38 @@ function compuciber_buscar_sugerencias() {
         )
     );
 
+/*
+     * CAMBIO 57
+     * Filtrar perfil y stock ANTES del LIMIT 100.
+     */
+    $cis_filtro_sql = '';
+
+    if ( $cis_perfil_sugerencias !== '' ) {
+        if ( ! function_exists( 'compuciber_perfil_condicion_sql' ) ) {
+            wp_send_json_success( array() );
+        }
+
+        $cis_filtro_sql = compuciber_perfil_condicion_sql(
+            $cis_perfil_sugerencias
+        );
+    }
+
+    if (
+        get_option( 'woocommerce_hide_out_of_stock_items', 'no' ) === 'yes'
+    ) {
+        $cis_filtro_sql .= $wpdb->prepare(
+            " AND NOT EXISTS (
+                SELECT 1
+                FROM {$wpdb->postmeta} AS cis_stock
+                WHERE cis_stock.post_id = i.id
+                  AND cis_stock.meta_key = %s
+                  AND cis_stock.meta_value = %s
+            )",
+            '_stock_status',
+            'outofstock'
+        );
+    }
+
     $sql = "SELECT
                 i.id,
                 i.nombre,
