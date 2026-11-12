@@ -610,6 +610,34 @@ function compuciber_buscar_sugerencias() {
         }
     }
 
+    /*
+     * CAMBIO 65
+     * Reconocer sinónimos compuestos en autocompletado.
+     *
+     * Ejemplo:
+     * ordenador portátil HP -> laptop HP
+     *
+     * Se conserva la consulta original y se agrega
+     * la interpretación como primera alternativa.
+     */
+    $cis_consulta_canonica = function_exists(
+        'compuciber_canonizar_consulta_compuesta'
+    ) ? compuciber_canonizar_consulta_compuesta(
+        $termino_corregido
+    ) : '';
+
+    $cis_hay_equivalencia_compuesta = (
+        $cis_consulta_canonica !== ''
+        && $cis_consulta_canonica !== $termino_corregido
+    );
+
+    if ( $cis_hay_equivalencia_compuesta ) {
+        array_unshift(
+            $alternativas,
+            $cis_consulta_canonica
+        );
+    }
+
     // Conservar la búsqueda original.
     $condiciones = array(
         '(' . implode( ' AND ', $condiciones ) . ')'
@@ -690,6 +718,59 @@ function compuciber_buscar_sugerencias() {
             . '%';
     }
 
+    /*
+     * CAMBIO 65
+     * Prioridad de títulos con sinónimos compuestos.
+     *
+     * La coincidencia exacta de SKU y modelo
+     * conserva su prioridad.
+     */
+    $cis_orden_canonico_sql = '';
+    $cis_valores_canonicos = array();
+
+    if ( $cis_hay_equivalencia_compuesta ) {
+
+        $cis_orden_canonico_sql =
+            'WHEN i.nombre LIKE %s THEN 4';
+
+        $cis_valores_canonicos[] =
+            $wpdb->esc_like(
+                $cis_consulta_canonica
+            ) . '%';
+
+        $cis_palabras_canonicas =
+            compuciber_obtener_palabras(
+                $cis_consulta_canonica
+            );
+
+        $cis_condiciones_nombre = array();
+
+        foreach (
+            $cis_palabras_canonicas as $cis_palabra
+        ) {
+
+            $cis_condiciones_nombre[] =
+                'i.nombre LIKE %s';
+
+            $cis_valores_canonicos[] = '%'
+                . $wpdb->esc_like(
+                    $cis_palabra
+                )
+                . '%';
+        }
+
+        if ( ! empty( $cis_condiciones_nombre ) ) {
+
+            $cis_orden_canonico_sql .=
+                ' WHEN ('
+                . implode(
+                    ' AND ',
+                    $cis_condiciones_nombre
+                )
+                . ') THEN 5';
+        }
+    }
+
     $valores_orden = array_merge(
         array(
             $termino_corregido,
@@ -697,6 +778,7 @@ function compuciber_buscar_sugerencias() {
             $termino_corregido,
             $termino_inicio,
         ),
+        $cis_valores_canonicos,
         $valores_nombre,
         array(
             $termino_like,
@@ -768,6 +850,8 @@ function compuciber_buscar_sugerencias() {
 
                 WHEN i.nombre LIKE %s THEN 3
 
+                {$cis_orden_canonico_sql}
+
                 WHEN ("
                     . implode( ' AND ', $partes_nombre )
                 . ") THEN 4
@@ -815,7 +899,10 @@ $consulta_sugerida = '';
          */
         if (
             empty( $productos )
-            || $consulta_sugerida === ''
+            || (
+                $consulta_sugerida === ''
+                && ! $cis_hay_equivalencia_compuesta
+            )
         ) {
 
             $propuesta = compuciber_sugerencia_fuzzy_catalogo(

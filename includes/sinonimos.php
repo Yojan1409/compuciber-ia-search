@@ -14,12 +14,14 @@ function compuciber_obtener_sinonimos() {
     $sinonimos_predeterminados = array(
 
         'laptop' => array(
-            'portatil',
-            'portátil',
-            'notebook',
-            'computadora portatil',
-            'computadora portátil',
-        ),
+        'portatil',
+        'portátil',
+        'notebook',
+        'computadora portatil',
+        'computadora portátil',
+        'ordenador portatil',
+        'ordenador portátil',
+    ),
 
         'mouse' => array(
             'raton',
@@ -276,6 +278,85 @@ function compuciber_expandir_sinonimos( $texto ) {
     );
 }
 
+/**
+ * CAMBIO 64
+ * Convierte expresiones compuestas a su término principal.
+ *
+ * Ejemplo:
+ * "ordenador portátil HP" -> "laptop hp"
+ *
+ * No reemplaza la consulta original ni sus filtros.
+ */
+function compuciber_canonizar_consulta_compuesta( $consulta ) {
+
+    static $cache = array();
+    static $equivalencias = null;
+
+    $texto = compuciber_normalizar_texto( $consulta );
+
+    if ( $texto === '' ) {
+        return '';
+    }
+
+    if ( isset( $cache[ $texto ] ) ) {
+        return $cache[ $texto ];
+    }
+
+    if ( $equivalencias === null ) {
+
+        $equivalencias = array();
+
+        foreach (
+            compuciber_obtener_sinonimos()
+            as $principal => $variantes
+        ) {
+
+            $principal = compuciber_normalizar_texto(
+                $principal
+            );
+
+            foreach ( (array) $variantes as $variante ) {
+
+                $variante = compuciber_normalizar_texto(
+                    $variante
+                );
+
+                if (
+                    $principal !== ''
+                    && $variante !== $principal
+                    && strpos( $variante, ' ' ) !== false
+                ) {
+                    $equivalencias[ $variante ] = $principal;
+                }
+            }
+        }
+
+        // Priorizar expresiones más largas.
+        uksort(
+            $equivalencias,
+            static function ( $a, $b ) {
+                return strlen( $b ) - strlen( $a );
+            }
+        );
+    }
+
+    foreach ( $equivalencias as $variante => $principal ) {
+
+        $texto = preg_replace(
+            '/(?<![a-z0-9])'
+            . preg_quote( $variante, '/' )
+            . '(?![a-z0-9])/',
+            $principal,
+            $texto
+        );
+    }
+
+    $cache[
+        compuciber_normalizar_texto( $consulta )
+    ] = $texto;
+
+    return $texto;
+}
 
 /**
  * Agrega un nuevo grupo de sinónimos.

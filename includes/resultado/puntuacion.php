@@ -2054,6 +2054,47 @@ function compuciber_calcular_puntuacion_producto(
         }
     }
 
+/*
+ * CAMBIO 64
+ * Interpretación alternativa mediante sinónimos compuestos.
+ *
+ * Conserva la puntuación original y solamente utiliza
+ * la interpretación alternativa cuando mejora el resultado.
+ */
+$consulta_canonica = compuciber_canonizar_consulta_compuesta(
+    $busqueda
+);
+
+if (
+    $consulta_canonica !== ''
+    && $consulta_canonica !== $busqueda_normalizada
+    && preg_match(
+        '/^'
+        . preg_quote( $consulta_canonica, '/' )
+        . '(?![a-z0-9])/',
+        $titulo
+    ) === 1
+) {
+
+    $palabras_canonicas = compuciber_obtener_palabras(
+        compuciber_expandir_sinonimos(
+            $consulta_canonica
+        )
+    );
+
+    $puntos_canonicos = compuciber_calcular_puntuacion_producto(
+        $producto,
+        $consulta_canonica,
+        $palabras_canonicas,
+        $datos_ia,
+        $filas_indice
+    );
+
+    if ( $puntos_canonicos > $puntuacion ) {
+        $puntuacion = $puntos_canonicos;
+    }
+}
+
     if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'COMPUCIBER_DEBUG_BUSQUEDA' ) && COMPUCIBER_DEBUG_BUSQUEDA ) error_log(
         'SCORE FINAL DEBUG: '
         . $producto->nombre
