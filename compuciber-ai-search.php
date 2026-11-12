@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 2.1.2
+ * Version: 2.1.3
  * Author: Compuciber
  */
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2.1.2'
+        '2.1.3'
     );
 }
 
