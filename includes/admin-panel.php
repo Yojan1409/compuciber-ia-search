@@ -1218,7 +1218,7 @@ function compuciber_ai_search_diagnostico_registros() {
                     array(
                         'nombre' => 'JavaScript del buscador',
                         'url' => plugins_url(
-                            'assets/js/buscador.js',
+                            'assets/js/buscador-v59.js',
                             dirname(__DIR__) . '/compuciber-ai-search.php'
                         ),
                         'tipo' => 'js'

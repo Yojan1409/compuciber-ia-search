@@ -213,10 +213,10 @@ function compuciber_cargar_buscador_js() {
 
     wp_enqueue_script(
         'compuciber-buscador',
-        plugin_dir_url( __FILE__ ) . 'assets/js/buscador.js',
+        plugin_dir_url( __FILE__ ) . 'assets/js/buscador-v59.js',
         array(),
         filemtime(
-            plugin_dir_path( __FILE__ ) . 'assets/js/buscador.js'
+            plugin_dir_path( __FILE__ ) . 'assets/js/buscador-v59.js'
         ),
         true
     );
