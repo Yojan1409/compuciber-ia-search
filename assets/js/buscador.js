@@ -1891,3 +1891,87 @@ if (document.readyState === 'loading') {
     compuciberCargarBuscadoresHTML();
 }
 
+/*
+ * CAMBIO 59
+ * Reparar los enlaces de paginación cuando
+ * Elementor u otro procesamiento altera sus href.
+ */
+function compuciberRepararEnlacesPaginacion() {
+
+    const paginaUrl = new URL(window.location.href);
+
+    if (!paginaUrl.searchParams.has('cis_q')) {
+        return;
+    }
+
+    const paginaActual = Math.max(
+        1,
+        Number.parseInt(
+            paginaUrl.searchParams.get('cis_page'),
+            10
+        ) || 1
+    );
+
+    document.querySelectorAll(
+        '.cis-results-pagination a.page-numbers'
+    ).forEach(function (enlace) {
+
+        let destino = null;
+        const texto = enlace.textContent.trim();
+
+        if (enlace.classList.contains('prev')) {
+            destino = paginaActual - 1;
+
+        } else if (enlace.classList.contains('next')) {
+            destino = paginaActual + 1;
+
+        } else if (/^\d+$/.test(texto)) {
+            destino = Number.parseInt(texto, 10);
+        }
+
+        if (
+            !Number.isSafeInteger(destino) ||
+            destino < 1
+        ) {
+            return;
+        }
+
+        const url = new URL(
+            enlace.getAttribute('href'),
+            window.location.href
+        );
+
+        // No modificar enlaces que ya son correctos.
+        if (
+            url.searchParams.get('cis_page') ===
+            String(destino)
+        ) {
+            return;
+        }
+
+        url.searchParams.set(
+            'cis_page',
+            String(destino)
+        );
+
+        enlace.href = url.toString();
+    });
+}
+
+if (document.readyState === 'loading') {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        compuciberRepararEnlacesPaginacion,
+        { once: true }
+    );
+
+} else {
+    compuciberRepararEnlacesPaginacion();
+}
+
+// También reparar al regresar mediante el navegador.
+window.addEventListener(
+    'pageshow',
+    compuciberRepararEnlacesPaginacion
+);
