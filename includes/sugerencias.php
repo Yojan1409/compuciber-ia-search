@@ -879,13 +879,16 @@ $consulta_sugerida = '';
                                AND p.post_status = 'publish'
                                {$cis_filtro_sql}
                                AND (" . implode( ' AND ', $filtros ) . ")
-                             ORDER BY ("
+                             ORDER BY
+                                      CASE WHEN i.nombre LIKE %s THEN 0 ELSE 1 END,
+                                      ("
                                 . implode( ' + ', $puntos_titulo )
                                 . ") DESC,
                                       i.nombre ASC
                              LIMIT 100",
                             array_merge(
                                 $parametros,
+                                array( $wpdb->esc_like( $propuesta ) . '%' ),
                                 $valores_orden
                             )
                         )
