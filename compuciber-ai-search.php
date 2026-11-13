@@ -1277,8 +1277,16 @@ function compuciber_ai_search_shortcode( $atts = array() )
             'compuciber_busqueda_semantica',
             '0'
         ) === '1'
-        && compuciber_busqueda_necesita_ia(
-            $busqueda_original
+        && (
+            compuciber_busqueda_necesita_ia(
+                $busqueda_original
+            )
+            || preg_match(
+                '/\b[\p{L}\p{N}]+\s+para\s+[\p{L}\p{N}]+\b/u',
+                compuciber_normalizar_texto(
+                    $busqueda_original
+                )
+            ) === 1
         )
     ) {
 
