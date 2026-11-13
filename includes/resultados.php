@@ -506,22 +506,18 @@ function compuciber_buscar_productos_inteligente(
         ) ? 0.45 : 0.20;
 
         $cis_mejor_visible = 0.0;
-        $cis_revisados = 0;
 
         /*
-         * Buscar una referencia entre los productos
-         * visibles. Evita tomar como referencia
-         * un producto agotado u oculto.
+         * Buscar el producto visible mejor puntuado.
          *
-         * Máximo 40 comprobaciones para
-         * controlar el rendimiento.
+         * Los productos están ordenados de mayor
+         * a menor puntuación.
+         *
+         * No detenerse después de 40 agotados:
+         * continuar hasta encontrar uno disponible.
          */
 
         foreach ( $productos_puntuados as $cis_candidato ) {
-
-            if ( ++$cis_revisados > 40 ) {
-                break;
-            }
 
             $cis_producto_wc = wc_get_product(
                 (int) $cis_candidato['id']
