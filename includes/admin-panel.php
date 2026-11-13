@@ -10486,6 +10486,73 @@ function compuciber_ai_search_configuracion() {
                 </tr>
             </table>
 
+        <!-- CAMBIO 66: Precisión configurable -->
+            <h2>Precisión de resultados</h2>
+
+            <p>
+                Controla qué tan estricta será la relevancia
+                de los productos encontrados.
+            </p>
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="compuciber_precision_resultados">
+                            Nivel de precisión
+                        </label>
+                    </th>
+
+                    <td>
+                        <select
+                            name="compuciber_precision_resultados"
+                            id="compuciber_precision_resultados"
+                        >
+                            <option value="amplia" <?php selected(
+                                get_option(
+                                    'compuciber_precision_resultados',
+                                    'amplia'
+                                ),
+                                'amplia'
+                            ); ?>>
+                                Amplia (comportamiento actual)
+                            </option>
+
+                            <option value="equilibrada" <?php selected(
+                                get_option(
+                                    'compuciber_precision_resultados',
+                                    'amplia'
+                                ),
+                                'equilibrada'
+                            ); ?>>
+                                Equilibrada
+                            </option>
+
+                            <option value="alta" <?php selected(
+                                get_option(
+                                    'compuciber_precision_resultados',
+                                    'amplia'
+                                ),
+                                'alta'
+                            ); ?>>
+                                Alta
+                            </option>
+                        </select>
+
+                        <p class="description">
+                            <strong>Amplia:</strong>
+                            conserva los resultados actuales.
+                            <strong>Equilibrada:</strong>
+                            reduce coincidencias débiles.
+                            <strong>Alta:</strong>
+                            exige mayor relevancia.
+                            No modifica el inventario,
+                            las sugerencias ni los productos
+                            de WooCommerce.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            
             <h2>Presentación de resultados</h2>
 
             <p>

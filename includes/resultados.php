@@ -478,6 +478,97 @@ function compuciber_buscar_productos_inteligente(
     }
 
     /*
+     * CAMBIO 66
+     * Precisión configurable de los resultados.
+     *
+     * Amplia: conserva exactamente el comportamiento actual.
+     * Equilibrada: 20 % del mejor resultado visible.
+     * Alta: 45 % del mejor resultado visible.
+     *
+     * Se aplica antes de la paginación WooCommerce.
+     */
+
+    $cis_precision = get_option(
+        'compuciber_precision_resultados',
+        'amplia'
+    );
+
+    if (
+        (
+            $cis_precision === 'equilibrada'
+            || $cis_precision === 'alta'
+        )
+        && ! empty( $productos_puntuados )
+    ) {
+
+        $cis_factor = (
+            $cis_precision === 'alta'
+        ) ? 0.45 : 0.20;
+
+        $cis_mejor_visible = 0.0;
+        $cis_revisados = 0;
+
+        /*
+         * Buscar una referencia entre los productos
+         * visibles. Evita tomar como referencia
+         * un producto agotado u oculto.
+         *
+         * Máximo 40 comprobaciones para
+         * controlar el rendimiento.
+         */
+
+        foreach ( $productos_puntuados as $cis_candidato ) {
+
+            if ( ++$cis_revisados > 40 ) {
+                break;
+            }
+
+            $cis_producto_wc = wc_get_product(
+                (int) $cis_candidato['id']
+            );
+
+            if (
+                $cis_producto_wc
+                && compuciber_producto_visible_en_busqueda(
+                    $cis_producto_wc
+                )
+            ) {
+
+                $cis_mejor_visible = (float)
+                    $cis_candidato['score'];
+
+                break;
+            }
+        }
+
+        /*
+         * Si no encontramos una referencia visible
+         * dentro del límite, mantenemos los resultados
+         * originales en lugar de arriesgar una
+         * búsqueda vacía.
+         */
+
+        if ( $cis_mejor_visible > 0 ) {
+
+            $cis_umbral = $cis_mejor_visible
+                * $cis_factor;
+
+            $productos_puntuados = array_values(
+                array_filter(
+                    $productos_puntuados,
+                    static function ( $cis_fila ) use (
+                        $cis_umbral
+                    ) {
+
+                        return (float) $cis_fila['score']
+                            >= $cis_umbral;
+                    }
+                )
+            );
+        }
+    }
+
+    /*
      * Observador opcional del diagnóstico administrativo.
      * No altera resultados ni registra búsquedas.
      */

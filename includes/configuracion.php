@@ -186,7 +186,32 @@ function compuciber_ai_search_registrar_opciones() {
             },
         )
     );    
-    
+
+    /*
+     * CAMBIO 66
+     * Configuración de precisión de resultados.
+     */
+    register_setting(
+        'compuciber_ai_search_settings_group',
+        'compuciber_precision_resultados',
+        array(
+            'type'    => 'string',
+            'default' => 'amplia',
+
+            'sanitize_callback' => static function ( $valor ) {
+                return in_array(
+                    $valor,
+                    array(
+                        'amplia',
+                        'equilibrada',
+                        'alta'
+                    ),
+                    true
+                ) ? $valor : 'amplia';
+            },
+        )
+    );    
+
     foreach ( $opciones as $opcion ) {
 
         register_setting(
