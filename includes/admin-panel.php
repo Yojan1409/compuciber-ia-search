@@ -2300,6 +2300,17 @@ function compuciber_ai_search_diagnostico_registros() {
                                 $cis_dr_info = $info;
                             };
 
+                        global $wpdb;
+
+                        /*
+                        * CAMBIO 92
+                        * Iniciar medición de rendimiento local.
+                        * No modifica el motor ni sus resultados.
+                        */
+                        $cis_dr_inicio_medicion = microtime( true );
+
+                        $cis_dr_consultas_inicio = (int) $wpdb->num_queries;
+
                         $cis_dr_busqueda =
                             compuciber_corregir_busqueda( $cis_dr_q );
 
@@ -2338,6 +2349,36 @@ function compuciber_ai_search_diagnostico_registros() {
                                 10
                             );
                         }
+
+                        /*
+                         * CAMBIO 92
+                         * Mostrar el tiempo y consultas SQL
+                         * de esta simulación local.
+                         */
+                        $cis_dr_tiempo_ms = (
+                            microtime( true )
+                            - $cis_dr_inicio_medicion
+                        ) * 1000;
+
+                        $cis_dr_consultas_sql = max(
+                            0,
+                            (int) $wpdb->num_queries
+                            - $cis_dr_consultas_inicio
+                        );
+
+                        echo '<p><strong>Tiempo de búsqueda local:</strong> '
+                            . esc_html(
+                                number_format_i18n(
+                                    $cis_dr_tiempo_ms,
+                                    1
+                                )
+                            )
+                            . ' ms'
+                            . ' | <strong>Consultas SQL:</strong> '
+                            . esc_html(
+                                (string) $cis_dr_consultas_sql
+                            )
+                            . '</p>';                        
 
                         ?>
 
