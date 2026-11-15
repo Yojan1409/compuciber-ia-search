@@ -505,7 +505,12 @@ function compuciber_ajax_busqueda_imagen() {
 
     $hash_imagen = hash(
         'sha256',
-        'visual-general-v3|'
+        'visual-general|'
+        . get_option(
+            'compuciber_version_cache_visual',
+            'inicial'
+        )
+        . '|'
         . $proveedor_cache
         . '|'
         . $modelo_cache
@@ -710,16 +715,157 @@ function compuciber_ajax_busqueda_imagen() {
         false
     );
 
+    /*
+    * CAMBIO 84
+    * Conservar temporalmente la imagen solo cuando
+    * la comparación visual está activada.
+    *
+    * No guardar Base64 en la base de datos.
+    * No ejecutar aquí una segunda llamada a Gemini.
+    */
+
+    $cis_foto_temporal = '';
+
+    if (
+        get_option(
+            'compuciber_comparacion_visual_catalogo',
+            '0'
+        ) === '1'
+        && get_option(
+            'compuciber_proveedor_ia',
+            'gemini'
+        ) === 'gemini'
+    ) {
+
+        $cis_dir_temporal = realpath(
+            get_temp_dir()
+        );
+
+        $cis_raiz_wp = realpath( ABSPATH );
+
+        $cis_raiz_publica = isset(
+            $_SERVER['DOCUMENT_ROOT']
+        )
+            ? realpath(
+                (string) $_SERVER['DOCUMENT_ROOT']
+            )
+            : false;
+
+        /*
+        * No guardar imágenes en directorios públicos.
+        * Si no puede verificarse una ubicación segura,
+        * la comparación se omite.
+        */
+
+        $cis_dir_normalizado = $cis_dir_temporal
+            ? trailingslashit(
+                wp_normalize_path( $cis_dir_temporal )
+            )
+            : '';
+
+        $cis_wp_normalizado = $cis_raiz_wp
+            ? trailingslashit(
+                wp_normalize_path( $cis_raiz_wp )
+            )
+            : '';
+
+        $cis_publico_normalizado = $cis_raiz_publica
+            ? trailingslashit(
+                wp_normalize_path( $cis_raiz_publica )
+            )
+            : '';
+
+        if (
+            $cis_dir_normalizado !== ''
+            && $cis_wp_normalizado !== ''
+            && $cis_publico_normalizado !== ''
+            && is_writable( $cis_dir_temporal )
+            && strpos(
+                $cis_dir_normalizado,
+                $cis_wp_normalizado
+            ) !== 0
+            && strpos(
+                $cis_dir_normalizado,
+                $cis_publico_normalizado
+            ) !== 0
+        ) {
+
+            $cis_archivo = tempnam(
+                $cis_dir_temporal,
+                'cisimg_'
+            );
+
+            if ( is_string( $cis_archivo ) ) {
+
+                if (
+                    copy(
+                        $imagen_optimizada,
+                        $cis_archivo
+                    )
+                ) {
+
+                    @chmod( $cis_archivo, 0600 );
+
+                    /*
+                    * Programar limpieza de respaldo.
+                    * WP-Cron la ejecutará cuando procese
+                    * los eventos pendientes.
+                    */
+
+                    $cis_limpieza_programada =
+                        wp_schedule_single_event(
+                            time() + 11 * MINUTE_IN_SECONDS,
+                            'compuciber_limpiar_foto_visual_temporal',
+                            array( $cis_archivo )
+                        );
+
+                    if ( $cis_limpieza_programada ) {
+                        $cis_foto_temporal = $cis_archivo;
+                    } else {
+                        @unlink( $cis_archivo );
+                    }
+
+                } else {
+                    @unlink( $cis_archivo );
+                }
+            }
+        }
+    }
+
+    /*
+    * El token conserva los datos originales.
+    * La ruta temporal solo se añade si existe.
+    */
+
+    $cis_datos_imagen = array(
+        'busqueda' => sanitize_text_field(
+            $busqueda
+        ),
+        'interpretacion' => $resultado,
+        'coincidencias_visuales' => array(),
+    );
+
+    if ( $cis_foto_temporal !== '' ) {
+
+        $cis_datos_imagen['foto_temporal'] =
+            $cis_foto_temporal;
+
+        $cis_datos_imagen['mime_type'] =
+            $mime_type;
+    }
+
     $guardado = set_transient(
         'cis_imagen_' . $token_imagen,
-        array(
-            'busqueda' => sanitize_text_field(
-                $busqueda
-            ),
-            'interpretacion' => $resultado,
-        ),
+        $cis_datos_imagen,
         10 * MINUTE_IN_SECONDS
     );
+
+    if (
+        ! $guardado
+        && $cis_foto_temporal !== ''
+    ) {
+        @unlink( $cis_foto_temporal );
+    }
 
     if ( ! $guardado ) {
         wp_send_json_error(
@@ -737,6 +883,37 @@ function compuciber_ajax_busqueda_imagen() {
     );
 }
 
+/*
+ * CAMBIO 84
+ * Limpieza de respaldo para fotografías temporales.
+ */
+add_action(
+    'compuciber_limpiar_foto_visual_temporal',
+    static function ( $ruta ) {
+
+        $directorio = realpath(
+            get_temp_dir()
+        );
+
+        $archivo = is_string( $ruta )
+            ? realpath( $ruta )
+            : false;
+
+        if (
+            $directorio
+            && $archivo
+            && dirname( $archivo ) === $directorio
+            && strpos(
+                basename( $archivo ),
+                'cisimg_'
+            ) === 0
+        ) {
+            @unlink( $archivo );
+        }
+    },
+    10,
+    1
+);
 
 add_action(
     'wp_ajax_compuciber_busqueda_imagen',
@@ -1277,17 +1454,9 @@ function compuciber_ai_search_shortcode( $atts = array() )
             'compuciber_busqueda_semantica',
             '0'
         ) === '1'
-        && (
-            compuciber_busqueda_necesita_ia(
-                $busqueda_original
-            )
-            || preg_match(
-                '/\b[\p{L}\p{N}]+\s+para\s+[\p{L}\p{N}]+\b/u',
-                compuciber_normalizar_texto(
+        && compuciber_busqueda_necesita_ia(
                     $busqueda_original
                 )
-            ) === 1
-        )
     ) {
 
             $interpretacion =
@@ -1776,6 +1945,66 @@ function compuciber_ai_search_shortcode( $atts = array() )
                             $busqueda,
                             $interpretacion
                         );
+
+                } else {
+
+                    /*
+                     * CAMBIO 76
+                     * Respaldo ortografico cuando Gemini
+                     * no devuelve una interpretacion valida.
+                     */
+
+                    if (
+                        ! $es_busqueda_imagen
+                        && get_option(
+                            'compuciber_correccion',
+                            '1'
+                        ) === '1'
+                        && function_exists(
+                            'compuciber_sugerencia_fuzzy_catalogo'
+                        )
+                        && function_exists(
+                            'compuciber_validar_correccion_ortografica'
+                        )
+                        && function_exists(
+                            'wc_get_product_id_by_sku'
+                        )
+                        && ! wc_get_product_id_by_sku(
+                            trim( $busqueda_original )
+                        )
+                    ) {
+
+                        $cis_propuesta_respaldo =
+                            compuciber_sugerencia_fuzzy_catalogo(
+                                $busqueda_original,
+                                $perfil_id
+                            );
+
+                        if (
+                            is_string( $cis_propuesta_respaldo )
+                            && compuciber_validar_correccion_ortografica(
+                                $busqueda_original,
+                                $cis_propuesta_respaldo
+                            )
+                        ) {
+
+                            $cis_productos_respaldo =
+                                compuciber_buscar_productos_inteligente(
+                                    $cis_propuesta_respaldo,
+                                    array()
+                                );
+
+                            if (
+                                $cis_productos_respaldo instanceof WP_Query
+                                && $cis_productos_respaldo->have_posts()
+                            ) {
+
+                                $productos = $cis_productos_respaldo;
+                                $busqueda = $cis_propuesta_respaldo;
+
+                            }
+                        }
+                    }
                 }
             }
 

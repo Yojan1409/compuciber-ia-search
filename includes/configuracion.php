@@ -139,6 +139,8 @@ function compuciber_ai_search_registrar_opciones() {
 
         'compuciber_busqueda_imagen',
 
+        'compuciber_comparacion_visual_catalogo',
+
         'compuciber_estadisticas',
 
         'compuciber_aprendizaje_ranking',

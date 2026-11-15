@@ -174,6 +174,24 @@ function compuciber_consulta_productos(
     }
 
     /*
+    * Validar disponibilidad con WooCommerce
+    * antes de construir la consulta final.
+    */
+    $ids_resultados = array_values(
+        array_filter(
+            $ids_resultados,
+            static function ( $id ) {
+                $producto = wc_get_product( $id );
+
+                return $producto
+                    && compuciber_producto_visible_en_busqueda(
+                        $producto
+                    );
+            }
+        )
+    );
+
+    /*
      * Conservar la consulta original
      * y el orden de relevancia.
      */
@@ -203,19 +221,6 @@ function compuciber_consulta_productos(
         'exclude-from-search'
     );
 
-    /*
-     * Ocultar agotados solamente cuando
-     * WooCommerce tenga activada esa opción.
-     */
-    if (
-        get_option(
-            'woocommerce_hide_out_of_stock_items',
-            'no'
-        ) === 'yes'
-    ) {
-        $cis_excluir[] = 'outofstock';
-    }
-
     return new WP_Query(
         array(
             'post_type'   => 'product',
@@ -232,25 +237,6 @@ function compuciber_consulta_productos(
                     : array( 0 ),
 
             'orderby' => 'post__in',
-
-            'meta_query' => get_option(
-                'woocommerce_hide_out_of_stock_items',
-                'no'
-            ) === 'yes'
-                ? array(
-                    'relation' => 'OR',
-                    array(
-                        'key'     => '_stock_status',
-                        'value'   => 'outofstock',
-                        'compare' => '!=',
-                    ),
-                    array(
-                        'key'     => '_stock_status',
-                        'compare' => 'NOT EXISTS',
-                    ),
-                )
-                : array(),
-
             'tax_query' => array(
                 array(
                     'taxonomy' => 'product_visibility',

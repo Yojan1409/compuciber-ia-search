@@ -53,7 +53,7 @@ function compuciber_optimizar_imagen_ia( $ruta_imagen ) {
      */
 
     $imagen->set_quality(
-        80
+        85
     );
 
 

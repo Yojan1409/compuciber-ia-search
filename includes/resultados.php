@@ -420,17 +420,142 @@ function compuciber_buscar_productos_inteligente(
         }
     }
 
+    /*
+     * CAMBIO 75
+     * Prioridad de identidad para búsquedas visuales.
+     * Conserva el ranking original para búsquedas normales.
+     */
+
+    $cis_prioridades_visuales = array();
+    $cis_busqueda_visual_valida = false;
+
+    if (
+        isset( $_GET['cis_img_token'] )
+        && is_string( $_GET['cis_img_token'] )
+    ) {
+        $cis_token = sanitize_text_field(
+            wp_unslash( $_GET['cis_img_token'] )
+        );
+
+        if ( preg_match(
+            '/\A[A-Za-z0-9]{40}\z/D',
+            $cis_token
+        ) ) {
+            $cis_datos = get_transient(
+                'cis_imagen_' . $cis_token
+            );
+
+            $cis_busqueda_visual_valida = (
+                is_array( $cis_datos )
+                && isset(
+                    $cis_datos['interpretacion'],
+                    $cis_datos['busqueda']
+                )
+                && is_array( $cis_datos['interpretacion'] )
+                && is_string( $cis_datos['busqueda'] )
+                && hash_equals(
+                    $cis_datos['busqueda'],
+                    (string) $busqueda
+                )
+            );
+        }
+    }
+
+    if ( $cis_busqueda_visual_valida ) {
+
+        $cis_tipo = compuciber_normalizar_texto(
+            (string) ( $interpretacion['producto'] ?? '' )
+        );
+
+        $cis_marca = compuciber_normalizar_texto(
+            (string) ( $interpretacion['marca'] ?? '' )
+        );
+
+        $cis_modelo = compuciber_normalizar_texto(
+            (string) ( $interpretacion['modelo'] ?? '' )
+        );
+
+        $cis_palabras_tipo = preg_split(
+            '/\s+/u',
+            trim( $cis_tipo )
+        );
+
+        $cis_tipo_principal = $cis_palabras_tipo[0] ?? '';
+
+        if (
+            mb_strlen( $cis_tipo_principal ) >= 3
+            && ! in_array(
+                $cis_tipo_principal,
+                array( 'producto', 'articulo', 'equipo' ),
+                true
+            )
+        ) {
+            foreach ( $productos_candidatos as $producto ) {
+
+                $cis_nombre = compuciber_normalizar_texto(
+                    (string) $producto->nombre
+                );
+
+                $cis_identidad = preg_match(
+                    '/^' . preg_quote(
+                        $cis_tipo_principal,
+                        '/'
+                    ) . '\b/u',
+                    $cis_nombre
+                ) === 1;
+
+                $cis_prioridad = $cis_identidad ? 1 : 0;
+
+                if (
+                    $cis_identidad
+                    && $cis_marca !== ''
+                    && mb_strpos(
+                        ' ' . $cis_nombre . ' ',
+                        ' ' . $cis_marca . ' '
+                    ) !== false
+                ) {
+                    $cis_prioridad = 2;
+                }
+
+                if (
+                    $cis_identidad
+                    && $cis_modelo !== ''
+                    && preg_match(
+                        '/(?<![\p{L}\p{N}])'
+                        . preg_quote( $cis_modelo, '/' )
+                        . '(?![\p{L}\p{N}])/u',
+                        $cis_nombre
+                    )
+                ) {
+                    $cis_prioridad += 2;
+                }
+
+                $cis_prioridades_visuales[
+                    (int) $producto->id
+                ] = $cis_prioridad;
+            }
+        }
+    }
+
     usort(
         $productos_puntuados,
-        function ( $a, $b ) {
+        function ( $a, $b ) use (
+            $cis_prioridades_visuales
+        ) {
 
-            if ( $a['score'] === $b['score'] ) {
-                return 0;
+            $cis_a = (int) (
+                $cis_prioridades_visuales[$a['id']] ?? 0
+            );
+
+            $cis_b = (int) (
+                $cis_prioridades_visuales[$b['id']] ?? 0
+            );
+
+            if ( $cis_a !== $cis_b ) {
+                return $cis_b <=> $cis_a;
             }
 
-            return ( $a['score'] > $b['score'] )
-                ? -1
-                : 1;
+            return $b['score'] <=> $a['score'];
         }
     );
 
@@ -560,6 +685,266 @@ function compuciber_buscar_productos_inteligente(
                             >= $cis_umbral;
                     }
                 )
+            );
+        }
+    }
+
+    /*
+     * CAMBIO 85: comparación visual sobre resultados reales.
+     * Solo cuando la casilla está activada y existe una foto temporal.
+     * Si no hay coincidencias, no modifica el orden de búsqueda.
+     */
+    if (
+        $cis_busqueda_visual_valida
+        && get_option(
+            'compuciber_comparacion_visual_catalogo', '0'
+        ) === '1'
+        && get_option(
+            'compuciber_proveedor_ia', 'gemini'
+        ) === 'gemini'
+        && function_exists(
+            'compuciber_comparar_visual_catalogo_gemini'
+        )
+        && empty( $cis_datos['comparacion_visual_evaluada'] )
+        && ! empty( $cis_datos['foto_temporal'] )
+        && is_string( $cis_datos['foto_temporal'] )
+    ) {
+        $cis_ruta_foto = realpath(
+            $cis_datos['foto_temporal']
+        );
+
+        $cis_directorio_temporal = realpath(
+            get_temp_dir()
+        );
+
+        if (
+            $cis_ruta_foto !== false
+            && $cis_directorio_temporal !== false
+            && dirname( $cis_ruta_foto ) === $cis_directorio_temporal
+            && strpos( basename( $cis_ruta_foto ), 'cisimg_' ) === 0
+            && is_file( $cis_ruta_foto )
+            && is_readable( $cis_ruta_foto )
+            && filesize( $cis_ruta_foto ) <= 6 * 1024 * 1024
+        ) {
+
+            /*
+             * El ranking ya aplicó perfil y umbral de precisión.
+             * Seleccionar candidatos visibles antes de comparar.
+             */
+            $cis_ids_visibles = array();
+
+            foreach ( $productos_puntuados as $cis_fila ) {
+
+                $cis_id = (int) $cis_fila['id'];
+                $cis_wc = wc_get_product( $cis_id );
+
+                if (
+                    $cis_wc
+                    && compuciber_producto_visible_en_busqueda(
+                        $cis_wc
+                    )
+                ) {
+                    $cis_ids_visibles[] = $cis_id;
+                }
+
+                if ( count( $cis_ids_visibles ) >= 100 ) {
+                    break;
+                }
+            }
+
+            if ( ! empty( $cis_ids_visibles ) ) {
+
+                $cis_bytes_foto = file_get_contents(
+                    $cis_ruta_foto
+                );
+
+                $cis_mime_foto = wp_get_image_mime(
+                    $cis_ruta_foto
+                );
+
+                if (
+                    is_string( $cis_bytes_foto )
+                    && in_array(
+                        $cis_mime_foto,
+                        array(
+                            'image/jpeg',
+                            'image/png',
+                            'image/webp'
+                        ),
+                        true
+                    )
+                ) {
+
+                    /*
+                     * Reutilizar comparaciones de la misma
+                     * fotografía y el mismo grupo de candidatos.
+                     */
+                    $cis_clave_comparacion = 'cis_vcmp_v2_' . substr(
+                        hash(
+                            'sha256',
+                            hash( 'sha256', $cis_bytes_foto )
+                            . '|'
+                            . implode( ',', $cis_ids_visibles )
+                            . '|'
+                            . (string) get_option(
+                                'compuciber_gemini_modelo_multimodal', ''
+                            )
+                        ),
+                        0,
+                        40
+                    );
+
+                    $cis_cache_comparacion = get_transient(
+                        $cis_clave_comparacion
+                    );
+
+                    if ( is_array( $cis_cache_comparacion ) ) {
+
+                        $cis_coincidencias = $cis_cache_comparacion;
+
+                    } else {
+
+                        $cis_coincidencias =
+                            compuciber_comparar_visual_catalogo_gemini(
+                                base64_encode( $cis_bytes_foto ),
+                                $cis_mime_foto,
+                                $interpretacion,
+                                $cis_ids_visibles
+                            );
+
+                        if ( ! is_array( $cis_coincidencias ) ) {
+                            $cis_coincidencias = array();
+                        }
+
+                        set_transient(
+                            $cis_clave_comparacion,
+                            $cis_coincidencias,
+                            HOUR_IN_SECONDS
+                        );
+                    }
+
+                    /*
+                     * Guardar solo puntuaciones visuales.
+                     * No almacenar la fotografía en Base64.
+                     */
+                    $cis_datos['coincidencias_visuales'] =
+                        $cis_coincidencias;
+
+                    $cis_datos['comparacion_visual_evaluada'] = 1;
+
+                    unset(
+                        $cis_datos['foto_temporal'],
+                        $cis_datos['mime_type']
+                    );
+
+                    if ( set_transient(
+                        'cis_imagen_' . $cis_token,
+                        $cis_datos,
+                        10 * MINUTE_IN_SECONDS
+                    ) ) {
+                        @unlink( $cis_ruta_foto );
+                    }
+                }
+            }
+        }
+    }
+    
+    /*
+     * CAMBIO 81: prioridad visual opcional.
+     * Solo reordena productos ya encontrados y elegibles.
+     * Sin puntuaciones verificadas, conserva el orden actual.
+     */
+    if (
+        $cis_busqueda_visual_valida
+        && get_option(
+            'compuciber_comparacion_visual_catalogo',
+            '0'
+        ) === '1'
+        && isset( $cis_datos['coincidencias_visuales'] )
+        && is_array( $cis_datos['coincidencias_visuales'] )
+    ) {
+        $cis_coincidencias_verificadas = array();
+
+        foreach ( $cis_datos['coincidencias_visuales'] as $id => $confianza ) {
+            $id = absint( $id );
+            $confianza = (float) $confianza;
+
+            if (
+                $id > 0
+                && $confianza >= 0.90
+                && $confianza <= 1.0
+            ) {
+                $cis_coincidencias_verificadas[ $id ] = $confianza;
+            }
+        }
+
+        if ( ! empty( $cis_coincidencias_verificadas ) ) {
+            $cis_posiciones_originales = array();
+
+            foreach ( $productos_puntuados as $posicion => $fila ) {
+                $cis_posiciones_originales[ (int) $fila['id'] ] = $posicion;
+            }
+
+            usort(
+                $productos_puntuados,
+                static function ( $a, $b ) use (
+                    $cis_coincidencias_verificadas,
+                    $cis_prioridades_visuales,
+                    $cis_posiciones_originales
+                ) {
+                    $id_a = (int) $a['id'];
+                    $id_b = (int) $b['id'];
+
+                    $grupo_a = (int) (
+                        $cis_prioridades_visuales[ $id_a ] ?? 0
+                    );
+
+                    $grupo_b = (int) (
+                        $cis_prioridades_visuales[ $id_b ] ?? 0
+                    );
+
+                    // Respetar el cambio 75: identidad del producto.
+                    if ( $grupo_a !== $grupo_b ) {
+                        return $grupo_b <=> $grupo_a;
+                    }
+
+                    /*
+                     * CAMBIO 87
+                     * Bonificación visual controlada.
+                     *
+                     * Máximo 5 % del puntaje original.
+                     * No altera la puntuación almacenada.
+                     * No prioriza productos sin identidad válida.
+                     */
+
+                    $cis_puntaje_a = (float) $a['score'];
+                    $cis_puntaje_b = (float) $b['score'];
+
+                    if (
+                        $grupo_a > 0
+                        && isset(
+                            $cis_coincidencias_verificadas[ $id_a ]
+                        )
+                    ) {
+                        $cis_puntaje_a *= 1.05;
+                    }
+
+                    if (
+                        $grupo_b > 0
+                        && isset(
+                            $cis_coincidencias_verificadas[ $id_b ]
+                        )
+                    ) {
+                        $cis_puntaje_b *= 1.05;
+                    }
+
+                    if ( $cis_puntaje_a !== $cis_puntaje_b ) {
+                        return $cis_puntaje_b <=> $cis_puntaje_a;
+                    }
+
+                    return $cis_posiciones_originales[ $id_a ]
+                        <=> $cis_posiciones_originales[ $id_b ];
+                }
             );
         }
     }

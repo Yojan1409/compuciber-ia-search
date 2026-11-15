@@ -2434,6 +2434,21 @@ function compuciber_ai_search_diagnostico_registros() {
                                 <?php echo esc_html( $cis_dp_omitidos ); ?>
                             </p>
 
+                            <p>
+                                <strong>WooCommerce — Ocultar productos agotados:</strong>
+
+                                <?php
+                                echo esc_html(
+                                    get_option(
+                                        'woocommerce_hide_out_of_stock_items',
+                                        'no'
+                                    ) === 'yes'
+                                        ? 'Activado'
+                                        : 'Desactivado'
+                                );
+                                ?>
+                            </p>                            
+
                             <?php if ( $cis_dp_posts ) : ?>
 
                                 <table class="widefat striped">
@@ -8675,6 +8690,43 @@ if (
     <?php
 }
 
+/*
+ * CAMBIO 74
+ * Renovar la cache de interpretaciones visuales.
+ */
+add_action(
+    'admin_post_compuciber_renovar_cache_visual',
+    'compuciber_admin_renovar_cache_visual'
+);
+
+function compuciber_admin_renovar_cache_visual() {
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( 'No tienes permisos para esta accion.' );
+    }
+
+    check_admin_referer(
+        'compuciber_renovar_cache_visual'
+    );
+
+    update_option(
+        'compuciber_version_cache_visual',
+        wp_generate_uuid4(),
+        false
+    );
+
+    wp_safe_redirect(
+        add_query_arg(
+            array(
+                'page' => 'compuciber-ai-search-configuracion',
+                'cis_cache_visual_renovada' => '1',
+            ),
+            admin_url( 'admin.php' )
+        )
+    );
+
+    exit;
+}
 
 /*
  * ==========================================================
@@ -8723,6 +8775,60 @@ function compuciber_ai_search_configuracion() {
     ?>
 
     <div class="wrap">
+
+    <div class="card" style="
+            max-width:750px;
+            padding:18px 22px;
+            margin:15px 0 25px;
+        ">
+            <h2>Caché de reconocimiento de imágenes</h2>
+
+            <p>
+                Renueva las interpretaciones guardadas de
+                Gemini y OpenAI para volver a analizar
+                fotografías con las instrucciones actuales.
+            </p>
+
+            <?php if (
+                isset( $_GET['cis_cache_visual_renovada'] )
+                && '1' === $_GET['cis_cache_visual_renovada']
+            ) : ?>
+                <div class="notice notice-success inline">
+                    <p>
+                        Caché visual renovada correctamente.
+                        Las próximas imágenes se analizarán
+                        nuevamente.
+                    </p>
+                </div>
+            <?php endif; ?>
+
+            <form
+                method="post"
+                action="<?php echo esc_url(
+                    admin_url( 'admin-post.php' )
+                ); ?>"
+            >
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compuciber_renovar_cache_visual"
+                >
+
+                <?php wp_nonce_field(
+                    'compuciber_renovar_cache_visual'
+                ); ?>
+
+                <button
+                    type="submit"
+                    class="button button-secondary"
+                    onclick="return confirm(
+                        '¿Renovar la caché de imágenes?'
+                    );"
+                >
+                    Renovar caché de imágenes
+                </button>
+            </form>
+        </div>    
 
     <?php if ( false !== $mensaje_licencia ) : ?>
 
@@ -10266,6 +10372,48 @@ function compuciber_ai_search_configuracion() {
                     </td>
 
                 </tr>
+
+                <tr>
+
+                    <th scope="row">
+                        Comparación visual con catálogo
+                    </th>
+
+                    <td>
+
+                        <label>
+
+                            <input
+                                type="hidden"
+                                name="compuciber_comparacion_visual_catalogo"
+                                value="0"
+                            >
+
+                            <input
+                                type="checkbox"
+                                name="compuciber_comparacion_visual_catalogo"
+                                value="1"
+                                <?php checked(
+                                    get_option(
+                                        'compuciber_comparacion_visual_catalogo',
+                                        '0'
+                                    ),
+                                    '1'
+                                ); ?>
+                            >
+
+                            Comparar la foto del cliente con imágenes del catálogo WooCommerce para priorizar coincidencias visuales
+
+                        </label>
+
+                        <p class="description" style="margin-top:8px;">
+                            Experimental. Si se activa, puede consumir más llamadas de IA y aumentar el tiempo de respuesta en búsquedas por imagen.
+                            Si está desactivado, la búsqueda por imagen seguirá funcionando exactamente como hasta ahora.
+                        </p>
+
+                    </td>
+
+                </tr>                
 
                 <tr>
 

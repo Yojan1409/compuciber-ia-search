@@ -413,6 +413,37 @@ function compuciber_calcular_puntuacion_producto(
     );
 
     /*
+     * CAMBIO 70
+     * Evitar que una laptop completa aparezca
+     * al buscar un cargador para laptop.
+     */
+
+    $cis_consulta_accesorio = compuciber_normalizar_texto(
+        $busqueda
+    );
+
+    if (
+        preg_match(
+            '/\b(cargador|cargadores)\b/u',
+            $cis_consulta_accesorio
+        )
+        && preg_match(
+            '/\b(laptop|laptops|notebook|portatil)\b/u',
+            $cis_consulta_accesorio
+        )
+        && preg_match(
+            '/\b(laptop|notebook|portatil)\b/u',
+            $titulo
+        )
+        && ! preg_match(
+            '/\b(cargador|cargadores|adaptador|fuente)\b/u',
+            $titulo
+        )
+    ) {
+        return -1;
+    }
+
+    /*
     * VALIDACIÓN DE IDENTIDAD DEL PRODUCTO
     *
     * No depende de la IA.
