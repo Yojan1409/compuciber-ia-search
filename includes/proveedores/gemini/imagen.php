@@ -474,13 +474,78 @@ function compuciber_comparar_visual_catalogo_gemini(
             (string) $fila->nombre
         );
 
-        // No confundir un mouse con un combo.
-        if ( ! preg_match(
+        /*
+         * CAMBIO 89
+         * Reconocer productos que comienzan por
+         * su tipo o por su marca.
+         *
+         * Evitar combos cuando se busca un
+         * producto individual.
+         */
+
+        $cis_tipo_al_inicio = preg_match(
             '/^' . preg_quote(
                 $tipo_principal, '/'
             ) . '\b/u',
             $nombre
-        ) ) {
+        ) === 1;
+
+        $cis_marca_antes_tipo = (
+            $marca !== ''
+            && preg_match(
+                '/^' . preg_quote( $marca, '/' )
+                . '(?:\s+[a-z0-9]+){0,4}\s+'
+                . preg_quote( $tipo_principal, '/' )
+                . '\b/u',
+                $nombre
+            ) === 1
+        );
+
+        $cis_tipo_es_paquete = in_array(
+            $tipo_principal,
+            array(
+                'combo',
+                'pack',
+                'kit',
+                'paquete',
+                'bundle'
+            ),
+            true
+        );
+
+        $cis_es_paquete = (
+            ! $cis_tipo_es_paquete
+            && preg_match(
+                '/\b(?:combo|pack|kit|paquete|bundle)\b/u',
+                $nombre
+            ) === 1
+        );
+
+        $cis_combinado_mouse_teclado = (
+            (
+                $tipo_principal === 'mouse'
+                && preg_match(
+                    '/\bteclado\b/u',
+                    $nombre
+                )
+            )
+            || (
+                $tipo_principal === 'teclado'
+                && preg_match(
+                    '/\bmouse\b/u',
+                    $nombre
+                )
+            )
+        );
+
+        if (
+            $cis_es_paquete
+            || $cis_combinado_mouse_teclado
+            || (
+                ! $cis_tipo_al_inicio
+                && ! $cis_marca_antes_tipo
+            )
+        ) {
             continue;
         }
 
@@ -743,13 +808,30 @@ function compuciber_comparar_visual_catalogo_gemini(
         )
     );
 
-    if (
-        is_wp_error( $respuesta )
-        || (int) wp_remote_retrieve_response_code(
+    /*
+     * CAMBIO 88
+     * Diferenciar errores de Gemini de una
+     * comparación válida sin coincidencias.
+     */
+
+    if ( is_wp_error( $respuesta ) ) {
+        return new WP_Error(
+            'cis_visual_conexion',
+            'No se pudo conectar con Gemini.'
+        );
+    }
+
+    $cis_codigo_http = (int)
+        wp_remote_retrieve_response_code(
             $respuesta
-        ) !== 200
-    ) {
-        return array();
+        );
+
+    if ( $cis_codigo_http !== 200 ) {
+        return new WP_Error(
+            'cis_visual_http',
+            'Gemini devolvió HTTP '
+            . $cis_codigo_http
+        );
     }
 
     $cuerpo = json_decode(
@@ -781,12 +863,21 @@ function compuciber_comparar_visual_catalogo_gemini(
 
     $respuesta_ia = json_decode( $texto, true );
 
+    /*
+     * CAMBIO 91
+     * Distinguir una respuesta inválida
+     * de una comparación sin coincidencias.
+     */
+
     if (
         ! is_array(
             $respuesta_ia['coincidencias'] ?? null
         )
     ) {
-        return array();
+        return new WP_Error(
+            'cis_visual_json_invalido',
+            'Gemini no devolvió una comparación visual válida.'
+        );
     }
 
     $coincidencias = array();

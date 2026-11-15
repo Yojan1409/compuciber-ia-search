@@ -812,14 +812,31 @@ function compuciber_buscar_productos_inteligente(
                                 $cis_ids_visibles
                             );
 
-                        if ( ! is_array( $cis_coincidencias ) ) {
+                        /*
+                         * CAMBIO 88
+                         * Los errores de conexión o HTTP
+                         * tienen una espera de 5 minutos.
+                         * Las comparaciones válidas mantienen
+                         * su caché de una hora.
+                         */
+
+                        $cis_error_visual = is_wp_error(
+                            $cis_coincidencias
+                        );
+
+                        if (
+                            $cis_error_visual
+                            || ! is_array( $cis_coincidencias )
+                        ) {
                             $cis_coincidencias = array();
                         }
 
                         set_transient(
                             $cis_clave_comparacion,
                             $cis_coincidencias,
-                            HOUR_IN_SECONDS
+                            $cis_error_visual
+                                ? 5 * MINUTE_IN_SECONDS
+                                : HOUR_IN_SECONDS
                         );
                     }
 
@@ -920,13 +937,29 @@ function compuciber_buscar_productos_inteligente(
                     $cis_puntaje_a = (float) $a['score'];
                     $cis_puntaje_b = (float) $b['score'];
 
+                    /*
+                    * CAMBIO 90
+                    * Permitir bonificación visual también cuando
+                    * el título comienza por la marca.
+                    *
+                    * Mantener el máximo de 5 % y respetar
+                    * los grupos de identidad del cambio 75.
+                    */
+
                     if (
-                        $grupo_a > 0
-                        && isset(
+                        isset(
                             $cis_coincidencias_verificadas[ $id_a ]
                         )
                     ) {
                         $cis_puntaje_a *= 1.05;
+                    }
+
+                    if (
+                        isset(
+                            $cis_coincidencias_verificadas[ $id_b ]
+                        )
+                    ) {
+                        $cis_puntaje_b *= 1.05;
                     }
 
                     if (
