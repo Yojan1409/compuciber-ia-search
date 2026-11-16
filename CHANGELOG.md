@@ -2,11 +2,86 @@
 
 **Proyecto:** Compuciber AI Search  
 **Titular:** COMPUCIBER S.A.C.  
-**Versión documentada:** 2.1.3  
-**Fecha de actualización:** 12 de noviembre de 2026  
-**Estado:** versión candidata estabilizada; pruebas finales de imagen, IA y embeddings pendientes
+**Versión oficial del plugin:** 2.1.3  
+**Última actualización documental:** 15 de noviembre de 2026  
+**Revisión interna registrada:** cambios hasta el N.º 98  
+**Estado:** versión candidata para entrega; comparación visual adicional opcional/experimental
 
-Este historial conserva las entradas anteriores y documenta los cambios de estabilización incorporados tras la versión 2.1.1. La versión interna 2.1.2 precedió a esta consolidación; no se inventa una entrada de lanzamiento independiente para esa numeración.
+> **Nota de versionado:** los números 62–98 identifican cambios internos realizados durante el desarrollo, **no** versiones oficiales ni lanzamientos independientes. El archivo principal del ZIP revisado sigue declarando `2.1.3`. Se conserva íntegramente el historial oficial anterior. Las notas de «pendientes» de las secciones antiguas reflejan el estado en la fecha en que se redactaron, no necesariamente el estado actual.
+
+## Actualización de mantenimiento — 2026-11-15 (cambios internos posteriores a la documentación del 12/11)
+
+### Búsqueda, sinónimos y relevancia (cambios previos al 77)
+
+- **Cambio 64:** canonización complementaria de expresiones compuestas, por ejemplo «ordenador portátil HP» → «laptop HP». La interpretación alternativa puede mejorar la coincidencia sin sustituir a la consulta original ni alterar la prioridad de SKU exactos.
+- **Cambio 65:** reconocimiento de sinónimos compuestos en autocompletado, con prioridades de título y conservación de la consulta original.
+- **Cambio 66:** niveles configurables de precisión **Amplia**, **Equilibrada** y **Alta**. El filtrado de precisión se aplica antes de la paginación y conserva las verificaciones de WooCommerce.
+- **Cambio 70:** tratamiento específico para no priorizar laptops completas cuando se busca un **cargador para laptop**.
+- **Cambio 74:** herramienta administrativa para renovar la caché de interpretaciones visuales.
+- **Cambio 75:** prioridad de identidad para resultados procedentes de fotografías; busca evitar que un combo de teclado y mouse desplace a un mouse individual. Mantiene el ranking habitual de consultas no visuales.
+- **Cambio 76:** respaldo de corrección ortográfica cuando la interpretación de Gemini no es válida, en las condiciones admitidas por el motor.
+- Otras mejoras intermedias del motor se mantienen incorporadas en el código fuente; no se asigna una descripción individual a números sin evidencia específica en el historial disponible.
+
+### Calidad de imágenes y configuración de comparación visual (77–80)
+
+- **Cambio 77:** calidad de la imagen optimizada para IA de **80 a 85**. Se mantiene la dimensión máxima configurada de **1200 × 1200 píxeles**, sin incremento generalizado de resolución.
+- **Cambio 78:** información de la opción WooCommerce **«Ocultar productos agotados»** en el diagnóstico manual de paginación y elegibilidad.
+- **Cambio 79:** casilla **«Comparación visual con catálogo»** en Configuración, **desactivada por defecto** y con advertencia sobre tiempo de respuesta y consumo adicional de IA.
+- **Cambio 80:** revisión del almacenamiento temporal de la búsqueda para evitar conservar fotografías completas en Base64 dentro del token de WordPress.
+
+### Motor experimental de comparación visual con catálogo (81–91)
+
+- **Cambio 81:** etapa opcional de prioridad visual sobre productos ya puntuados; no crea productos ni sustituye el motor de relevancia.
+- **Cambio 82:** comparación multimodal adicional con **Gemini** y fotografías del catálogo WooCommerce. Selecciona un conjunto pequeño de imágenes principales en lugar de enviar el catálogo completo a la API.
+- **Cambio 83:** preparación de la comparación para recibir identificadores proporcionados por el ranking real, en vez de recorrer y comparar independientemente todo el catálogo.
+- **Cambio 84:** copia temporal controlada de la fotografía procesada y limpieza programada, evitando almacenar la fotografía completa en el token de resultados.
+- **Cambio 85:** conexión de la comparación al flujo de resultados, después del cálculo de candidatos, para obtener puntuaciones visuales reutilizables. Se aplica una caché temporal a la comparación.
+- **Cambio 86:** selección de imágenes que considera los candidatos mejor clasificados y también permite rescatar candidatos posteriores por marca/modelo, con límites de cantidad. No modifica directamente el ranking público en esta etapa.
+- **Cambio 87:** sustitución de la prioridad visual absoluta por una **bonificación acotada al 5 % del puntaje de ordenación**, preservando los grupos de prioridad del cambio 75.
+- **Cambio 88:** separación de errores de transporte/HTTP de una comparación válida sin coincidencias. Las fallas detectadas utilizan una espera de caché más corta para evitar nuevas llamadas inmediatas.
+- **Cambio 89:** selección de candidatos cuyo título comienza por el tipo de producto **o por la marca**, con reglas para no favorecer combos de teclado y mouse cuando la foto corresponde a un producto individual.
+- **Cambio 90:** posibilidad de aplicar la bonificación visual también a coincidencias cuyos títulos comienzan por la marca, conservando los grupos de identidad y el máximo del 5 %.
+- **Cambio 91:** diferenciación de respuestas JSON inválidas de Gemini mediante un error controlado, sin interpretarlas como coincidencias negativas válidas.
+- **Alcance y limitaciones:** esta comparación adicional **solo está implementada para Gemini**, es optativa y puede consumir cuota. Se seleccionan hasta 100 identificadores del ranking para preparar candidatos; el procesamiento de fotografías examina una selección acotada y envía **hasta seis imágenes principales**. No equivale a un índice completo de embeddings visuales, ni garantiza identificar modelos físicamente indistinguibles.
+
+### Diagnóstico y rendimiento (92–94)
+
+- **Cambio 92:** medición, en el diagnóstico local de relevancia, del **tiempo de ejecución en milisegundos** y de la **cantidad de consultas SQL**. No se agrega un motor de búsqueda paralelo.
+- **Cambio 93:** precarga de cachés de publicaciones, metadatos y términos de WordPress para conjuntos de resultados suficientemente grandes, antes de las comprobaciones de elegibilidad WooCommerce. Se mantienen puntuaciones, filtros, orden y verificación de productos; el SKU exacto conserva su recorrido eficiente.
+- **Cambio 94:** actualización dinámica del panel **Diagnóstico de búsquedas y relevancia** mediante JavaScript y petición al mismo administrador, sin recarga visual completa. La interfaz conserva una ruta de navegación tradicional de respaldo; el tiempo de procesamiento PHP sigue existiendo.
+
+#### Mediciones de referencia en tienda de pruebas (15/11/2026)
+
+| Consulta | Antes del cambio 93 | Después del cambio 93 | Resultados WooCommerce observados |
+| --- | ---: | ---: | ---: |
+| `laptop` | 1.353,0 ms · 2.043 SQL | **738,6 ms · 61 SQL** | 204 |
+| `mouse Logitech` | 496,3 ms · 385 SQL | **443,0 ms · 37 SQL** | 75 |
+| `impresora Epson` | 409,0 ms · 149 SQL | **402,3 ms · 40 SQL** | 15 |
+| SKU exacto `A200SI5` | 3,8 ms · 7 SQL | **3,0 ms · 7 SQL** | 1 |
+
+- Las capturas de diagnóstico muestran **3.738 registros evaluados** para consultas generales; `laptop` mantuvo **648 coincidencias puntuadas**, 204 resultados WooCommerce y 17 páginas. `mouse Logitech` mantuvo 122 coincidencias puntuadas, 75 resultados WooCommerce y siete páginas. En las primeras páginas observadas, los productos recuperados eran aptos para búsqueda.
+- Estos números documentan una **prueba concreta**, no una garantía de rendimiento en todos los servidores. Las cachés, el catálogo y el entorno de WordPress pueden modificar los tiempos. Se mantiene la obligación de preservar relevancia y resultados correctos.
+
+### Interfaz de análisis de imagen y personalización (95–97)
+
+- **Cambio 95:** el mensaje **«Analizando imagen con IA...»** utiliza mayor grosor y admite personalización del color del texto y del punto mediante variables CSS (`--compuciber-status-text-color` y `--compuciber-status-dot-color`).
+- **Cambio 96:** el botón de cámara permanece fijo y desactivado durante el análisis, eliminando su rotación y sustitución visual por reloj de arena. El indicador inferior comunica el estado del procesamiento.
+- **Cambio 97:** controles de color del texto y del punto de estado en la integración de Elementor, configurables por instancia del widget.
+
+### OpenAI y mantenimiento de proveedores (98)
+
+- **Cambio 98:** registro controlado de errores de transporte y HTTP del proveedor **OpenAI para imágenes** en el logger de WooCommerce, sin registrar fotografías ni API keys; mensajes repetidos limitados temporalmente.
+- Los proveedores OpenAI y Gemini tienen rutas propias para interpretación de imagen; la **comparación visual secundaria con el catálogo** permanece específica de Gemini. No se declara equivalencia funcional completa entre ambos proveedores.
+
+### Decisiones de cierre y compatibilidad
+
+- No se introdujeron filtros avanzados adicionales que pudieran cambiar inesperadamente los productos devueltos, ni una integración alternativa con el motor nativo de WoodMart.
+- Se preservan la búsqueda local, la paginación, los perfiles General/Reacondicionados y demás perfiles configurados, las exclusiones de categoría, la visibilidad y la configuración de agotados de WooCommerce.
+- La búsqueda local sigue siendo utilizable sin embeddings semánticos completos. La generación de embeddings continúa sujeta a cuotas de la API y al procesamiento por lotes actualmente configurado.
+- Los controles de comparación visual son **opcionales y desactivados por defecto**. Activarlos puede añadir latencia, consumo de Gemini y comportamiento experimental de reordenación.
+- Esta revisión de documentación **no cambia** el encabezado de versión del plugin, el esquema de base de datos, las opciones de instalación ni las credenciales.
+
+---
 
 ## [2.1.3] — 2026-11-12
 
