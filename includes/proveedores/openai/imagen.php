@@ -313,25 +313,58 @@ por el esquema JSON, sin explicaciones adicionales.
 
 
     /*
-     * Error de transporte.
+     * CAMBIO 98
+     * Diagnóstico de errores OpenAI imagen.
+     * No registra fotografías, consultas ni API Keys.
      */
+    $cis_error_openai_imagen = '';
+
     if ( is_wp_error( $respuesta ) ) {
-        return false;
-    }
-
-
-    /*
-     * Validar respuesta HTTP.
-     */
-    $codigo_http =
-        wp_remote_retrieve_response_code(
+        $cis_error_openai_imagen = 'TRANSPORTE: '
+            . sanitize_key( $respuesta->get_error_code() );
+    } else {
+        $codigo_http = (int) wp_remote_retrieve_response_code(
             $respuesta
         );
 
-    if (
-        $codigo_http < 200
-        || $codigo_http >= 300
-    ) {
+        if ( $codigo_http < 200 || $codigo_http >= 300 ) {
+            $cis_error_openai_imagen = 'HTTP ' . absint( $codigo_http );
+
+            $datos_error = json_decode(
+                wp_remote_retrieve_body( $respuesta ),
+                true
+            );
+
+            if (
+                is_array( $datos_error )
+                && isset( $datos_error['error']['code'] )
+                && is_string( $datos_error['error']['code'] )
+            ) {
+                $cis_error_openai_imagen .= ' | CODIGO: '
+                    . sanitize_key( $datos_error['error']['code'] );
+            }
+        }
+    }
+
+    if ( $cis_error_openai_imagen !== '' ) {
+        if ( function_exists( 'wc_get_logger' ) ) {
+            $clave_error = 'cis_openai_img_'
+                . md5( $cis_error_openai_imagen );
+
+            if ( false === get_transient( $clave_error ) ) {
+                wc_get_logger()->error(
+                    'OpenAI imagen: ' . $cis_error_openai_imagen,
+                    array( 'source' => 'compuciber-ai-search' )
+                );
+
+                set_transient(
+                    $clave_error,
+                    1,
+                    5 * MINUTE_IN_SECONDS
+                );
+            }
+        }
+
         return false;
     }
 

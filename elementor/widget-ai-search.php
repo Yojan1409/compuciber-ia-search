@@ -661,6 +661,34 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
             )
         );
 
+        /*
+         * CAMBIO 97: controles del estado de imagen.
+         * Solo afectan a este widget Elementor.
+         */
+        $this->add_control(
+            'ai_status_text_color',
+            array(
+                'label' => 'Color del texto de análisis',
+                'type'  => \Elementor\Controls_Manager::COLOR,
+                'selectors' => array(
+                    '{{WRAPPER}} .compuciber-ai-status' =>
+                        'color: {{VALUE}};',
+                ),
+            )
+        );
+
+        $this->add_control(
+            'ai_status_dot_color',
+            array(
+                'label' => 'Color del punto de análisis',
+                'type'  => \Elementor\Controls_Manager::COLOR,
+                'selectors' => array(
+                    '{{WRAPPER}} .compuciber-ai-status:not(:empty)::before' =>
+                        'background-color: {{VALUE}};',
+                ),
+            )
+        );
+
         $this->end_controls_section();
 
 

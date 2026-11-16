@@ -174,6 +174,24 @@ function compuciber_consulta_productos(
     }
 
     /*
+     * CAMBIO 93
+     * Precargar datos de WordPress para reducir
+     * consultas repetidas a la base de datos.
+     *
+     * No modifica los IDs, filtros ni su orden.
+     */
+    if (
+        count( $ids_resultados ) >= 30
+        && function_exists( '_prime_post_caches' )
+    ) {
+        _prime_post_caches(
+            $ids_resultados,
+            true,
+            true
+        );
+    }
+
+    /*
     * Validar disponibilidad con WooCommerce
     * antes de construir la consulta final.
     */

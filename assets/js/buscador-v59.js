@@ -1442,21 +1442,17 @@ function compuciberInicializarBuscadorPublico() {
 
 
                     /*
-                     * Estado de Gemini mientras
-                     * analiza la fotografía.
+                     * CAMBIO 96
+                     * Mantener fija la cámara mientras
+                     * se analiza la fotografía.
                      */
 
-                    imageButton.innerHTML = '⏳';
                     imageButton.disabled = true;
 
                     if (aiStatus) {
                         aiStatus.textContent =
                             'Analizando imagen con IA...';
                     }
-
-                    imageButton.classList.add(
-                        'compuciber-image-loading'
-                    );
 
                     await tokensActualizados;
                     const formulario =

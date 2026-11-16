@@ -2082,7 +2082,7 @@ function compuciber_ai_search_diagnostico_registros() {
 
         <div class="postbox" style="padding:16px;max-width:1000px;">
 
-            <details>
+            <details id="cis-dr-panel">
 
                 <summary style="cursor:pointer;font-size:18px;font-weight:600;">
                     Diagnóstico de búsquedas y relevancia
@@ -2858,6 +2858,136 @@ function compuciber_ai_search_diagnostico_registros() {
             </details>
 
         </div>
+
+        <script>
+        (function () {
+            'use strict';
+
+            const selector = '#cis-dr-panel';
+
+            async function actualizarDiagnostico(url) {
+                const panel = document.querySelector(selector);
+
+                if (!panel || panel.dataset.cisCargando === '1') {
+                    return;
+                }
+
+                panel.dataset.cisCargando = '1';
+
+                const aviso = document.createElement('span');
+                aviso.textContent = ' — Analizando...';
+                aviso.style.fontSize = '13px';
+                aviso.setAttribute('role', 'status');
+                panel.querySelector('summary')?.appendChild(aviso);
+
+                try {
+                    const respuesta = await fetch(url.toString(), {
+                        credentials: 'same-origin',
+                        cache: 'no-store'
+                    });
+
+                    if (!respuesta.ok) {
+                        throw new Error('No se pudo obtener el diagnóstico.');
+                    }
+
+                    const documento = new DOMParser().parseFromString(
+                        await respuesta.text(),
+                        'text/html'
+                    );
+
+                    const panelNuevo = documento.querySelector(selector);
+
+                    if (!panelNuevo) {
+                        throw new Error('La respuesta no contiene el diagnóstico.');
+                    }
+
+                    panel.innerHTML = panelNuevo.innerHTML;
+                    panel.open = true;
+
+                    window.history.replaceState(
+                        window.history.state,
+                        '',
+                        url.toString()
+                    );
+
+                } catch (error) {
+                    // Conservar la navegación normal si falla la carga.
+                    window.location.assign(url.toString());
+
+                } finally {
+                    panel.dataset.cisCargando = '0';
+
+                    if (aviso.isConnected) {
+                        aviso.remove();
+                    }
+                }
+            }
+
+            document.addEventListener('submit', function (evento) {
+                const formulario = evento.target;
+
+                if (
+                    !(formulario instanceof HTMLFormElement)
+                    || !formulario.closest(selector)
+                ) {
+                    return;
+                }
+
+                evento.preventDefault();
+
+                const url = new URL(
+                    formulario.action,
+                    window.location.href
+                );
+
+                url.search = new URLSearchParams(
+                    new FormData(formulario)
+                ).toString();
+
+                actualizarDiagnostico(url);
+            });
+
+            document.addEventListener('click', function (evento) {
+                if (
+                    evento.defaultPrevented
+                    || evento.button !== 0
+                    || evento.ctrlKey
+                    || evento.metaKey
+                    || evento.shiftKey
+                    || evento.altKey
+                    || !(evento.target instanceof Element)
+                ) {
+                    return;
+                }
+
+                const enlace = evento.target.closest(
+                    selector + ' a[href]'
+                );
+
+                if (!enlace) {
+                    return;
+                }
+
+                const url = new URL(
+                    enlace.href,
+                    window.location.href
+                );
+
+                if (
+                    url.origin !== window.location.origin
+                    || url.searchParams.get('page') !==
+                        'compuciber-ai-search-diagnostico'
+                    || url.searchParams.get('cis_dr_ejecutar') !== '1'
+                    || !url.searchParams.has('cis_page')
+                ) {
+                    return;
+                }
+
+                evento.preventDefault();
+                actualizarDiagnostico(url);
+            });
+        })();
+        </script>        
 
         <?php
         /*
