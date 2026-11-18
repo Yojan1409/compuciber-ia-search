@@ -889,30 +889,30 @@
 }
 
 /*
- * CAMBIO 106
- * Botones compactos con aparición suave.
+ * CAMBIO 111
+ * Buscador compacto en móvil.
+ * Campo y lupa juntos; voz e imagen aparecen al enfocar.
  */
 
-/* Ocultar sin reservar espacio */
-.compuciber-ai-search .compuciber-search-box .compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box .compuciber-image-button {
-    display: none;
+/* Botones opcionales ocultos sin ocupar espacio */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+.compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
+    display: none !important;
 }
 
-/* Mostrar al interactuar con el buscador */
-.compuciber-ai-search .compuciber-search-box:focus-within .compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box:focus-within .compuciber-image-button {
-    display: inline-flex;
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+/* Mostrar solamente al interactuar con el buscador */
+.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button,
+.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-image-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
     animation: cis-botones-aparecer 0.2s ease both;
 }
 
 @keyframes cis-botones-aparecer {
     from {
         opacity: 0;
-        transform: translateX(-6px) scale(0.95);
+        transform: translateX(-5px) scale(0.96);
     }
 
     to {
@@ -921,32 +921,67 @@
     }
 }
 
-/* Mantener los botones juntos también en móviles */
+/* Corrección específica de la distribución móvil */
 @media (max-width: 600px) {
+
     .compuciber-ai-search .compuciber-search-box {
-        display: flex;
-        flex-wrap: nowrap;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         align-items: stretch;
-    }
-
-    .compuciber-ai-search .compuciber-search-box input[type="search"] {
-        flex: 1 1 auto;
-        width: auto;
+        gap: 6px;
+        width: 100%;
         min-width: 0;
+        box-sizing: border-box;
     }
 
-    .compuciber-ai-search .compuciber-search-box button[type="submit"] {
-        flex: 0 0 44px;
-        width: 44px;
-        min-width: 44px;
-        padding-inline: 0;
+    /* El campo ocupa todo el espacio disponible */
+    .compuciber-ai-search .compuciber-search-box>.compuciber-search-input {
+        grid-column: auto !important;
+        grid-row: auto !important;
+
+        flex: 1 1 0% !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: none !important;
+
+        margin: 0 !important;
+        box-sizing: border-box;
+    }
+
+    /* Los tres botones mantienen un ancho compacto */
+    .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+    .compuciber-ai-search .compuciber-search-box>.compuciber-image-button,
+    .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
+        grid-column: auto !important;
+        grid-row: auto !important;
+
+        flex: 0 0 44px !important;
+        width: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
+
+        height: 44px;
+        min-height: 44px;
+        padding: 0 !important;
+        margin: 0 !important;
+
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* El selector de fotografías permanece oculto */
+    .compuciber-ai-search .compuciber-search-box>.compuciber-image-input {
+        display: none !important;
     }
 }
 
+/* Accesibilidad: sin animaciones si el usuario lo solicita */
 @media (prefers-reduced-motion: reduce) {
 
-    .compuciber-ai-search .compuciber-search-box:focus-within .compuciber-voice-button,
-    .compuciber-ai-search .compuciber-search-box:focus-within .compuciber-image-button {
+    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button,
+    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-image-button {
         animation: none;
     }
 }
