@@ -556,7 +556,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 'type'  => \Elementor\Controls_Manager::COLOR,
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
+                    '{{WRAPPER}} .compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
                         'background-color: {{VALUE}};',
                 ),
             )
@@ -570,7 +570,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 'type'  => \Elementor\Controls_Manager::COLOR,
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button svg, {{WRAPPER}} #compuciber-image-button svg' =>
+                    '{{WRAPPER}} .compuciber-voice-button svg, {{WRAPPER}} #compuciber-image-button svg' =>
                         'fill: {{VALUE}};',
                 ),
             )
@@ -584,7 +584,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 'type'  => \Elementor\Controls_Manager::COLOR,
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button:hover, {{WRAPPER}} #compuciber-image-button:hover' =>
+                    '{{WRAPPER}} .compuciber-voice-button:hover, {{WRAPPER}} #compuciber-image-button:hover' =>
                         'background-color: {{VALUE}};',
                 ),
             )
@@ -606,7 +606,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 ),
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
+                    '{{WRAPPER}} .compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
                         'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
                 ),
             )
@@ -628,7 +628,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 ),
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button svg, {{WRAPPER}} #compuciber-image-button svg' =>
+                    '{{WRAPPER}} .compuciber-voice-button svg, {{WRAPPER}} #compuciber-image-button svg' =>
                         'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
                 ),
             )
@@ -641,7 +641,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
             array(
                 'name'     => 'action_border',
                 'selector' =>
-                    '{{WRAPPER}} #compuciber-voice-button, {{WRAPPER}} #compuciber-image-button',
+                    '{{WRAPPER}} .compuciber-voice-button, {{WRAPPER}} #compuciber-image-button',
             )
         );
         
@@ -655,7 +655,7 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
                 'size_units' => array( 'px', '%' ),
 
                 'selectors' => array(
-                    '{{WRAPPER}} #compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
+                    '{{WRAPPER}} .compuciber-voice-button, {{WRAPPER}} #compuciber-image-button' =>
                         'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
                 ),
             )
@@ -827,6 +827,13 @@ class Compuciber_AI_Search_Elementor_Widget extends \Elementor\Widget_Base {
         if ( $perfil_id !== '' ) {
             $shortcode .= ' perfil="' . esc_attr( $perfil_id ) . '"';
         }
+
+        /*
+         * CAMBIO 110
+         * El widget nativo de Elementor conserva
+         * sus propios controles visuales.
+         */
+        $shortcode .= ' estilo_predeterminado="no"';
 
         $shortcode .= ']';
 

@@ -98,6 +98,41 @@ function compuciber_ai_search_registrar_opciones() {
     );    
 
     /*
+     * CAMBIO 108
+     * Estilo independiente del buscador sin perfil.
+     *
+     * No utiliza ni modifica los estilos
+     * de los perfiles personalizados.
+     */
+    register_setting(
+        'compuciber_estilo_predeterminado_settings_group',
+        'compuciber_estilo_predeterminado',
+        array(
+            'type'    => 'array',
+            'default' => array(),
+
+            'sanitize_callback' => static function ( $valor ) {
+
+                if ( ! is_array( $valor ) ) {
+                    return array();
+                }
+
+                /*
+                 * Reutilizar la validación existente
+                 * de colores, radios y estilos.
+                 */
+                $estilos = compuciber_sanitizar_estilos_perfiles(
+                    array(
+                        'cis_default' => $valor,
+                    )
+                );
+
+                return $estilos['cis_default'] ?? array();
+            },
+        )
+    );
+
+    /*
      * Opciones generales.
      */
     $opciones = array(
@@ -1077,10 +1112,48 @@ function compuciber_sanitizar_estilos_perfiles( $valor ) {
                 $color ?: $predeterminado;
         }
 
+        // Colores independientes de los iconos.
+        foreach ( array( 'color_voz', 'color_imagen' ) as $campo ) {
+            if ( ! empty( $datos[ $campo ] ) ) {
+                $color = sanitize_hex_color(
+                    (string) $datos[ $campo ]
+                );
+
+                if ( $color ) {
+                    $limpios[ $id ][ $campo ] = $color;
+                }
+            }
+        }
+
+        // Fondos y contornos opcionales, independientes por botón.
+        foreach ( array( 'fondo_voz', 'borde_voz', 'fondo_imagen', 'borde_imagen' ) as $campo ) {
+            if ( ! empty( $datos[ $campo ] ) ) {
+                $color = sanitize_hex_color( (string) $datos[ $campo ] );
+                if ( $color ) {
+                    $limpios[ $id ][ $campo ] = $color;
+                }
+            }
+        }
+
+        foreach ( array( 'voz', 'imagen' ) as $tipo ) {
+            $campo = 'usar_fondo_borde_' . $tipo;
+            $limpios[ $id ][ $campo ] = ! empty( $datos[ $campo ] ) ? 1 : 0;
+        }
+
         $limpios[ $id ]['radio'] = min(
             30,
             absint( $datos['radio'] ?? 8 )
         );
+
+        // Redondeo independiente de voz y cámara.
+        foreach ( array( 'radio_voz', 'radio_imagen' ) as $campo ) {
+            if ( isset( $datos[ $campo ] ) && $datos[ $campo ] !== '' ) {
+                $limpios[ $id ][ $campo ] = min(
+                    50,
+                    absint( $datos[ $campo ] )
+                );
+            }
+        }
 
         $limpios[ $id ]['placeholder'] =
             sanitize_text_field(

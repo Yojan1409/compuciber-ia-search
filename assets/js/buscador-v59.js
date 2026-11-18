@@ -1621,9 +1621,8 @@ function compuciberInicializarBuscadorPublico() {
                         .finally(
                             function () {
 
-                                imageButton.innerHTML =
-                                    compuciber_icono_camara();
-
+                                // Conservar el SVG original de la cámara.
+                                // Ya no se reemplaza el icono durante el análisis.
                                 imageButton.classList.remove(
                                     'compuciber-image-loading'
                                 );

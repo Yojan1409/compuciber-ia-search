@@ -1252,6 +1252,7 @@ function compuciber_ai_search_shortcode( $atts = array() )
             'solo_barra'      => 'no',
             'solo_resultados' => 'no',
             'perfil'          => '',
+            'estilo_predeterminado' => 'si',
         ),
         is_array( $atts ) ? $atts : array(),
         'ai_product_search'
@@ -1511,19 +1512,46 @@ function compuciber_ai_search_shortcode( $atts = array() )
     */
     $cis_estilo_input = '';
     $cis_estilo_boton = '';
+    $cis_estilo_voz = '';
+    $cis_estilo_imagen = '';
     $cis_estilo_sugerencias = '';
     $cis_placeholder = '¿Qué producto estás buscando?';
 
-    if ( $perfil_id !== '' ) {
+    /*
+     * CAMBIO 110
+     * Elegir los estilos según el origen.
+     *
+     * Con perfil: estilos propios del perfil.
+     * Sin perfil: estilos predeterminados.
+     * Elementor: puede excluir los predeterminados.
+     */
 
-        $cis_estilos = get_option(
-            'compuciber_estilos_perfiles',
-            array()
-        );
+    $cis_usar_estilo_predeterminado = (
+        $perfil_id === ''
+        && strtolower( (string) $atts['estilo_predeterminado'] ) !== 'no'
+    );
 
-        $cis_datos = is_array( $cis_estilos )
-            ? ( $cis_estilos[ $perfil_id ] ?? array() )
-            : array();
+    if ( $perfil_id !== '' || $cis_usar_estilo_predeterminado ) {
+
+        if ( $perfil_id !== '' ) {
+
+            $cis_estilos = get_option(
+                'compuciber_estilos_perfiles',
+                array()
+            );
+
+            $cis_datos = is_array( $cis_estilos )
+                ? ( $cis_estilos[ $perfil_id ] ?? array() )
+                : array();
+
+        } else {
+
+            $cis_datos = get_option(
+                'compuciber_estilo_predeterminado',
+                array()
+            );
+
+        }
 
         if ( is_array( $cis_datos ) && ! empty( $cis_datos ) ) {
 
@@ -1566,6 +1594,64 @@ function compuciber_ai_search_shortcode( $atts = array() )
                 $texto_boton,
                 $radio
             );
+
+            if ( isset( $cis_datos['radio_voz'] ) ) {
+                $cis_estilo_voz = sprintf(
+                    'border-radius:%dpx;',
+                    min( 50, absint( $cis_datos['radio_voz'] ) )
+                );
+            }
+
+            if ( isset( $cis_datos['radio_imagen'] ) ) {
+                $cis_estilo_imagen = sprintf(
+                    'border-radius:%dpx;',
+                    min( 50, absint( $cis_datos['radio_imagen'] ) )
+                );
+            }
+
+            $cis_color_voz = sanitize_hex_color(
+                (string) ( $cis_datos['color_voz'] ?? '' )
+            );
+
+            if ( $cis_color_voz ) {
+                $cis_estilo_voz .= 'color:' . $cis_color_voz . ';';
+            }
+
+            $cis_color_imagen = sanitize_hex_color(
+                (string) ( $cis_datos['color_imagen'] ?? '' )
+            );
+
+            if ( $cis_color_imagen ) {
+                $cis_estilo_imagen .= 'color:' . $cis_color_imagen . ';';
+            }
+
+            // Aplicar fondo y contorno solo cuando el perfil los habilita.
+            foreach ( array( 'voz', 'imagen' ) as $cis_tipo ) {
+
+                if ( empty( $cis_datos[ 'usar_fondo_borde_' . $cis_tipo ] ) ) {
+                    continue;
+                }
+
+                $cis_fondo_control = sanitize_hex_color(
+                    (string) ( $cis_datos[ 'fondo_' . $cis_tipo ] ?? '' )
+                ) ?: '#ffffff';
+
+                $cis_borde_control = sanitize_hex_color(
+                    (string) ( $cis_datos[ 'borde_' . $cis_tipo ] ?? '' )
+                ) ?: '#d1d5db';
+
+                $cis_css_control = sprintf(
+                    'background-color:%s;border:1px solid %s;',
+                    $cis_fondo_control,
+                    $cis_borde_control
+                );
+
+                if ( $cis_tipo === 'voz' ) {
+                    $cis_estilo_voz .= $cis_css_control;
+                } else {
+                    $cis_estilo_imagen .= $cis_css_control;
+                }
+            }
 
             $cis_estilo_sugerencias = sprintf(
                 'background-color:%s;color:%s;border-color:%s;border-radius:%dpx;',
@@ -1620,16 +1706,23 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     <button
                         type="button"
                         class="compuciber-voice-button"
+
+                        style="<?php echo esc_attr( $cis_estilo_voz ); ?>"
+
                         aria-label="Buscar por voz"
                         title="Buscar por voz"
                     >
-                        <svg 
+                        <svg
                             class="compuciber-mic-svg"
                             viewBox="0 0 24 24"
                             aria-hidden="true"
+                            focusable="false"
+                            style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"
                         >
-                            <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
-                            <path d="M19 11h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21H8v2h8v-2h-3v-3.08A7 7 0 0 0 19 11z"/>
+                            <rect x="9" y="2" width="6" height="12" rx="3"/>
+                            <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+                            <path d="M12 19v3"/>
+                            <path d="M8 22h8"/>
                         </svg>
                     </button>
 
@@ -1640,6 +1733,7 @@ function compuciber_ai_search_shortcode( $atts = array() )
                     <button
                         type="button"
                         class="compuciber-image-button"
+                        style="<?php echo esc_attr( $cis_estilo_imagen ); ?>"
                         aria-label="Buscar por imagen"
                         title="Buscar por imagen"
                     >
@@ -1647,8 +1741,11 @@ function compuciber_ai_search_shortcode( $atts = array() )
                             class="compuciber-image-svg"
                             viewBox="0 0 24 24"
                             aria-hidden="true"
+                            focusable="false"
+                            style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"
                         >
-                            <path d="M9 3l-2 3H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-3l-2-3H9zm3 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/>
+                            <path d="M10 4h4l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3z"/>
+                            <circle cx="12" cy="13.5" r="3.5"/>
                         </svg>
                     </button>
 
@@ -1661,9 +1758,28 @@ function compuciber_ai_search_shortcode( $atts = array() )
 
                 <?php endif; ?>
 
-                <button type="submit"
-                        style="<?php echo esc_attr( $cis_estilo_boton ); ?>">
-                    🔎 Buscar
+                <button
+                    type="submit"
+                    class="compuciber-search-submit"
+                    style="<?php echo esc_attr( $cis_estilo_boton ); ?>display:inline-flex;align-items:center;justify-content:center;"
+                    aria-label="Buscar productos"
+                    title="Buscar productos"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                        focusable="false"
+                    >
+                        <circle cx="11" cy="11" r="7"/>
+                        <path d="M16 16l5 5"/>
+                    </svg>
                 </button>
 
             </div>

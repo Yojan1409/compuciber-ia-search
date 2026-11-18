@@ -9165,6 +9165,128 @@ function compuciber_ai_search_configuracion() {
         }
         ?>
 
+        <?php
+        // CAMBIO 109: formulario independiente del buscador sin perfil.
+        $cis_predeterminado = get_option(
+            'compuciber_estilo_predeterminado',
+            array()
+        );
+
+        if ( ! is_array( $cis_predeterminado ) ) {
+            $cis_predeterminado = array();
+        }
+
+        $cis_colores_predeterminados = array(
+            'fondo'        => array( 'Fondo del campo', '#ffffff' ),
+            'texto'        => array( 'Texto del campo', '#222222' ),
+            'borde'        => array( 'Borde del campo', '#d1d5db' ),
+            'boton'        => array( 'Fondo de la lupa', '#1e3a5f' ),
+            'texto_boton'  => array( 'Color de la lupa', '#ffffff' ),
+            'color_voz'    => array( 'Color del micrófono', '#222222' ),
+            'color_imagen' => array( 'Color de la cámara', '#222222' ),
+            'fondo_voz'    => array( 'Fondo del micrófono', '#ffffff' ),
+            'borde_voz'    => array( 'Borde del micrófono', '#d1d5db' ),
+            'fondo_imagen' => array( 'Fondo de la cámara', '#ffffff' ),
+            'borde_imagen' => array( 'Borde de la cámara', '#d1d5db' ),
+        );
+        ?>
+
+        <div class="postbox" style="padding:16px;max-width:900px;margin-top:20px;">
+            <h2 style="margin-top:0;">Estilo del buscador predeterminado</h2>
+
+            <p class="description">
+                Configuración independiente de los perfiles.
+                Por ahora se guarda sin cambiar la apariencia pública;
+                su aplicación se conectará en el siguiente cambio.
+            </p>
+
+            <form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>">
+                <?php settings_fields( 'compuciber_estilo_predeterminado_settings_group' ); ?>
+
+                <?php foreach ( $cis_colores_predeterminados as $cis_campo => $cis_info ) : ?>
+                    <p>
+                        <label>
+                            <?php echo esc_html( $cis_info[0] ); ?>
+                            <input
+                                type="color"
+                                name="compuciber_estilo_predeterminado[<?php echo esc_attr( $cis_campo ); ?>]"
+                                value="<?php echo esc_attr(
+                                    sanitize_hex_color(
+                                        (string) ( $cis_predeterminado[ $cis_campo ] ?? '' )
+                                    ) ?: $cis_info[1]
+                                ); ?>"
+                            >
+                        </label>
+                    </p>
+                <?php endforeach; ?>
+
+                <?php foreach (
+                    array(
+                        'radio'        => array( 'Redondeo del campo y lupa', 30, 8 ),
+                        'radio_voz'    => array( 'Redondeo del micrófono', 50, 8 ),
+                        'radio_imagen' => array( 'Redondeo de la cámara', 50, 8 ),
+                    ) as $cis_campo => $cis_info
+                ) : ?>
+                    <p>
+                        <label>
+                            <?php echo esc_html( $cis_info[0] ); ?> (px)
+                            <input
+                                type="number"
+                                min="0"
+                                max="<?php echo esc_attr( $cis_info[1] ); ?>"
+                                name="compuciber_estilo_predeterminado[<?php echo esc_attr( $cis_campo ); ?>]"
+                                value="<?php echo esc_attr(
+                                    min(
+                                        $cis_info[1],
+                                        absint( $cis_predeterminado[ $cis_campo ] ?? $cis_info[2] )
+                                    )
+                                ); ?>"
+                            >
+                        </label>
+                    </p>
+                <?php endforeach; ?>
+
+                <?php foreach (
+                    array( 'voz' => 'micrófono', 'imagen' => 'cámara' )
+                    as $cis_tipo => $cis_nombre
+                ) :
+                    $cis_campo = 'usar_fondo_borde_' . $cis_tipo;
+                ?>
+                    <p>
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="compuciber_estilo_predeterminado[<?php echo esc_attr( $cis_campo ); ?>]"
+                                value="1"
+                                <?php checked( ! empty( $cis_predeterminado[ $cis_campo ] ) ); ?>
+                            >
+                            Aplicar fondo y contorno personalizados al <?php echo esc_html( $cis_nombre ); ?>
+                        </label>
+                    </p>
+                <?php endforeach; ?>
+
+                <p>
+                    <label>
+                        Texto del campo de búsqueda
+                        <input
+                            type="text"
+                            class="regular-text"
+                            maxlength="120"
+                            name="compuciber_estilo_predeterminado[placeholder]"
+                            value="<?php echo esc_attr(
+                                $cis_predeterminado['placeholder'] ?? ''
+                            ); ?>"
+                        >
+                    </label>
+                </p>
+
+                <?php submit_button(
+                    'Guardar estilo predeterminado',
+                    'secondary'
+                ); ?>
+            </form>
+        </div>
+
         <div class="postbox" style="padding:16px;max-width:900px;margin-top:20px;">
 
             <h2 style="margin-top:0;">
@@ -9493,11 +9615,13 @@ function compuciber_ai_search_configuracion() {
                     }
 
                     $cis_colores_base = array(
-                        'fondo'       => '#ffffff',
-                        'texto'       => '#222222',
-                        'borde'       => '#d1d5db',
-                        'boton'       => '#1e3a5f',
-                        'texto_boton' => '#ffffff',
+                        'fondo'        => '#ffffff',
+                        'texto'        => '#222222',
+                        'borde'        => '#d1d5db',
+                        'boton'        => '#1e3a5f',
+                        'texto_boton'  => '#ffffff',
+                        'color_voz'    => '#222222',
+                        'color_imagen' => '#222222',
                     );
 
                     $cis_estilo_perfil = isset(
@@ -9509,11 +9633,13 @@ function compuciber_ai_search_configuracion() {
                         : array();
 
                     $cis_etiquetas_colores = array(
-                        'fondo'       => 'Fondo',
-                        'texto'       => 'Texto',
-                        'borde'       => 'Borde',
-                        'boton'       => 'Botón de búsqueda',
-                        'texto_boton' => 'Texto del botón',
+                        'fondo'        => 'Fondo',
+                        'texto'        => 'Texto',
+                        'borde'        => 'Borde',
+                        'boton'        => 'Botón de búsqueda (lupa)',
+                        'texto_boton'  => 'Color de la lupa',
+                        'color_voz'    => 'Color del icono de voz',
+                        'color_imagen' => 'Color del icono de cámara',
                     );
                     ?>
 
@@ -9550,6 +9676,16 @@ function compuciber_ai_search_configuracion() {
                                     'boton',
                                     'texto_boton',
                                     'radio',
+                                    'radio_voz',
+                                    'radio_imagen',
+                                    'color_voz',
+                                    'color_imagen',
+                                    'fondo_voz',
+                                    'borde_voz',
+                                    'fondo_imagen',
+                                    'borde_imagen',
+                                    'usar_fondo_borde_voz',
+                                    'usar_fondo_borde_imagen',
                                     'placeholder'
                                 ) as $cis_campo
                             ) :
@@ -9594,6 +9730,59 @@ function compuciber_ai_search_configuracion() {
 
                         <?php endforeach; ?>
 
+                        <h4>Fondo y contorno de los botones</h4>
+
+                        <?php foreach (
+                            array(
+                                'voz'    => 'micrófono',
+                                'imagen' => 'cámara'
+                            ) as $cis_tipo => $cis_nombre
+                        ) :
+                            $cis_activar = 'usar_fondo_borde_' . $cis_tipo;
+                        ?>
+                            <p>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        name="compuciber_estilos_perfiles[<?php echo esc_attr( $cis_id ); ?>][<?php echo esc_attr( $cis_activar ); ?>]"
+                                        value="1"
+                                        <?php checked( ! empty( $cis_estilo_perfil[ $cis_activar ] ) ); ?>
+                                    >
+                                    Personalizar fondo y contorno de <?php echo esc_html( $cis_nombre ); ?>
+                                </label>
+                            </p>
+
+                            <?php foreach (
+                                array(
+                                    'fondo' => '#ffffff',
+                                    'borde' => '#d1d5db'
+                                ) as $cis_tipo_color => $cis_default
+                            ) :
+                                $cis_campo_color = $cis_tipo_color . '_' . $cis_tipo;
+                            ?>
+                                <p>
+                                    <label>
+                                        <?php echo esc_html(
+                                            ucfirst( $cis_tipo_color ) . ' de ' . $cis_nombre
+                                        ); ?>
+
+                                        <input
+                                            type="color"
+                                            name="compuciber_estilos_perfiles[<?php echo esc_attr( $cis_id ); ?>][<?php echo esc_attr( $cis_campo_color ); ?>]"
+                                            value="<?php echo esc_attr(
+                                                sanitize_hex_color(
+                                                    (string) (
+                                                        $cis_estilo_perfil[ $cis_campo_color ] ?? ''
+                                                    )
+                                                ) ?: $cis_default
+                                            ); ?>"
+                                        >
+                                    </label>
+                                </p>
+                            <?php endforeach; ?>
+
+                        <?php endforeach; ?>
+
                         <p>
                             <label>
                                 Redondeo de bordes (0 a 30 px)
@@ -9614,6 +9803,31 @@ function compuciber_ai_search_configuracion() {
                                     ); ?>">
                             </label>
                         </p>
+
+                        <?php foreach (
+                            array(
+                                'radio_voz'    => 'Redondeo del botón de voz (0 a 50 px)',
+                                'radio_imagen' => 'Redondeo del botón de cámara (0 a 50 px)',
+                            ) as $cis_campo => $cis_etiqueta
+                        ) : ?>
+                            <p>
+                                <label>
+                                    <?php echo esc_html( $cis_etiqueta ); ?>
+
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="50"
+                                        name="compuciber_estilos_perfiles[<?php echo esc_attr( $cis_id ); ?>][<?php echo esc_attr( $cis_campo ); ?>]"
+                                        value="<?php echo esc_attr(
+                                            isset( $cis_estilo_perfil[ $cis_campo ] )
+                                                ? min( 50, absint( $cis_estilo_perfil[ $cis_campo ] ) )
+                                                : 8
+                                        ); ?>"
+                                    >
+                                </label>
+                            </p>
+                        <?php endforeach; ?>
 
                         <p>
                             <label>
