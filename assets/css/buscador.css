@@ -1027,7 +1027,7 @@
     color: #252535;
     border: 2px solid #7b18b8;
     border-radius: 18px;
-    box-shadow: 0 6px 15px rgba(123, 24, 184, 0.16);
+    box-shadow: none;
     font-size: 16px;
 }
 
