@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Compuciber AI Search
  * Description: Buscador inteligente de productos para Compuciber.
- * Version: 2.1.3
+ * Version: 2.1.4
  * Author: Compuciber
  */
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 if ( ! defined( 'COMPUCIBER_AI_SEARCH_VERSION' ) ) {
     define(
         'COMPUCIBER_AI_SEARCH_VERSION',
-        '2.1.3'
+        '2.1.4'
     );
 }
 
@@ -199,25 +199,41 @@ add_action(
 function compuciber_cargar_buscador_js() {
 
     /*
-     * Versionar automáticamente los archivos
-     * cuando se modifica su contenido.
+     * CAMBIO 115
+     * Versionado por contenido real de CSS y JavaScript.
+     *
+     * Si cambia el contenido del archivo, cambia su URL.
+     * No depende de la fecha conservada dentro del ZIP.
      */
+
+    $cis_ruta_css = plugin_dir_path( __FILE__ )
+        . 'assets/css/buscador.css';
+
+    $cis_ruta_js = plugin_dir_path( __FILE__ )
+        . 'assets/js/buscador-v59.js';
+
+    $cis_version_css = COMPUCIBER_AI_SEARCH_VERSION
+        . '-'
+        . substr( md5_file( $cis_ruta_css ), 0, 12 );
+
+    $cis_version_js = COMPUCIBER_AI_SEARCH_VERSION
+        . '-'
+        . substr( md5_file( $cis_ruta_js ), 0, 12 );
+
     wp_enqueue_style(
         'compuciber-buscador',
-        plugin_dir_url( __FILE__ ) . 'assets/css/buscador.css',
+        plugin_dir_url( __FILE__ )
+            . 'assets/css/buscador.css',
         array(),
-        filemtime(
-            plugin_dir_path( __FILE__ ) . 'assets/css/buscador.css'
-        )
+        $cis_version_css
     );
 
     wp_enqueue_script(
         'compuciber-buscador',
-        plugin_dir_url( __FILE__ ) . 'assets/js/buscador-v59.js',
+        plugin_dir_url( __FILE__ )
+            . 'assets/js/buscador-v59.js',
         array(),
-        filemtime(
-            plugin_dir_path( __FILE__ ) . 'assets/js/buscador-v59.js'
-        ),
+        $cis_version_js,
         true
     );
 

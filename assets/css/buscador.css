@@ -988,145 +988,179 @@
 
 
 /*
- * CAMBIO 112 - BARRA INTEGRADA
- * Conserva el comportamiento del cambio 111:
- * voz e imagen solo aparecen al enfocar el buscador.
+ * CAMBIO 114 - DISEÑO INTEGRADO TIPO HIRAOKA
+ *
+ * Un solo campo con lupa a la izquierda.
+ * Micrófono y cámara a la derecha.
+ * Conserva la aparición al enfocar del cambio 111.
  */
 
-/* Un solo contenedor visual */
+/* Contenedor único */
 .compuciber-ai-search .compuciber-search-box {
     position: relative !important;
     display: block !important;
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    box-sizing: border-box;
     gap: 0 !important;
-    --cis-espacio-iconos: 56px;
+
+    --cis-espacio-derecho: 16px;
 }
 
-/* Reservar espacio para los iconos solo al enfocar */
+/* Espacio al aparecer un botón opcional */
 .compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button),
 .compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-image-button) {
-    --cis-espacio-iconos: 100px;
+    --cis-espacio-derecho: 60px;
 }
 
+/* Espacio para micrófono y cámara */
 .compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button) {
-    --cis-espacio-iconos: 144px;
+    --cis-espacio-derecho: 104px;
 }
 
-/* El campo conserva su fondo, borde, color y redondez */
+/* Campo principal con el borde compartido */
 .compuciber-ai-search .compuciber-search-box>.compuciber-search-input {
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    min-height: 48px;
-    height: 48px;
-    box-sizing: border-box !important;
-    flex: none !important;
-    margin: 0 !important;
-    padding-right: var(--cis-espacio-iconos) !important;
-}
+    height: 60px;
+    min-height: 60px;
 
-/* Posición interior de los botones */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box>.compuciber-image-button,
-.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
-    position: absolute !important;
-    top: 50%;
-    transform: translateY(-50%) !important;
-    z-index: 2;
+    flex: none !important;
     grid-column: auto !important;
     grid-row: auto !important;
+
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding-left: 66px !important;
+    padding-right: var(--cis-espacio-derecho) !important;
+
+    /* Valores visuales predeterminados */
+    background-color: #ffffff;
+    color: #222222;
+    border: 1px solid #222222;
+    border-radius: 8px;
+    font-size: 17px;
+}
+
+/* Posicionamiento común de los iconos */
+.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit,
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+.compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 2;
+
+    box-sizing: border-box !important;
     flex: none !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+
     margin: 0 !important;
     padding: 0 !important;
     align-items: center;
     justify-content: center;
+
+    box-shadow: none;
 }
 
-/* Lupa siempre visible, dentro del campo */
+/* Lupa integrada a la izquierda */
 .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
-    right: 4px;
-    width: 44px !important;
-    min-width: 44px !important;
-    max-width: 44px !important;
-    height: 40px !important;
-    min-height: 40px !important;
+    left: 12px !important;
+    right: auto !important;
+
+    border: 0;
+    background-color: transparent;
+    color: #222222;
 }
 
-/* Cámara y micrófono sin contornos adicionales */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+/* Cámara dentro del borde derecho */
 .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
-    width: 36px !important;
-    min-width: 36px !important;
-    max-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
+    right: 12px !important;
+    left: auto !important;
 
-/* Cámara a la izquierda de la lupa */
-.compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
-    right: 54px;
+    border: 0;
+    background-color: transparent;
 }
 
 /* Micrófono a la izquierda de la cámara */
 .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button {
-    right: 98px;
+    right: 56px !important;
+    left: auto !important;
+
+    border: 0;
+    background-color: transparent;
 }
 
-/* Si la cámara está deshabilitada */
+/* Cuando no existe el botón de cámara */
 .compuciber-ai-search .compuciber-search-box:not(:has(> .compuciber-image-button))>.compuciber-voice-button {
-    right: 54px;
+    right: 12px !important;
 }
 
-/* Aparición suave sin mover los botones de su posición */
-.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-image-button {
-    animation: cis-integrado-aparecer 0.2s ease both !important;
-}
-
-@keyframes cis-integrado-aparecer {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-
-    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button,
-    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-image-button {
-        animation: none !important;
-    }
-}
-
-/*
- * CAMBIO 113
- * Evitar que "Escuchando..." se superponga
- * con el botón de la cámara.
- */
-
-/* Ocultar únicamente el texto visual al escuchar */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening .compuciber-voice-text {
+/* Evitar que "Escuchando..." o "Procesando..."
+   desborde el espacio del micrófono */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button .compuciber-voice-text {
     display: none !important;
 }
 
-/* Mantener la señal visual de micrófono activo */
-.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
+/* Mantener animación del micrófono activo */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening {
     animation: compuciber-voice-pulse 1s infinite !important;
 }
 
-/* Respetar preferencias de accesibilidad */
+/* No mostrar micrófono si JavaScript lo deshabilitó */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button[style*="display: none"],
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button[style*="display:none"] {
+    display: none !important;
+}
+
+/* Adaptación a celulares */
+@media (max-width: 600px) {
+    .compuciber-ai-search .compuciber-search-box>.compuciber-search-input {
+        height: 52px;
+        min-height: 52px;
+        padding-left: 52px !important;
+        font-size: 14px;
+    }
+
+    .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
+        left: 8px !important;
+    }
+
+    .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+    .compuciber-ai-search .compuciber-search-box>.compuciber-image-button,
+    .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        min-height: 36px !important;
+    }
+
+    .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
+        right: 8px !important;
+    }
+
+    .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button {
+        right: 48px !important;
+    }
+
+    .compuciber-ai-search .compuciber-search-box:not(:has(> .compuciber-image-button))>.compuciber-voice-button {
+        right: 8px !important;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
+    .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening {
         animation: none !important;
     }
 }
