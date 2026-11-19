@@ -1113,8 +1113,7 @@ function compuciberInicializarBuscadorPublico() {
                             );
 
                             voiceButton.innerHTML =
-                                compuciber_icono_microfono() +
-                                '<span class="compuciber-voice-text">Escuchando...</span>';
+                                compuciber_icono_microfono();
 
                             voiceButton.setAttribute(
                                 'aria-label',
@@ -1234,8 +1233,7 @@ function compuciberInicializarBuscadorPublico() {
                         }
 
                         voiceButton.innerHTML =
-                            compuciber_icono_microfono() +
-                            '<span class="compuciber-voice-text">Procesando...</span>';
+                            compuciber_icono_microfono();
 
                         input.value = texto;
 

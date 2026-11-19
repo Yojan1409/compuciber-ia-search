@@ -988,64 +988,66 @@
 
 
 /*
- * CAMBIO 114 - DISEÑO INTEGRADO TIPO HIRAOKA
+ * CAMBIO 116 - DISEÑO INTEGRADO CONFIGURABLE
  *
- * Un solo campo con lupa a la izquierda.
- * Micrófono y cámara a la derecha.
- * Conserva la aparición al enfocar del cambio 111.
+ * Lupa izquierda, campo central, voz e imagen derecha.
+ * El cambio 111 sigue controlando su aparición.
+ * Los estilos guardados en WordPress tienen prioridad.
  */
 
-/* Contenedor único */
+/* El contenedor organiza los botones sobre el campo */
 .compuciber-ai-search .compuciber-search-box {
     position: relative !important;
     display: block !important;
-    width: 100%;
-    min-width: 0;
+    width: 100% !important;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     gap: 0 !important;
-
-    --cis-espacio-derecho: 16px;
 }
 
-/* Espacio al aparecer un botón opcional */
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button),
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-image-button) {
-    --cis-espacio-derecho: 60px;
-}
-
-/* Espacio para micrófono y cámara */
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button) {
-    --cis-espacio-derecho: 104px;
-}
-
-/* Campo principal con el borde compartido */
+/* Campo con aspecto predeterminado tipo Hiraoka */
 .compuciber-ai-search .compuciber-search-box>.compuciber-search-input {
     display: block !important;
     width: 100% !important;
-    min-width: 0 !important;
     max-width: 100% !important;
-    height: 60px;
-    min-height: 60px;
-
+    min-width: 0 !important;
     flex: none !important;
     grid-column: auto !important;
     grid-row: auto !important;
-
     box-sizing: border-box !important;
     margin: 0 !important;
-    padding-left: 66px !important;
-    padding-right: var(--cis-espacio-derecho) !important;
 
-    /* Valores visuales predeterminados */
+    height: 56px;
+    min-height: 56px;
+    padding-left: 78px !important;
+    padding-right: 16px !important;
+
     background-color: #ffffff;
-    color: #222222;
-    border: 1px solid #222222;
-    border-radius: 8px;
-    font-size: 17px;
+    color: #252535;
+    border: 2px solid #7b18b8;
+    border-radius: 18px;
+    box-shadow: 0 6px 15px rgba(123, 24, 184, 0.16);
+    font-size: 16px;
 }
 
-/* Posicionamiento común de los iconos */
+/* Apariencia predeterminada del texto de ayuda */
+.compuciber-ai-search .compuciber-search-box>.compuciber-search-input::placeholder {
+    color: #797987;
+    opacity: 1;
+}
+
+/* Reservar espacio al aparecer los botones */
+.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button)>.compuciber-search-input,
+.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-image-button)>.compuciber-search-input {
+    padding-right: 64px !important;
+}
+
+.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
+    padding-right: 110px !important;
+}
+
+/* Posición común de los tres botones */
 .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit,
 .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
 .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
@@ -1053,114 +1055,164 @@
     top: 50% !important;
     transform: translateY(-50%) !important;
     z-index: 2;
-
-    box-sizing: border-box !important;
     flex: none !important;
     grid-column: auto !important;
     grid-row: auto !important;
-
-    width: 40px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
-    height: 40px !important;
-    min-height: 40px !important;
-
+    box-sizing: border-box !important;
     margin: 0 !important;
     padding: 0 !important;
     align-items: center;
     justify-content: center;
+}
 
+/* Lupa morada a la izquierda */
+.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
+    left: 9px !important;
+    right: auto !important;
+
+    display: inline-flex !important;
+    width: 54px !important;
+    min-width: 54px !important;
+    max-width: 54px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+
+    background-color: #7b18b8;
+    color: #ffffff;
+    border: 0;
+    border-radius: 13px;
+}
+
+/* Tamaño de la lupa */
+.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit svg {
+    width: 25px;
+    height: 25px;
+}
+
+/* Separador entre la lupa y el texto */
+.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit::after {
+    content: "";
+    position: absolute;
+    right: -12px;
+    top: 15%;
+    height: 70%;
+    border-left: 1px solid #d6d6df;
+    pointer-events: none;
+}
+
+/* Posición y tamaño de voz e imagen */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
+.compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
+    width: 43px !important;
+    min-width: 43px !important;
+    max-width: 43px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+
+    background-color: transparent;
+    color: #242432;
+    border: 0;
+    border-radius: 0;
     box-shadow: none;
 }
 
-/* Lupa integrada a la izquierda */
-.compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
-    left: 12px !important;
-    right: auto !important;
-
-    border: 0;
-    background-color: transparent;
-    color: #222222;
-}
-
-/* Cámara dentro del borde derecho */
+/* Cámara a la derecha */
 .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
-    right: 12px !important;
+    right: 7px !important;
     left: auto !important;
-
-    border: 0;
-    background-color: transparent;
 }
 
 /* Micrófono a la izquierda de la cámara */
 .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button {
-    right: 56px !important;
+    right: 53px !important;
     left: auto !important;
-
-    border: 0;
-    background-color: transparent;
 }
 
-/* Cuando no existe el botón de cámara */
-.compuciber-ai-search .compuciber-search-box:not(:has(> .compuciber-image-button))>.compuciber-voice-button {
-    right: 12px !important;
+/* Si no hay cámara, el micrófono ocupa su lugar */
+.compuciber-ai-search .compuciber-search-box:not( :has(> .compuciber-image-button))>.compuciber-voice-button {
+    right: 7px !important;
 }
 
-/* Evitar que "Escuchando..." o "Procesando..."
-   desborde el espacio del micrófono */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button .compuciber-voice-text {
+/* Separadores discretos.
+ * Si el usuario configuró bordes individuales,
+ * conservamos esos bordes personalizados.
+ */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button:not([style*="border:"]),
+.compuciber-ai-search .compuciber-search-box>.compuciber-image-button:not([style*="border:"]) {
+    border-left: 1px solid #d6d6df;
+}
+
+/* Iconos compactos */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button svg,
+.compuciber-ai-search .compuciber-search-box>.compuciber-image-button svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* Evitar que los mensajes largos ocupen
+ * espacio dentro del micrófono */
+.compuciber-ai-search .compuciber-voice-text {
     display: none !important;
 }
 
-/* Mantener animación del micrófono activo */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening {
+/* La animación de escucha prevalece
+ * sobre la aparición inicial */
+.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
     animation: compuciber-voice-pulse 1s infinite !important;
 }
 
-/* No mostrar micrófono si JavaScript lo deshabilitó */
+/* Respetar cuando JavaScript oculta un botón */
 .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button[style*="display: none"],
 .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button[style*="display:none"] {
     display: none !important;
 }
 
-/* Adaptación a celulares */
+/* Distribución móvil */
 @media (max-width: 600px) {
     .compuciber-ai-search .compuciber-search-box>.compuciber-search-input {
-        height: 52px;
-        min-height: 52px;
-        padding-left: 52px !important;
+        height: 50px;
+        min-height: 50px;
+        padding-left: 63px !important;
         font-size: 14px;
     }
 
     .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
-        left: 8px !important;
+        left: 6px !important;
+        width: 43px !important;
+        min-width: 43px !important;
+        max-width: 43px !important;
+        height: 38px !important;
+        min-height: 38px !important;
     }
 
     .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
-    .compuciber-ai-search .compuciber-search-box>.compuciber-image-button,
-    .compuciber-ai-search .compuciber-search-box>.compuciber-search-submit {
-        width: 36px !important;
-        min-width: 36px !important;
-        max-width: 36px !important;
-        height: 36px !important;
-        min-height: 36px !important;
+    .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        height: 40px !important;
+        min-height: 40px !important;
     }
 
     .compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
-        right: 8px !important;
+        right: 5px !important;
     }
 
     .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button {
-        right: 48px !important;
+        right: 47px !important;
     }
 
-    .compuciber-ai-search .compuciber-search-box:not(:has(> .compuciber-image-button))>.compuciber-voice-button {
-        right: 8px !important;
+    .compuciber-ai-search .compuciber-search-box:not( :has(> .compuciber-image-button))>.compuciber-voice-button {
+        right: 5px !important;
+    }
+
+    .compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
+        padding-right: 98px !important;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening {
+    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
         animation: none !important;
     }
 }
