@@ -1107,3 +1107,26 @@
         animation: none !important;
     }
 }
+
+/*
+ * CAMBIO 113
+ * Evitar que "Escuchando..." se superponga
+ * con el botón de la cámara.
+ */
+
+/* Ocultar únicamente el texto visual al escuchar */
+.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button.compuciber-voice-listening .compuciber-voice-text {
+    display: none !important;
+}
+
+/* Mantener la señal visual de micrófono activo */
+.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
+    animation: compuciber-voice-pulse 1s infinite !important;
+}
+
+/* Respetar preferencias de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+    .compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button.compuciber-voice-listening {
+        animation: none !important;
+    }
+}
