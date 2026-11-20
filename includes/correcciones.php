@@ -14,23 +14,118 @@ if ( ! defined( 'ABSPATH' ) ) {
 function compuciber_obtener_correcciones() {
 
     $correcciones = array(
+
+        // LAPTOPS
         'laptp'       => 'laptop',
         'lapto'       => 'laptop',
         'laptot'      => 'laptop',
-        'tecldao'     => 'teclado',
-        'tecldo'      => 'teclado',
+        'latop'       => 'laptop',
+        'lapotp'      => 'laptop',
+        'laptpo'      => 'laptop',
+        'lapptop'     => 'laptop',
+        'latpop'      => 'laptop',
+
+        // IMPRESORAS
+        'inpresora'   => 'impresora',
+        'impesora'    => 'impresora',
+        'impresra'    => 'impresora',
+        'impresroa'   => 'impresora',
+        'impersora'   => 'impresora',
+        'impreosra'   => 'impresora',
+        'imprresora'  => 'impresora',
+        'imrpesora'   => 'impresora',
+        'rimpresora'  => 'impresora',
+        'impresoraa'  => 'impresora',
+
+        // MOUSE
         'mause'       => 'mouse',
         'maus'        => 'mouse',
         'mou'         => 'mouse',
         'mau'         => 'mouse',
+        'moues'       => 'mouse',
+        'mosue'       => 'mouse',
+        'muose'       => 'mouse',
+        'mose'        => 'mouse',
+        'moouse'      => 'mouse',
+        'mouce'       => 'mouse',
+
+        // TECLADOS
+        'tecldao'     => 'teclado',
+        'tecldo'      => 'teclado',
+        'tecaldo'     => 'teclado',
+        'telcado'     => 'teclado',
+        'tecado'      => 'teclado',
+        'tecladp'     => 'teclado',
+        'tecledo'     => 'teclado',
+        'tecladdo'    => 'teclado',
+
+        // MONITORES
+        'monior'      => 'monitor',
+        'monitr'      => 'monitor',
+        'monitro'     => 'monitor',
+        'montior'     => 'monitor',
+        'monitoor'    => 'monitor',
+        'monotor'     => 'monitor',
+
+        // ROUTERS
+        'ruter'       => 'router',
+        'routter'     => 'router',
+        'rotuer'      => 'router',
+        'roter'       => 'router',
+        'routre'      => 'router',
+
+        // TABLETS
+        'tabelt'      => 'tablet',
+        'tabet'       => 'tablet',
+        'talbet'      => 'tablet',
+        'tablett'     => 'tablet',
+
+        // CARGADORES
+        'cargdor'     => 'cargador',
+        'cargdaor'    => 'cargador',
+        'caragdor'    => 'cargador',
+        'cargadorr'   => 'cargador',
+
+        // COMPUTADORAS
+        'computdora'  => 'computadora',
+        'compuadora'  => 'computadora',
+        'computadra'  => 'computadora',
+        'compuatora'  => 'computadora',
+
+        // CAMARAS WEB
+        'webcan'      => 'webcam',
+        'wecbam'      => 'webcam',
+        'webcma'      => 'webcam',
+
+        // PARLANTES
+        'parlnate'    => 'parlante',
+        'parlate'     => 'parlante',
+        'parlantee'   => 'parlante',
+
+        // PANTALLAS
+        'pantala'     => 'pantalla',
+        'pantallla'   => 'pantalla',
+
+        // PROYECTORES
+        'proyecotr'   => 'proyector',
+        'proyetor'    => 'proyector',
+        'proyectro'   => 'proyector',
+
+        // ESCANERES
+        'escnaer'     => 'escáner',
+        'escner'      => 'escáner',
+
+        // CAMARAS
+        'camra'       => 'cámara',
+        'cammara'     => 'cámara',
+
+        // MARCAS Y TERMINOS GENERALES EXISTENTES
         'logitec'     => 'logitech',
         'logitehc'    => 'logitech',
+        'samsumg'     => 'samsung',
         'inalambrico' => 'inalámbrico',
         'wireles'     => 'wireless',
-        'inpresora'   => 'impresora',
-        'monior'      => 'monitor',
-        'samsumg'     => 'samsung',
-        
+
     );
 
     $personalizadas = get_option(

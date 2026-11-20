@@ -421,16 +421,12 @@ function compuciberInicializarBuscadorPublico() {
                             input.value =
                                 propuesta;
 
-                            input.dispatchEvent(
-                                new Event(
-                                    'input',
-                                    {
-                                        bubbles: true
-                                    }
-                                )
-                            );
+                            const formularioBusqueda =
+                                input.closest('form');
 
-                            input.focus();
+                            if (formularioBusqueda) {
+                                formularioBusqueda.submit();
+                            }
                         }
                     );
 
@@ -818,13 +814,12 @@ function compuciberInicializarBuscadorPublico() {
                                     input.value =
                                         terminoSugerido;
 
-                                    input.dispatchEvent(
-                                        new Event('input', {
-                                            bubbles: true
-                                        })
-                                    );
+                                    const formularioBusqueda =
+                                        input.closest('form');
 
-                                    input.focus();
+                                    if (formularioBusqueda) {
+                                        formularioBusqueda.submit();
+                                    }
                                 }
                             );
 
