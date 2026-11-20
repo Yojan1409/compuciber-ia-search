@@ -894,33 +894,6 @@
  * Campo y lupa juntos; voz e imagen aparecen al enfocar.
  */
 
-/* Botones opcionales ocultos sin ocupar espacio */
-.compuciber-ai-search .compuciber-search-box>.compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box>.compuciber-image-button {
-    display: none !important;
-}
-
-/* Mostrar solamente al interactuar con el buscador */
-.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-voice-button,
-.compuciber-ai-search .compuciber-search-box:focus-within>.compuciber-image-button {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    animation: cis-botones-aparecer 0.2s ease both;
-}
-
-@keyframes cis-botones-aparecer {
-    from {
-        opacity: 0;
-        transform: translateX(-5px) scale(0.96);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-    }
-}
-
 /* Corrección específica de la distribución móvil */
 @media (max-width: 600px) {
 
@@ -1038,12 +1011,12 @@
 }
 
 /* Reservar espacio al aparecer los botones */
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button)>.compuciber-search-input,
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-image-button)>.compuciber-search-input {
+.compuciber-ai-search .compuciber-search-box:has(> .compuciber-voice-button)>.compuciber-search-input,
+.compuciber-ai-search .compuciber-search-box:has(> .compuciber-image-button)>.compuciber-search-input {
     padding-right: 64px !important;
 }
 
-.compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
+.compuciber-ai-search .compuciber-search-box:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
     padding-right: 110px !important;
 }
 
@@ -1206,7 +1179,7 @@
         right: 5px !important;
     }
 
-    .compuciber-ai-search .compuciber-search-box:focus-within:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
+    .compuciber-ai-search .compuciber-search-box:has(> .compuciber-voice-button):has(> .compuciber-image-button)>.compuciber-search-input {
         padding-right: 98px !important;
     }
 }
